@@ -420,6 +420,99 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .carte-scan-puces { display: flex; flex-direction: column; gap: 4px; flex: none; }
 .carte-scan-puces svg { width: 15px; height: 15px; color: var(--bleu-grise); }
 
+/* ————— Feuille d'options de création ————————————————————————— */
+.feuille-fond {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(16, 26, 61, .45);
+  animation: fondu .2s ease both;
+}
+.feuille-fond[hidden] { display: none; }
+@keyframes fondu { from { opacity: 0; } to { opacity: 1; } }
+
+.feuille {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
+  background: var(--blanc);
+  border-radius: 22px 22px 0 0;
+  box-shadow: 0 -8px 30px rgba(19, 26, 56, .18);
+  animation: montee .26s cubic-bezier(.3, .8, .4, 1) both;
+}
+.feuille[hidden] { display: none; }
+@keyframes montee { from { transform: translateY(100%); } to { transform: none; } }
+
+.feuille-poignee {
+  width: 42px;
+  height: 4px;
+  margin: 0 auto 14px;
+  border-radius: 999px;
+  background: #D8DDEA;
+}
+
+.feuille-titre {
+  margin: 0 0 4px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--bordure);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--noir);
+  text-align: center;
+}
+
+.options-creation {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.option-creation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 12px 16px;
+  background: var(--gris-fond);
+  border: 1px solid var(--bordure);
+  border-radius: 16px;
+  text-align: center;
+  transition: transform .15s ease, border-color .15s ease, background .15s ease;
+}
+.option-creation:active { transform: scale(.97); background: #EAEDF5; }
+
+.option-icone {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 4px;
+  border-radius: 14px;
+}
+.option-icone svg { width: 24px; height: 24px; }
+/* Une teinte par façon de créer, reprise de l'icône */
+.option-icone--violet { background: #EFE9FE; color: #7C4DFF; }
+.option-icone--vert   { background: #E4F6EA; color: #1E9E52; }
+.option-icone--bleu   { background: var(--bleu-pastel); color: var(--marine); }
+.option-icone--orange { background: #FDEEE0; color: #D9772B; }
+
+.option-nom { font-size: 14px; font-weight: 700; color: var(--noir); }
+.option-detail { font-size: 12px; line-height: 1.35; color: var(--gris-texte); }
+
+.feuille .bouton-texte { margin-top: 14px; }
+
+@media (min-width: 560px) {
+  .feuille { left: 50%; right: auto; width: 440px; transform: translateX(-50%); }
+  @keyframes montee {
+    from { transform: translate(-50%, 100%); }
+    to { transform: translate(-50%, 0); }
+  }
+}
+
 /* ————— Page de scan ————————————————————————————————————————— */
 .scanner { margin-top: 4px; }
 

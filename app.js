@@ -513,6 +513,72 @@
     });
   }
 
+  /* ————— Feuille « Option de création de fiche » ————————————————— */
+
+  function ouvrirFeuilleCreation() {
+    $("#feuille-fond").hidden = false;
+    $("#feuille-creation").hidden = false;
+    document.body.classList.add("corps--bloque");
+  }
+
+  function fermerFeuilleCreation() {
+    $("#feuille-fond").hidden = true;
+    $("#feuille-creation").hidden = true;
+    document.body.classList.remove("corps--bloque");
+  }
+
+  /** Chaque option mène au bon outil, déjà réglé sur la bonne source. */
+  function lancerCreation(option) {
+    fermerFeuilleCreation();
+
+    if (option === "scan") { afficherVue("scan"); return; }
+
+    if (option === "ia") {
+      afficherVue("quiz");
+      choisirSourceQuiz("sujet");
+      $("#form-quiz").hidden = false;
+      $("#jeu-quiz").hidden = true;
+      $("#bilan-quiz").hidden = true;
+      $("#indispo-quiz").hidden = true;
+      $("#quiz-sujet").focus();
+      return;
+    }
+
+    // « Avec tes cours » et « Rédiger » ouvrent la fiche de résumé, sur la bonne source.
+    const source = option === "cours" ? "cours" : "texte";
+    etatResume.source = source;
+    afficherVue("resume");
+    $("#form-resume").hidden = false;
+    $("#fiche-resume").hidden = true;
+    $$("[data-source]", $("#form-resume")).forEach((segment) => {
+      const actif = segment.dataset.source === source;
+      segment.classList.toggle("segment--actif", actif);
+      segment.setAttribute("aria-selected", String(actif));
+    });
+    $$("[data-panneau]", $("#form-resume")).forEach((panneau) => {
+      const actif = panneau.dataset.panneau === source;
+      panneau.classList.toggle("source--masque", !actif);
+      panneau.hidden = !actif;
+    });
+    if (source === "texte") $("#texte-source").focus();
+  }
+
+  function initCreation() {
+    const bouton = $("#ouvrir-creation");
+    if (!bouton) return;
+
+    bouton.addEventListener("click", ouvrirFeuilleCreation);
+    $("#feuille-fond").addEventListener("click", fermerFeuilleCreation);
+    $("#fermer-creation").addEventListener("click", fermerFeuilleCreation);
+    $$("[data-creation]").forEach((tuile) => {
+      tuile.addEventListener("click", () => lancerCreation(tuile.dataset.creation));
+    });
+
+    document.addEventListener("keydown", (evt) => {
+      if (evt.key === "Escape" && !$("#feuille-creation").hidden) fermerFeuilleCreation();
+    });
+  }
+
   /* ————— Page « Scanner ma fiche » ————————————————————————————— */
 
   const fiche = { image: null, nom: "", sujet: "", matiere: null };
@@ -1511,6 +1577,7 @@
       });
     });
 
+    initCreation();
     initScan();
     initResume();
     initQuiz();

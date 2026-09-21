@@ -68,12 +68,24 @@ bienvenue ; changer de niveau reconstruit le carrousel.
 ## Écran d'accueil
 
 - **Header** bleu pastel : logo + nom du site (16 px), cloche à droite → onglet *Révision espacée*.
-- **Scanner une fiche** : une carte bleu marine ouvre la page de scan (voir ci-dessous).
+- **Créer une fiche** : une carte bleu marine ouvre la feuille d'options (voir ci-dessous).
 - ~~Outils IA~~ (14 px, gras) : 3 tuiles cliquables — Créer résumé, Créer quiz, FlashCards.
 - **Communauté et Défis** (16 px, gras) : sélecteur arrondi scindé en deux ; *Communauté*
   affiche les communautés les plus rejointes, *Défis* affiche le bouton « Affronter un ami ».
 - **Barre du bas** bleu marine : accueil, cours, communauté, profil ; icône bleu gris pastel,
   blanche + trait blanc sous l'onglet actif.
+
+## Feuille « Option de création de fiche »
+
+La carte d'accueil ouvre une feuille qui monte depuis le bas (poignée, fond assombri, fermeture
+au clic sur le fond, sur « Annuler » ou avec Échap) avec quatre tuiles en 2×2, chacune sa teinte :
+
+| Tuile | Icône | Destination |
+| --- | --- | --- |
+| Avec ta fiche | scan, violet | La page de scan (photo) |
+| Avec tes cours | livre, vert | Fiche de résumé, source « Mes cours » |
+| Générer par l'IA | baguette, bleu | Quiz, mode « Sujet libre », champ au focus |
+| Rédiger | crayon, orange | Fiche de résumé, source « Coller un texte », zone au focus |
 
 ## Page « Scanner ma fiche »
 
