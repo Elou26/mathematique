@@ -371,6 +371,147 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .themes-vide-texte { margin: 0; font-size: 12px; color: var(--gris-texte); }
 .themes-vide .bouton-principal { margin-top: 12px; }
 
+/* ————— Carte d'accueil : scanner une fiche ————————————————————— */
+.carte-scan {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  background: var(--marine);
+  border-radius: 18px;
+  box-shadow: var(--ombre);
+  text-align: left;
+  transition: transform .15s ease, background .15s ease;
+}
+.carte-scan:active { transform: scale(.985); background: var(--marine-fonce); }
+
+.carte-scan-icone {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  border-radius: 14px;
+  background: rgba(207, 224, 247, .18);
+  color: var(--blanc);
+}
+.carte-scan-icone svg { width: 24px; height: 24px; }
+
+.carte-scan-texte { flex: 1; min-width: 0; }
+.carte-scan-titre { display: block; font-size: 14px; font-weight: 700; color: var(--blanc); }
+.carte-scan-detail { display: block; margin-top: 2px; font-size: 12px; color: var(--bleu-pastel); }
+
+.carte-scan-puces { display: flex; flex-direction: column; gap: 4px; flex: none; }
+.carte-scan-puces svg { width: 15px; height: 15px; color: var(--bleu-grise); }
+
+/* ————— Page de scan ————————————————————————————————————————— */
+.scanner { margin-top: 4px; }
+
+.scanner-cadre {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 3 / 4;
+  transition: aspect-ratio .3s ease;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 20px;
+  background: #101a3d;
+}
+
+/* Une fois la photo prise, l'aperçu se réduit pour laisser la place aux actions. */
+.scanner--capture .scanner-cadre { aspect-ratio: 16 / 10; }
+.scanner--capture .scanner-coin { width: 24px; height: 24px; }
+
+.scanner-apercu { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.scanner-apercu[hidden] { display: none; }
+
+.scanner-coin {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--bleu-pastel);
+  border-radius: 6px;
+}
+.scanner-coin--hg { top: 16px; left: 16px; border-right: 0; border-bottom: 0; }
+.scanner-coin--hd { top: 16px; right: 16px; border-left: 0; border-bottom: 0; }
+.scanner-coin--bg { bottom: 16px; left: 16px; border-right: 0; border-top: 0; }
+.scanner-coin--bd { bottom: 16px; right: 16px; border-left: 0; border-top: 0; }
+
+.scanner-aide {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0 24px;
+  font-size: 12px;
+  color: var(--bleu-pastel);
+  text-align: center;
+}
+.scanner-aide svg { width: 30px; height: 30px; opacity: .8; }
+.scanner-aide[hidden] { display: none; }
+
+.scanner-balayage {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--bleu-pastel), transparent);
+  box-shadow: 0 0 18px 4px rgba(207, 224, 247, .55);
+  animation: balayage 1.6s ease-in-out infinite;
+}
+.scanner-balayage[hidden] { display: none; }
+@keyframes balayage {
+  0%, 100% { top: 8%; }
+  50% { top: 92%; }
+}
+
+.scan-etapes {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 12px;
+  background: var(--blanc);
+  border: 1px solid var(--bordure);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.scan-etapes[hidden] { display: none; }
+.scan-etapes li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--gris-texte);
+  transition: color .2s ease;
+}
+.scan-etapes svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  padding: 2px;
+  border-radius: 50%;
+  background: var(--gris-fond);
+  color: #C2CCE2;
+  transition: background .2s ease, color .2s ease;
+}
+.scan-etape--faite { color: var(--noir); font-weight: 600; }
+.scan-etape--faite svg { background: var(--marine); color: var(--blanc); }
+
+.scan-capture { margin-top: 16px; }
+.scan-capture[hidden] { display: none; }
+
+.bouton-fichier { display: block; cursor: pointer; }
+.bouton-secondaire.bouton-fichier { margin-top: 8px; }
+
+.scan-resultat { margin-top: 18px; animation: apparition .22s ease both; }
+.scan-resultat[hidden] { display: none; }
+.scan-resultat .outils { margin-top: 4px; }
+
 /* ————— Outils IA ——————————————————————————————————————————————— */
 .outils {
   display: grid;

@@ -79,6 +79,26 @@
     <path d="M4.8 20c0-3.6 3.2-5.8 7.2-5.8s7.2 2.2 7.2 5.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
   </symbol>
 
+  <symbol id="i-camera" viewBox="0 0 24 24">
+    <path d="M4 8.5h3l1.4-2.2a1 1 0 0 1 .85-.47h5.5a1 1 0 0 1 .85.47L17 8.5h3a1 1 0 0 1 1 1V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <circle cx="12" cy="13.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.7"/>
+  </symbol>
+
+  <symbol id="i-image" viewBox="0 0 24 24">
+    <rect x="3.5" y="5" width="17" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <circle cx="9" cy="10" r="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M4.5 17l4.2-4.2 3.1 3.1 2.6-2.4 5.1 4.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-scan" viewBox="0 0 24 24">
+    <path d="M4 8.5V6a2 2 0 0 1 2-2h2.5M15.5 4H18a2 2 0 0 1 2 2v2.5M20 15.5V18a2 2 0 0 1-2 2h-2.5M8.5 20H6a2 2 0 0 1-2-2v-2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M4 12h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-coche" viewBox="0 0 24 24">
+    <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+
   <symbol id="i-fleche" viewBox="0 0 24 24">
     <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   </symbol>
@@ -122,21 +142,19 @@
     <h2 class="titre-categorie" id="titre-themes">Thèmes de ta classe</h2>
     <div class="themes" id="bloc-themes"><!-- carrousel + dépliant, injectés par app.js --></div>
 
-    <h2 class="titre-categorie">Outils IA</h2>
-    <div class="outils">
-      <button class="outil" type="button" data-outil="resume">
-        <svg class="outil-icone" aria-hidden="true"><use href="#i-fichier"></use></svg>
-        <span class="outil-nom">Créer résumé</span>
-      </button>
-      <button class="outil" type="button" data-outil="quiz">
-        <svg class="outil-icone" aria-hidden="true"><use href="#i-cahier"></use></svg>
-        <span class="outil-nom">Créer quiz</span>
-      </button>
-      <button class="outil" type="button" data-outil="flashcards">
-        <svg class="outil-icone" aria-hidden="true"><use href="#i-cartes"></use></svg>
-        <span class="outil-nom">FlashCards</span>
-      </button>
-    </div>
+    <h2 class="titre-categorie">Scanner une fiche</h2>
+    <button class="carte-scan" type="button" data-onglet="scan">
+      <span class="carte-scan-icone" aria-hidden="true"><svg><use href="#i-camera"></use></svg></span>
+      <span class="carte-scan-texte">
+        <span class="carte-scan-titre">Scanne ta fiche</span>
+        <span class="carte-scan-detail">Une photo, et tu en tires un résumé, un quiz et des flashcards.</span>
+      </span>
+      <span class="carte-scan-puces" aria-hidden="true">
+        <svg><use href="#i-fichier"></use></svg>
+        <svg><use href="#i-cahier"></use></svg>
+        <svg><use href="#i-cartes"></use></svg>
+      </span>
+    </button>
 
     <h2 class="titre-categorie titre-categorie--grand">Communauté et Défis</h2>
     <div class="bloc-social">
@@ -161,6 +179,77 @@
           Affronter un ami
         </button>
       </div>
+    </div>
+  </section>
+
+  <!-- Vue : Scanner une fiche — point d'entrée des trois outils -->
+  <section class="vue" id="vue-scan" hidden>
+    <button class="retour" type="button" data-onglet="accueil">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      Accueil
+    </button>
+
+    <h2 class="titre-categorie titre-categorie--grand" id="scan-titre-page">Scanner ma fiche</h2>
+    <p class="sous-texte" id="scan-sous-texte">Pose ta fiche à plat, cadre-la, et choisis ensuite ce que tu veux en faire.</p>
+
+    <!-- Étape 1 et 2 : cadrage puis lecture -->
+    <div class="scanner" id="scanner">
+      <div class="scanner-cadre">
+        <img class="scanner-apercu" id="scan-apercu" alt="Aperçu de la fiche scannée" hidden>
+        <span class="scanner-coin scanner-coin--hg" aria-hidden="true"></span>
+        <span class="scanner-coin scanner-coin--hd" aria-hidden="true"></span>
+        <span class="scanner-coin scanner-coin--bg" aria-hidden="true"></span>
+        <span class="scanner-coin scanner-coin--bd" aria-hidden="true"></span>
+        <span class="scanner-balayage" id="scan-balayage" hidden aria-hidden="true"></span>
+        <p class="scanner-aide" id="scan-aide">
+          <svg aria-hidden="true"><use href="#i-scan"></use></svg>
+          Cadre ta fiche dans ce rectangle
+        </p>
+      </div>
+    </div>
+
+    <ul class="scan-etapes" id="scan-etapes" hidden>
+      <li data-etape="cadrage"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Cadrage de la fiche</li>
+      <li data-etape="lecture"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Lecture de la page</li>
+      <li data-etape="notions"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Repérage du titre et des notions</li>
+    </ul>
+
+    <div class="scan-capture" id="scan-capture">
+      <label class="bouton-principal bouton-fichier">
+        Prendre une photo
+        <input type="file" id="scan-photo" accept="image/*" capture="environment" hidden>
+      </label>
+      <label class="bouton-secondaire bouton-fichier">
+        Choisir une image
+        <input type="file" id="scan-galerie" accept="image/*" hidden>
+      </label>
+      <p class="mention">La photo reste sur ton téléphone : rien n'est envoyé tant que le service de lecture n'est pas branché.</p>
+    </div>
+
+    <!-- Étape 3 : ce qu'on fait de la fiche -->
+    <div class="scan-resultat" id="scan-resultat" hidden>
+      <label class="champ-libelle" for="scan-sujet">Quel thème est sur cette fiche ?</label>
+      <input class="champ-texte" id="scan-sujet" type="text" maxlength="80" autocomplete="off"
+             placeholder="Ex. : Dérivées et taux de variation">
+      <div class="puces puces--filtres" id="scan-suggestions" role="group" aria-label="Thèmes de ton programme"></div>
+
+      <p class="etiquette">Qu'est-ce que j'en fais ?</p>
+      <div class="outils">
+        <button class="outil" type="button" data-scan-outil="resume">
+          <svg class="outil-icone" aria-hidden="true"><use href="#i-fichier"></use></svg>
+          <span class="outil-nom">Résumé</span>
+        </button>
+        <button class="outil" type="button" data-scan-outil="quiz">
+          <svg class="outil-icone" aria-hidden="true"><use href="#i-cahier"></use></svg>
+          <span class="outil-nom">Quiz</span>
+        </button>
+        <button class="outil" type="button" data-scan-outil="flashcards">
+          <svg class="outil-icone" aria-hidden="true"><use href="#i-cartes"></use></svg>
+          <span class="outil-nom">FlashCards</span>
+        </button>
+      </div>
+
+      <button class="bouton-texte" type="button" id="scan-refaire">Scanner une autre fiche</button>
     </div>
   </section>
 

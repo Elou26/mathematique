@@ -64,11 +64,31 @@ bienvenue ; changer de niveau reconstruit le carrousel.
 ## Écran d'accueil
 
 - **Header** bleu pastel : logo + nom du site (16 px), cloche à droite → onglet *Révision espacée*.
-- **Outils IA** (14 px, gras) : 3 tuiles cliquables — Créer résumé, Créer quiz, FlashCards.
+- **Scanner une fiche** : une carte bleu marine ouvre la page de scan (voir ci-dessous).
+- ~~Outils IA~~ (14 px, gras) : 3 tuiles cliquables — Créer résumé, Créer quiz, FlashCards.
 - **Communauté et Défis** (16 px, gras) : sélecteur arrondi scindé en deux ; *Communauté*
   affiche les communautés les plus rejointes, *Défis* affiche le bouton « Affronter un ami ».
 - **Barre du bas** bleu marine : accueil, cours, communauté, profil ; icône bleu gris pastel,
   blanche + trait blanc sous l'onglet actif.
+
+## Page « Scanner ma fiche »
+
+C'est le point d'entrée des trois outils : on scanne d'abord, on choisit ensuite quoi en faire.
+
+1. **Cadrage** — un viseur à quatre coins, puis « Prendre une photo » (`<input type="file"
+   accept="image/*" capture="environment">`, qui ouvre l'appareil photo sur mobile) ou
+   « Choisir une image ». Pas de `getUserMedia` : le champ natif fonctionne partout, y compris
+   dans une iframe sans permission caméra.
+2. **Lecture** — l'aperçu se réduit, une ligne de balayage passe sur la fiche et trois étapes
+   se cochent.
+3. **Exploitation** — on confirme le thème de la fiche (champ libre, plus des raccourcis à deux
+   niveaux : matière du programme puis ses huit thèmes), puis on choisit **Résumé**, **Quiz** ou
+   **FlashCards**. Le thème est rapproché d'un chapitre connu : le quiz démarre aussitôt, la
+   fiche de résumé se génère, le paquet de cartes se lance.
+
+**L'OCR n'est pas branchée.** `lireLaFiche()` dans `app.js` est le point d'accroche unique : il
+renvoie aujourd'hui `{ texte: "", titre: "" }`, d'où l'étape de confirmation du thème. Aucun
+faux texte n'est fabriqué à partir de la photo, et l'image ne quitte pas l'appareil.
 
 ## Page « Créer résumé »
 

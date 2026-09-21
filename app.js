@@ -145,7 +145,7 @@
 
   /* ————— Navigation entre vues ———————————————————————————————— */
 
-  const VUES = ["accueil", "cours", "communaute", "profil", "revision", "resume", "quiz", "flashcards"];
+  const VUES = ["accueil", "cours", "communaute", "profil", "revision", "scan", "resume", "quiz", "flashcards"];
 
   function afficherVue(nom) {
     if (!VUES.includes(nom)) nom = "accueil";
@@ -160,7 +160,7 @@
 
     // La révision espacée n'a pas d'onglet dédié : on garde « Accueil » allumé.
     // Les vues ouvertes depuis l'accueil (cloche, outils IA) gardent « Accueil » allumé.
-    const OUVERTES_DEPUIS_ACCUEIL = ["revision", "resume", "quiz", "flashcards"];
+    const OUVERTES_DEPUIS_ACCUEIL = ["revision", "scan", "resume", "quiz", "flashcards"];
     const ongletActif = OUVERTES_DEPUIS_ACCUEIL.includes(nom) ? "accueil" : nom;
     $$(".barre-bas .onglet").forEach((onglet) => {
       const actif = onglet.dataset.onglet === ongletActif;
@@ -168,6 +168,8 @@
       if (actif) onglet.setAttribute("aria-current", "page");
       else onglet.removeAttribute("aria-current");
     });
+
+    if (nom === "scan" && !fiche.image) reinitialiserScan();
 
     if (nom === "revision") {
       const pastille = $("#cloche-compteur");
@@ -501,6 +503,212 @@
         surChoix(puce.dataset[cle]);
       });
     });
+  }
+
+  /* ————— Page « Scanner ma fiche » ————————————————————————————— */
+
+  const fiche = { image: null, nom: "", sujet: "", matiere: null };
+
+  /**
+   * Point d'accroche unique pour la lecture du texte de la fiche.
+   * Tant qu'aucun service d'OCR n'est branché, on ne fabrique pas de faux
+   * texte : on demande confirmation du thème, en proposant les thèmes du
+   * programme de la classe.
+   */
+  function lireLaFiche(/* image */) {
+    return Promise.resolve({ texte: "", titre: "" });
+  }
+
+  function etapesScan(actives) {
+    const liste = $("#scan-etapes");
+    liste.hidden = !actives.length;
+    $$("li", liste).forEach((ligne) => {
+      ligne.classList.toggle("scan-etape--faite", actives.includes(ligne.dataset.etape));
+    });
+  }
+
+  /** Raccourcis sous le champ : les matières du programme, puis leurs thèmes. */
+  function rendreSuggestionsScan(matiereOuverte) {
+    const conteneur = $("#scan-suggestions");
+    const programme = programmeDuNiveau();
+    conteneur.textContent = "";
+    if (!programme) return;
+
+    const ajouterPuce = (libelle, surClic, active) => {
+      const puce = document.createElement("button");
+      puce.type = "button";
+      puce.className = "puce" + (active ? " puce--active" : "");
+      puce.textContent = libelle;
+      puce.addEventListener("click", surClic);
+      conteneur.appendChild(puce);
+      return puce;
+    };
+
+    if (!matiereOuverte) {
+      Object.keys(programme).forEach((matiere) => {
+        ajouterPuce(`${MATIERES[matiere].emoji} ${MATIERES[matiere].court}`,
+          () => rendreSuggestionsScan(matiere));
+      });
+      return;
+    }
+
+    ajouterPuce("← Matières", () => rendreSuggestionsScan(null));
+    programme[matiereOuverte].forEach((theme) => {
+      ajouterPuce(theme, () => {
+        fiche.sujet = theme;
+        fiche.matiere = matiereOuverte;
+        $("#scan-sujet").value = theme;
+        rendreSuggestionsScan(matiereOuverte);
+      }, theme === fiche.sujet);
+    });
+  }
+
+  function reinitialiserScan() {
+    if (fiche.image) URL.revokeObjectURL(fiche.image);
+    fiche.image = null;
+    fiche.nom = "";
+    fiche.sujet = "";
+    fiche.matiere = null;
+
+    $("#scanner").classList.remove("scanner--capture");
+    $("#scan-apercu").hidden = true;
+    $("#scan-apercu").removeAttribute("src");
+    $("#scan-aide").hidden = false;
+    $("#scan-balayage").hidden = true;
+    $("#scan-capture").hidden = false;
+    $("#scan-resultat").hidden = true;
+    $("#scan-sujet").value = "";
+    $("#scan-sous-texte").textContent = "Pose ta fiche à plat, cadre-la, et choisis ensuite ce que tu veux en faire.";
+    etapesScan([]);
+  }
+
+  let minuteurScan;
+  function analyserFiche(fichier) {
+    if (!fichier || !fichier.type.startsWith("image/")) {
+      toast("Choisis une photo de ta fiche.");
+      return;
+    }
+
+    if (fiche.image) URL.revokeObjectURL(fiche.image);
+    fiche.image = URL.createObjectURL(fichier);
+    fiche.nom = fichier.name || "fiche.jpg";
+
+    const apercu = $("#scan-apercu");
+    apercu.src = fiche.image;
+    apercu.hidden = false;
+    $("#scanner").classList.add("scanner--capture");
+    $("#scan-aide").hidden = true;
+    $("#scan-capture").hidden = true;
+    $("#scan-balayage").hidden = false;
+    $("#scan-sous-texte").textContent = "Lecture de la fiche…";
+    etapesScan(["cadrage"]);
+
+    clearTimeout(minuteurScan);
+    minuteurScan = setTimeout(() => etapesScan(["cadrage", "lecture"]), 700);
+
+    lireLaFiche(fichier).then((lecture) => {
+      setTimeout(() => {
+        etapesScan(["cadrage", "lecture", "notions"]);
+        $("#scan-balayage").hidden = true;
+        $("#scan-sous-texte").textContent = "Fiche capturée. Confirme son thème, puis choisis quoi en faire.";
+
+        if (lecture.titre) {
+          fiche.sujet = lecture.titre;
+          $("#scan-sujet").value = lecture.titre;
+        }
+        rendreSuggestionsScan(null);
+        $("#scan-resultat").hidden = false;
+        $("#scan-resultat").scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 1400);
+    });
+  }
+
+  /** Envoie la fiche scannée vers l'un des trois outils. */
+  function exploiterFiche(outil) {
+    const sujet = $("#scan-sujet").value.trim();
+    if (sujet.length < 3) {
+      toast("Indique le thème de ta fiche pour continuer.");
+      $("#scan-sujet").focus();
+      return;
+    }
+    fiche.sujet = sujet;
+    const chapitre = chercherBanque(sujet, fiche.matiere);
+
+    if (outil === "quiz") {
+      etatQuiz.sujet = sujet;
+      etatQuiz.matiereTheme = fiche.matiere;
+      etatQuiz.complement = `Fiche scannée${niveauChoisi ? " — programme de " + niveauChoisi : ""}.`;
+      afficherVue("quiz");
+      choisirSourceQuiz("sujet");
+      $("#quiz-sujet").value = sujet;
+      $("#quiz-complement").value = etatQuiz.complement;
+      $("#compteur-complement").textContent = etatQuiz.complement.length;
+      lancerQuiz();
+      return;
+    }
+
+    if (outil === "flashcards") {
+      afficherVue("flashcards");
+      if (chapitre && (FLASHCARDS[chapitre.id] || []).length) {
+        etatCartes.coursId = chapitre.id;
+        lancerCartes(null);
+      } else {
+        toast("Aucun paquet tout prêt pour cette fiche : choisis un chapitre.");
+        $("#form-cartes").hidden = false;
+        $("#jeu-cartes").hidden = true;
+        $("#bilan-cartes").hidden = true;
+      }
+      return;
+    }
+
+    // Résumé : on part du chapitre reconnu, sinon de la fiche scannée elle-même.
+    afficherVue("resume");
+    $("#form-resume").hidden = false;
+    if (chapitre) {
+      etatResume.source = "cours";
+      etatResume.coursId = chapitre.id;
+    } else {
+      etatResume.source = "fichier";
+      etatResume.fichier = fiche.nom;
+      const ligneNom = $("#nom-fichier");
+      ligneNom.textContent = `Fiche scannée : ${fiche.nom}`;
+      ligneNom.hidden = false;
+    }
+    $$("[data-source]", $("#form-resume")).forEach((segment) => {
+      const actif = segment.dataset.source === etatResume.source;
+      segment.classList.toggle("segment--actif", actif);
+      segment.setAttribute("aria-selected", String(actif));
+    });
+    $$("[data-panneau]", $("#form-resume")).forEach((panneau) => {
+      const actif = panneau.dataset.panneau === etatResume.source;
+      panneau.classList.toggle("source--masque", !actif);
+      panneau.hidden = !actif;
+    });
+    genererResume();
+  }
+
+  function initScan() {
+    const capture = $("#scan-photo");
+    if (!capture) return;
+
+    [capture, $("#scan-galerie")].forEach((champ) => {
+      champ.addEventListener("change", () => {
+        analyserFiche(champ.files && champ.files[0]);
+        champ.value = "";               // pour pouvoir reprendre la même photo
+      });
+    });
+
+    $("#scan-sujet").addEventListener("input", (evt) => {
+      fiche.sujet = evt.target.value;
+      fiche.matiere = null;             // un thème retapé n'est plus lié à une matière
+      $$("#scan-suggestions .puce").forEach((puce) => puce.classList.remove("puce--active"));
+    });
+
+    $$("[data-scan-outil]").forEach((tuile) => {
+      tuile.addEventListener("click", () => exploiterFiche(tuile.dataset.scanOutil));
+    });
+
+    $("#scan-refaire").addEventListener("click", reinitialiserScan);
   }
 
   /* ————— Page « Créer résumé » ————————————————————————————————— */
@@ -1278,11 +1486,7 @@
       });
     });
 
-    // Outils IA : chaque tuile ouvre sa page.
-    $$("[data-outil]").forEach((el) => {
-      el.addEventListener("click", () => afficherVue(el.dataset.outil));
-    });
-
+    initScan();
     initResume();
     initQuiz();
     initCartes();
