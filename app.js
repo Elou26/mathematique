@@ -293,6 +293,7 @@
   /** Ouvre « Créer quiz » en mode sujet libre, pré-rempli avec le thème. */
   function lancerThemeEnQuiz(theme, matiere) {
     etatQuiz.sujet = theme;
+    etatQuiz.matiereTheme = matiere;
     etatQuiz.complement = `Programme de ${niveauChoisi} en ${MATIERES[matiere].nom}.`;
     afficherVue("quiz");
     choisirSourceQuiz("sujet");
@@ -693,6 +694,7 @@
     matiere: "toutes",
     coursId: COURS[0].id,
     sujet: "",
+    matiereTheme: null,     // matière imposée quand le sujet vient du carrousel
     complement: "",
     taille: 5,
     mode: "immediate",
@@ -720,30 +722,68 @@
       .trim();
   }
 
+  /** Échappe un texte saisi par l'utilisateur avant une insertion en HTML. */
+  function echapper(texte) {
+    const div = document.createElement("div");
+    div.textContent = texte;
+    return div.innerHTML;
+  }
+
+  const MOTS_VIDES = new Set([
+    "les", "des", "une", "aux", "avec", "dans", "pour", "sur", "par", "leur", "leurs", "que",
+    "qui", "quoi", "est", "sont", "son", "ses", "cette", "ces", "mon", "mes", "ton", "tes",
+    "notre", "nos", "votre", "vos", "entre", "chez", "sans", "sous", "plus", "moins", "tout",
+    "tous", "toute", "toutes", "comment", "pourquoi", "quand", "quel", "quelle", "mais", "donc",
+  ]);
+
+  /** Mots significatifs d'un texte, au singulier approximatif. */
+  function motsUtiles(texte) {
+    return normaliser(texte)
+      .split(" ")
+      .filter((mot) => mot.length > 3 && !MOTS_VIDES.has(mot))
+      .map((mot) => (mot.length > 4 ? mot.replace(/[sx]$/, "") : mot));
+  }
+
   /**
-   * Cherche le chapitre le plus proche du sujet saisi.
-   * Tant que le service de génération n'est pas branché, c'est lui qui
-   * fournit les questions ; renvoie null si rien ne correspond.
+   * L'expression est-elle entièrement retrouvée dans le sujet, et y pèse-t-elle
+   * assez ? Le seuil de moitié évite qu'un mot isolé emporte la décision :
+   * « Circuits en série et en dérivation » ne doit pas lancer un QCM de dérivées.
    */
-  function chercherBanque(sujet) {
+  function expressionCouverte(expression, mots) {
+    const attendus = motsUtiles(expression);
+    if (!attendus.length || !attendus.every((mot) => mots.includes(mot))) return false;
+    return attendus.length / mots.length >= 0.5;
+  }
+
+  /**
+   * Cherche la banque de questions correspondant au sujet saisi.
+   * Seule une correspondance franche est acceptée — titre identique, ou
+   * expression-clé entièrement retrouvée dans le sujet : hors de question de
+   * servir un QCM de probabilités à quelqu'un qui demande « Classer les êtres
+   * vivants ». Sinon c'est au service de génération de produire les questions.
+   * `matiereAttendue` verrouille la matière quand le sujet vient du carrousel.
+   */
+  function chercherBanque(sujet, matiereAttendue) {
     const recherche = normaliser(sujet);
     if (recherche.length < 3) return null;
-    const mots = recherche.split(" ").filter((mot) => mot.length > 2);
+    const mots = motsUtiles(sujet);
+    if (!mots.length) return null;
 
     let meilleur = null;
-    COURS.filter((cours) => (QUIZ[cours.id] || []).length).forEach((cours) => {
-      const cibles = [cours.titre, cours.chapitre, MATIERES[cours.matiere].nom, ...(cours.motsCles || [])]
-        .map(normaliser);
+    COURS
+      .filter((cours) => (QUIZ[cours.id] || []).length)
+      .filter((cours) => !matiereAttendue || cours.matiere === matiereAttendue)
+      .forEach((cours) => {
+        const expressions = [cours.titre, ...(cours.motsCles || [])];
+        let score = 0;
 
-      let score = 0;
-      cibles.forEach((cible) => {
-        if (cible === recherche) score += 10;
-        else if (cible.includes(recherche) || recherche.includes(cible)) score += 5;
-        else if (mots.some((mot) => cible.includes(mot))) score += 2;
+        expressions.forEach((expression) => {
+          if (normaliser(expression) === recherche) score = Math.max(score, 10);
+          else if (expressionCouverte(expression, mots)) score = Math.max(score, 8);
+        });
+
+        if (score && (!meilleur || score > meilleur.score)) meilleur = { cours, score };
       });
-
-      if (score > 0 && (!meilleur || score > meilleur.score)) meilleur = { cours, score };
-    });
 
     return meilleur ? meilleur.cours : null;
   }
@@ -758,13 +798,13 @@
     $("#form-quiz").hidden = true;
     const panneau = $("#indispo-quiz");
     panneau.innerHTML = `
-      <p class="bilan-message"><strong>« ${sujet} »</strong> ne correspond à aucune banque de questions déjà
+      <p class="bilan-message"><strong>« ${echapper(sujet)} »</strong> ne correspond à aucune banque de questions déjà
       présente dans l'application.</p>
       <p class="bilan-pourcentage">Ta demande est prête pour le générateur : elle partira au service d'IA dès
       qu'il sera branché.</p>
       <ul class="demande">
-        <li><span class="demande-cle">Sujet</span><span class="demande-valeur">${sujet}</span></li>
-        <li><span class="demande-cle">Complément</span><span class="demande-valeur">${complement || "—"}</span></li>
+        <li><span class="demande-cle">Sujet</span><span class="demande-valeur">${echapper(sujet)}</span></li>
+        <li><span class="demande-cle">Complément</span><span class="demande-valeur">${complement ? echapper(complement) : "—"}</span></li>
         <li><span class="demande-cle">Niveau</span><span class="demande-valeur">${niveauChoisi || "non renseigné"}</span></li>
         <li><span class="demande-cle">Format</span><span class="demande-valeur">${etatQuiz.taille === 99 ? "Maximum" : etatQuiz.taille} questions · correction ${etatQuiz.mode === "immediate" ? "immédiate" : "à la fin"}</span></li>
       </ul>
@@ -797,17 +837,18 @@
     $("#quiz-position").textContent = `Question ${index + 1} / ${questions.length}`;
     $("#quiz-score").textContent = score <= 1 ? `${score} point` : `${score} points`;
     $("#quiz-barre").style.width = `${(index / questions.length) * 100}%`;
-    $("#quiz-question").textContent = question.enonce;
+    $("#quiz-question").innerHTML = question.enonce;
     $("#quiz-explication").hidden = true;
     $("#quiz-suivant").hidden = true;
 
     const conteneur = $("#quiz-reponses");
     conteneur.textContent = "";
-    question.choix.forEach((choix) => {
+    question.choix.forEach((choix, rang) => {
       const bouton = document.createElement("button");
       bouton.type = "button";
       bouton.className = "reponse";
-      bouton.textContent = choix.texte;
+      bouton.dataset.rang = rang;
+      bouton.innerHTML = choix.texte;
       bouton.addEventListener("click", () => repondre(choix, bouton));
       conteneur.appendChild(bouton);
     });
@@ -826,8 +867,7 @@
     if (mode === "immediate") {
       $$("#quiz-reponses .reponse").forEach((autre) => {
         autre.disabled = true;
-        const bonne = question.choix.find((c) => c.texte === autre.textContent && c.correct);
-        if (bonne) autre.classList.add("reponse--juste");
+        if (question.choix[Number(autre.dataset.rang)].correct) autre.classList.add("reponse--juste");
       });
       if (!choix.correct) bouton.classList.add("reponse--faux");
 
@@ -906,11 +946,11 @@
       const sujet = etatQuiz.sujet.trim();
       if (sujet.length < 3) { toast("Indique d'abord le sujet du quiz."); return; }
 
-      const banque = chercherBanque(sujet);
+      const banque = chercherBanque(sujet, etatQuiz.matiereTheme);
       if (!banque) { panneauSujetIndisponible(sujet); return; }
 
       coursId = banque.id;
-      contexte = `Sujet libre : ${sujet}`;
+      contexte = `${sujet} — questions du chapitre « ${banque.titre} »`;
     }
 
     const questions = preparerQuestions(coursId, etatQuiz.taille);
@@ -966,7 +1006,10 @@
     });
 
     const champSujet = $("#quiz-sujet");
-    champSujet.addEventListener("input", () => { etatQuiz.sujet = champSujet.value; });
+    champSujet.addEventListener("input", () => {
+      etatQuiz.sujet = champSujet.value;
+      etatQuiz.matiereTheme = null;
+    });
 
     const champComplement = $("#quiz-complement");
     champComplement.addEventListener("input", () => {
@@ -1005,8 +1048,8 @@
 
     $("#carte-flip").classList.remove("carte-flip--retournee");
     $("#verdicts-cartes").hidden = true;
-    $("#carte-recto").textContent = carte.recto;
-    $("#carte-verso").textContent = carte.verso;
+    $("#carte-recto").innerHTML = carte.recto;
+    $("#carte-verso").innerHTML = carte.verso;
     $("#cartes-position").textContent = paquet.file.length <= 1
       ? "Dernière carte"
       : `${paquet.file.length} cartes restantes`;

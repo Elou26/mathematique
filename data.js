@@ -31,14 +31,14 @@ const NIVEAUX = [
 ];
 
 const COURS = [
-  { id: "derivees",  matiere: "maths",    titre: "Dérivées et taux de variation",   chapitre: "Analyse",              niveau: "Terminale", premierJour: "2026-08-19", derniereRevision: "2026-09-19", progression: 72, motsCles: ["derivee", "derivation", "tangente", "taux de variation", "variations", "fonction", "analyse"] },
-  { id: "probas",    matiere: "maths",    titre: "Probabilités conditionnelles",    chapitre: "Probabilités",         niveau: "Terminale", premierJour: "2026-09-02", derniereRevision: "2026-09-17", progression: 45, motsCles: ["probabilite", "probabilites", "conditionnelle", "arbre pondere", "independance", "bayes"] },
-  { id: "suites",    matiere: "maths",    titre: "Suites arithmético-géométriques", chapitre: "Suites",               niveau: "Terminale", premierJour: "2026-09-08", derniereRevision: "2026-09-20", progression: 28, motsCles: ["suite", "suites", "arithmetique", "geometrique", "recurrence", "convergence", "limite"] },
-  { id: "vecteurs",  matiere: "maths",    titre: "Géométrie dans l'espace",         chapitre: "Géométrie",            niveau: "Terminale", premierJour: "2026-07-30", derniereRevision: "2026-09-12", progression: 91, motsCles: ["vecteur", "vecteurs", "espace", "produit scalaire", "plan", "droite", "geometrie"] },
-  { id: "ondes",     matiere: "physique", titre: "Ondes et interférences",          chapitre: "Ondes",                niveau: "Terminale", premierJour: "2026-08-25", derniereRevision: "2026-09-18", progression: 54, motsCles: ["onde", "ondes", "interference", "interferences", "diffraction", "doppler", "longueur d onde", "frequence"] },
-  { id: "genetique", matiere: "svt",      titre: "Brassage génétique et méiose",    chapitre: "Génétique",            niveau: "Terminale", premierJour: "2026-09-05", derniereRevision: "2026-09-16", progression: 38, motsCles: ["genetique", "meiose", "mitose", "brassage", "crossing over", "adn", "gene", "allele", "heredite"] },
-  { id: "guerrefroide", matiere: "histoire", titre: "La guerre froide (1947-1991)", chapitre: "Le monde bipolaire",   niveau: "Terminale", premierJour: "2026-08-12", derniereRevision: "2026-09-14", progression: 66, motsCles: ["guerre froide", "urss", "berlin", "mur de berlin", "cuba", "otan", "bloc", "truman", "marshall", "bipolaire"] },
-  { id: "conscience", matiere: "philo",   titre: "La conscience",                   chapitre: "Le sujet",             niveau: "Terminale", premierJour: "2026-09-01", derniereRevision: "2026-09-13", progression: 41, motsCles: ["conscience", "cogito", "descartes", "freud", "inconscient", "sujet", "sartre", "hegel", "philosophie"] },
+  { id: "derivees",  matiere: "maths",    titre: "Dérivées et taux de variation",   chapitre: "Analyse",              niveau: "Terminale", premierJour: "2026-08-19", derniereRevision: "2026-09-19", progression: 72, motsCles: ["derivee", "derivees", "derivation", "nombre derive", "tangente", "taux de variation"] },
+  { id: "probas",    matiere: "maths",    titre: "Probabilités conditionnelles",    chapitre: "Probabilités",         niveau: "Terminale", premierJour: "2026-09-02", derniereRevision: "2026-09-17", progression: 45, motsCles: ["probabilite conditionnelle", "probabilites conditionnelles", "conditionnelle", "arbre pondere", "independance", "probabilites totales", "bayes"] },
+  { id: "suites",    matiere: "maths",    titre: "Suites arithmético-géométriques", chapitre: "Suites",               niveau: "Terminale", premierJour: "2026-09-08", derniereRevision: "2026-09-20", progression: 28, motsCles: ["suite arithmetico geometrique", "suites arithmetico geometriques", "point fixe", "suite geometrique", "suite arithmetique", "raison de la suite", "suite numerique", "suites numeriques"] },
+  { id: "vecteurs",  matiere: "maths",    titre: "Géométrie dans l'espace",         chapitre: "Géométrie",            niveau: "Terminale", premierJour: "2026-07-30", derniereRevision: "2026-09-12", progression: 91, motsCles: ["produit scalaire", "vecteur normal", "geometrie dans l espace", "representation parametrique", "equation de plan"] },
+  { id: "ondes",     matiere: "physique", titre: "Ondes et interférences",          chapitre: "Ondes",                niveau: "Terminale", premierJour: "2026-08-25", derniereRevision: "2026-09-18", progression: 54, motsCles: ["interference", "interferences", "diffraction", "effet doppler", "longueur d onde", "onde mecanique", "difference de marche"] },
+  { id: "genetique", matiere: "svt",      titre: "Brassage génétique et méiose",    chapitre: "Génétique",            niveau: "Terminale", premierJour: "2026-09-05", derniereRevision: "2026-09-16", progression: 38, motsCles: ["meiose", "mitose", "brassage genetique", "brassage interchromosomique", "crossing over", "gamete", "code genetique"] },
+  { id: "guerrefroide", matiere: "histoire", titre: "La guerre froide (1947-1991)", chapitre: "Le monde bipolaire",   niveau: "Terminale", premierJour: "2026-08-12", derniereRevision: "2026-09-14", progression: 66, motsCles: ["guerre froide", "urss", "berlin", "crise de cuba", "doctrine truman", "plan marshall", "pacte de varsovie", "monde bipolaire", "rideau de fer"] },
+  { id: "conscience", matiere: "philo",   titre: "La conscience",                   chapitre: "Le sujet",             niveau: "Terminale", premierJour: "2026-09-01", derniereRevision: "2026-09-13", progression: 41, motsCles: ["conscience", "cogito", "inconscient", "descartes", "freud", "sartre", "mauvaise foi"] },
 ];
 
 const COMMUNAUTES = [
@@ -194,12 +194,12 @@ const QUIZ = {
     { q: "Une fonction dérivable en a est nécessairement :", choix: ["Continue en a", "Croissante en a", "Positive en a", "Nulle en a"], bonne: 0, explication: "Dérivable ⇒ continue. La réciproque est fausse : |x| est continue mais non dérivable en 0." },
   ],
   probas: [
-    { q: "Comment se calcule P_B(A) ?", choix: ["P(A∩B) / P(B)", "P(A) / P(B)", "P(A∩B) / P(A)", "P(A) × P(B)"], bonne: 0, explication: "Par définition, P_B(A) = P(A∩B)/P(B), avec P(B) ≠ 0." },
-    { q: "A et B sont indépendants si :", choix: ["P(A∩B) = P(A) + P(B)", "P(A∩B) = P(A) × P(B)", "A ∩ B = ∅", "P_B(A) = 0"], bonne: 1, explication: "L'indépendance se traduit par P(A∩B) = P(A)×P(B), c'est-à-dire P_B(A) = P(A)." },
+    { q: "Comment se calcule P<sub>B</sub>(A) ?", choix: ["P(A∩B) / P(B)", "P(A) / P(B)", "P(A∩B) / P(A)", "P(A) × P(B)"], bonne: 0, explication: "Par définition, P<sub>B</sub>(A) = P(A∩B)/P(B), avec P(B) ≠ 0." },
+    { q: "A et B sont indépendants si :", choix: ["P(A∩B) = P(A) + P(B)", "P(A∩B) = P(A) × P(B)", "A ∩ B = ∅", "P<sub>B</sub>(A) = 0"], bonne: 1, explication: "L'indépendance se traduit par P(A∩B) = P(A)×P(B), c'est-à-dire P<sub>B</sub>(A) = P(A)." },
     { q: "Dans un arbre pondéré, la somme des branches issues d'un même nœud vaut :", choix: ["0", "0,5", "1", "Le nombre de branches"], bonne: 2, explication: "Les branches issues d'un nœud forment une partition : leur somme vaut toujours 1." },
     { q: "Urne de 3 boules rouges et 2 noires, deux tirages sans remise. P(2 rouges) = ?", choix: ["3/10", "9/25", "2/5", "1/2"], bonne: 0, explication: "3/5 × 2/4 = 6/20 = 3/10. Sans remise, la deuxième probabilité change." },
     { q: "Deux événements incompatibles de probabilité non nulle sont :", choix: ["Toujours indépendants", "Jamais indépendants", "Équiprobables", "Complémentaires"], bonne: 1, explication: "Si A∩B = ∅ alors P(A∩B) = 0 ≠ P(A)×P(B) > 0 : ils ne peuvent pas être indépendants." },
-    { q: "Formule des probabilités totales : P(A) = ?", choix: ["P(A∩B) + P(A∩B̄)", "P(A) × P(B)", "P_B(A) + P_B̄(A)", "1 − P(B)"], bonne: 0, explication: "B et B̄ forment une partition : P(A) = P(A∩B) + P(A∩B̄)." },
+    { q: "Formule des probabilités totales : P(A) = ?", choix: ["P(A∩B) + P(A∩B̄)", "P(A) × P(B)", "P<sub>B</sub>(A) + P<sub>B̄</sub>(A)", "1 − P(B)"], bonne: 0, explication: "B et B̄ forment une partition : P(A) = P(A∩B) + P(A∩B̄)." },
   ],
   suites: [
     { q: "Pour uₙ₊₁ = 3uₙ + 2, le point fixe ℓ vaut :", choix: ["−1", "1", "2", "−2"], bonne: 0, explication: "ℓ = b/(1−a) = 2/(1−3) = −1." },
@@ -258,7 +258,7 @@ const FLASHCARDS = {
     { recto: "Équation de la tangente en a ?", verso: "y = f'(a)(x − a) + f(a)" },
   ],
   probas: [
-    { recto: "Définition de P_B(A) ?", verso: "P(A∩B) / P(B), avec P(B) ≠ 0" },
+    { recto: "Définition de P<sub>B</sub>(A) ?", verso: "P(A∩B) / P(B), avec P(B) ≠ 0" },
     { recto: "Condition d'indépendance de A et B ?", verso: "P(A∩B) = P(A) × P(B)" },
     { recto: "Formule des probabilités totales ?", verso: "P(A) = P(A∩B) + P(A∩B̄)" },
     { recto: "Somme des branches issues d'un nœud d'un arbre ?", verso: "1" },

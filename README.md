@@ -112,6 +112,18 @@ uniquement celles qui ont été ratées.
 
 Les paquets sont dans `FLASHCARDS` (`data.js`).
 
+## Rapprochement d'un sujet libre
+
+`chercherBanque()` (dans `app.js`) relie un sujet saisi à une banque de questions locale. La
+règle est volontairement stricte : titre identique, ou expression-clé du cours entièrement
+retrouvée dans le sujet **et** pesant au moins la moitié de ses mots significatifs. Les
+fragments de mots ne comptent pas, les mots outils sont ignorés, et la matière est imposée
+quand le sujet vient du carrousel. Sans correspondance franche, l'application le dit au lieu
+de servir un QCM hors sujet.
+
+`node tests/recherche-sujet.js` vérifie une série de cas attendus puis passe les 440 thèmes du
+catalogue : il sort en erreur si un cas échoue, et liste les thèmes appariés pour relecture.
+
 ## Ce qui reste simulé
 
 Les trois outils IA utilisent un `setTimeout` en guise d'appel réseau et piochent dans les
