@@ -585,6 +585,31 @@
   <button class="bouton-texte" type="button" id="fermer-creation">Annuler</button>
 </div>
 
+<!-- ————— Feuille « Nommer la fiche » : le titre du chapitre avant l'enregistrement ————— -->
+<div class="feuille" id="feuille-nom" hidden role="dialog" aria-modal="true" aria-labelledby="nom-titre">
+  <div class="feuille-poignee" aria-hidden="true"></div>
+  <h2 class="feuille-titre" id="nom-titre">Nommer ta fiche</h2>
+
+  <form id="form-nom" novalidate>
+    <p class="sous-texte nom-aide">Donne-lui un titre de chapitre : c'est sous ce nom qu'elle sera rangée,
+      révisée et rappelée.</p>
+
+    <label class="champ-libelle" for="nom-champ">Titre du chapitre</label>
+    <input class="champ-texte" id="nom-champ" type="text" maxlength="80" autocomplete="off"
+           placeholder="Ex. : La guerre froide (1947-1991)">
+
+    <p class="etiquette etiquette--sous" id="nom-etiquette-themes" hidden>Chapitres de ton programme</p>
+    <div class="puces puces--filtres" id="nom-suggestions" role="group" aria-label="Chapitres de ton programme"></div>
+
+    <p class="etiquette etiquette--sous">Matière</p>
+    <div class="puces puces--filtres" id="nom-matieres" role="group" aria-label="Matière de la fiche"></div>
+
+    <button class="bouton-principal" type="submit" id="nom-valider">Enregistrer la fiche</button>
+  </form>
+
+  <button class="bouton-texte" type="button" id="nom-annuler">Annuler</button>
+</div>
+
 <!-- ————— Barre du bas ————— -->
 <nav class="barre-bas" aria-label="Navigation principale">
   <button class="onglet onglet--actif" type="button" data-onglet="accueil" aria-current="page">

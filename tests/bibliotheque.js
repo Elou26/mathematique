@@ -76,11 +76,25 @@ function verifier(nom, condition, vu) {
   }
   const garder = await page.$('[data-quiz="garder"]');
   verifier('le bilan propose de garder le sujet', Boolean(garder), 'bouton absent');
-  if (garder) { await garder.click(); await page.waitForTimeout(400); }
+  if (garder) { await garder.click(); await page.waitForTimeout(500); }
+
+  // 4 bis. La fiche se nomme comme un chapitre avant d'être rangée.
+  verifier('la feuille de nommage s\'ouvre', await page.isVisible('#feuille-nom'), 'feuille absente');
+  verifier('le titre proposé est mis en chapitre',
+    (await page.inputValue('#nom-champ')) === 'La guerre froide', await page.inputValue('#nom-champ'));
+  const matieresNom = await page.$$eval('#nom-matieres .puce--active', (n) => n.map((b) => b.innerText));
+  verifier('la matière devinée est pré-sélectionnée', /Histoire/.test(matieresNom.join('')), matieresNom.join(' | '));
+  verifier('des chapitres du programme sont proposés',
+    (await page.$$('#nom-suggestions .puce')).length > 0, '0 suggestion');
+  await page.fill('#nom-champ', 'La guerre froide (1947-1991)');
+  await page.click('#nom-valider');
+  await page.waitForTimeout(500);
+  verifier('la feuille se referme', !(await page.isVisible('#feuille-nom')), 'feuille encore ouverte');
 
   const rangee = await page.evaluate(() => JSON.parse(localStorage.getItem('mathematique.fiches') || '[]'));
-  verifier('la fiche est rangée dans la bonne matière',
-    rangee.length === 1 && rangee[0].matiere === 'histoire', JSON.stringify(rangee));
+  verifier('la fiche est rangée sous le nom choisi et dans la bonne matière',
+    rangee.length === 1 && rangee[0].matiere === 'histoire' && rangee[0].titre === 'La guerre froide (1947-1991)',
+    JSON.stringify(rangee));
 
   // 5. La fiche irrigue les catégories, la file et le profil.
   await page.click('.barre-bas [data-onglet="cours"]');
@@ -88,11 +102,11 @@ function verifier(nom, condition, vu) {
   await ouvrir(3);
   const rempli = await page.innerText('.dossier--ouvert .dossier-contenu');
   verifier('la fiche apparaît dans sa catégorie',
-    /la guerre froide/.test(rempli) && /Réviser maintenant/.test(rempli), rempli.replace(/\n+/g, ' / '));
+    /La guerre froide \(1947-1991\)/.test(rempli) && /Réviser maintenant/.test(rempli), rempli.replace(/\n+/g, ' / '));
 
   await page.click('.cloche');
   await page.waitForTimeout(300);
-  verifier('la file reprend la fiche', /la guerre froide/.test(await page.innerText('#liste-echeances')),
+  verifier('la file reprend la fiche', /La guerre froide/.test(await page.innerText('#liste-echeances')),
     (await page.innerText('#liste-echeances')).replace(/\n+/g, ' / '));
 
   await page.click('.barre-bas [data-onglet="profil"]');
@@ -102,7 +116,7 @@ function verifier(nom, condition, vu) {
 
   // 6. Les trois outils voient la fiche.
   await page.evaluate(() => { document.querySelectorAll('.vue').forEach((v) => { v.hidden = v.id !== 'vue-resume'; }); });
-  verifier('le résumé propose la fiche', /la guerre froide/.test(await page.innerText('#choix-cours')),
+  verifier('le résumé propose la fiche', /La guerre froide/.test(await page.innerText('#choix-cours')),
     await page.innerText('#choix-cours'));
   await page.evaluate(() => { document.querySelectorAll('.vue').forEach((v) => { v.hidden = v.id !== 'vue-flashcards'; }); });
   await page.click('#bouton-cartes');

@@ -94,6 +94,21 @@ outil, un résumé « Enregistré dans mes fiches », ou le bilan d'un quiz sur 
 (« Garder ce sujet dans mes fiches »). Les quiz lancés depuis une fiche mettent à jour sa date
 de révision et son meilleur score.
 
+### Nommer la fiche avant de la ranger
+
+Les trois chemins passent par la même feuille **« Nommer ta fiche »** (`ouvrirFeuilleNom()`),
+avant tout enregistrement :
+
+- le titre est proposé en forme de chapitre (`enChapitre()` : majuscule initiale, espaces
+  resserrés, pas de ponctuation finale) et reste entièrement modifiable ;
+- quatre chapitres du programme de la matière sont proposés en un geste ;
+- la matière devinée est pré-sélectionnée et se change d'une touche, « Autre » compris ;
+- « Annuler » (ou Échap, ou le fond) n'enregistre rien.
+
+Depuis le scan, le bouton devient « Enregistrer et continuer » : la fiche est rangée, puis
+l'outil demandé s'ouvre. Une fiche déjà présente dans la bibliothèque n'est pas renommée : elle
+est simplement marquée comme révisée.
+
 ## Révision espacée (cloche) et profil
 
 La file n'est plus une donnée figée : `echeancesFiches()` la calcule à partir de la dernière

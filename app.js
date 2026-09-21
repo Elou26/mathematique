@@ -816,19 +816,120 @@
     if (source === "texte") $("#texte-source").focus();
   }
 
+  /* ————— Feuille « Nommer ta fiche » ——————————————————————————
+     Une fiche est un chapitre : avant de la ranger, on propose son
+     titre — retouchable — et la matière où elle atterrit.
+     ———————————————————————————————————————————————————————————— */
+
+  let validationNom = null;        // ce qu'on fait du titre retenu
+  let matiereNom = "autre";
+
+  /** Met un titre libre en forme de chapitre : majuscule initiale, sans ponctuation finale. */
+  function enChapitre(texte) {
+    const propre = String(texte || "").replace(/\s+/g, " ").trim().replace(/[.,;:!?]+$/, "");
+    if (!propre) return "";
+    return propre.charAt(0).toUpperCase() + propre.slice(1);
+  }
+
+  function rendreMatieresNom() {
+    const conteneur = $("#nom-matieres");
+    conteneur.textContent = "";
+    const cles = matieresAffichees().slice();
+    if (!cles.includes(matiereNom)) cles.push(matiereNom);
+    if (!cles.includes("autre")) cles.push("autre");
+
+    cles.forEach((cle) => {
+      const puce = document.createElement("button");
+      puce.type = "button";
+      puce.className = "puce" + (cle === matiereNom ? " puce--active" : "");
+      puce.setAttribute("aria-pressed", String(cle === matiereNom));
+      puce.textContent = `${MATIERES[cle].emoji} ${MATIERES[cle].court}`;
+      puce.addEventListener("click", () => {
+        matiereNom = cle;
+        rendreMatieresNom();
+        rendreSuggestionsNom();
+      });
+      conteneur.appendChild(puce);
+    });
+  }
+
+  /** Les chapitres du programme de la matière, pour nommer sans tout retaper. */
+  function rendreSuggestionsNom() {
+    const conteneur = $("#nom-suggestions");
+    const etiquette = $("#nom-etiquette-themes");
+    const programme = programmeDuNiveau();
+    const themes = programme && programme[matiereNom] ? programme[matiereNom].slice(0, 4) : [];
+
+    conteneur.textContent = "";
+    etiquette.hidden = !themes.length;
+    themes.forEach((theme) => {
+      const puce = document.createElement("button");
+      puce.type = "button";
+      puce.className = "puce";
+      puce.textContent = theme;
+      puce.addEventListener("click", () => { $("#nom-champ").value = theme; });
+      conteneur.appendChild(puce);
+    });
+  }
+
+  function ouvrirFeuilleNom({ titre, matiere, action, surValider }) {
+    validationNom = surValider;
+    matiereNom = MATIERES[matiere] ? matiere : "autre";
+
+    const champ = $("#nom-champ");
+    champ.value = enChapitre(titre);
+    $("#nom-valider").textContent = action || "Enregistrer la fiche";
+    rendreMatieresNom();
+    rendreSuggestionsNom();
+
+    $("#feuille-fond").hidden = false;
+    $("#feuille-nom").hidden = false;
+    document.body.classList.add("corps--bloque");
+    // Le clavier arrive après la montée de la feuille.
+    setTimeout(() => { champ.focus(); champ.select(); }, 260);
+  }
+
+  function fermerFeuilleNom() {
+    validationNom = null;
+    $("#feuille-nom").hidden = true;
+    $("#feuille-fond").hidden = true;
+    document.body.classList.remove("corps--bloque");
+  }
+
+  function validerNom() {
+    const nom = enChapitre($("#nom-champ").value);
+    if (nom.length < 3) { toast("Donne un titre d'au moins 3 caractères."); return; }
+    const suite = validationNom;
+    const matiere = matiereNom;
+    fermerFeuilleNom();
+    if (suite) suite(nom, matiere);
+  }
+
+  function initNom() {
+    const form = $("#form-nom");
+    if (!form) return;
+    form.addEventListener("submit", (evt) => { evt.preventDefault(); validerNom(); });
+    $("#nom-annuler").addEventListener("click", fermerFeuilleNom);
+  }
+
+  function fermerLesFeuilles() {
+    if (!$("#feuille-creation").hidden) fermerFeuilleCreation();
+    if (!$("#feuille-nom").hidden) fermerFeuilleNom();
+  }
+
   function initCreation() {
     const bouton = $("#ouvrir-creation");
     if (!bouton) return;
 
     bouton.addEventListener("click", () => ouvrirFeuilleCreation(null));
-    $("#feuille-fond").addEventListener("click", fermerFeuilleCreation);
+    $("#feuille-fond").addEventListener("click", fermerLesFeuilles);
     $("#fermer-creation").addEventListener("click", fermerFeuilleCreation);
     $$("[data-creation]").forEach((tuile) => {
       tuile.addEventListener("click", () => lancerCreation(tuile.dataset.creation));
     });
 
     document.addEventListener("keydown", (evt) => {
-      if (evt.key === "Escape" && !$("#feuille-creation").hidden) fermerFeuilleCreation();
+      if (evt.key === "Escape") fermerLesFeuilles();
     });
   }
 
@@ -960,17 +1061,32 @@
     }
     fiche.sujet = sujet;
     const chapitre = chercherBanque(sujet, fiche.matiere);
-    const enregistree = ajouterFiche({
-      matiere: fiche.matiere || (chapitre ? chapitre.matiere : "autre"),
+
+    // On nomme la fiche comme un chapitre avant de la ranger.
+    ouvrirFeuilleNom({
       titre: sujet,
-      source: "scan",
-      banqueId: chapitre ? chapitre.id : null,
+      matiere: fiche.matiere || (chapitre ? chapitre.matiere : "autre"),
+      action: "Enregistrer et continuer",
+      surValider: (nom, matiere) => rangerFicheScannee(nom, matiere, outil),
     });
+  }
+
+  /** La fiche scannée est nommée : on la range, puis on ouvre l'outil demandé. */
+  function rangerFicheScannee(nom, matiere, outil) {
+    const sujet = nom;
+    const banque = chercherBanque(nom, matiere === "autre" ? null : matiere);
+    const enregistree = ajouterFiche({
+      matiere,
+      titre: nom,
+      source: "scan",
+      banqueId: banque ? banque.id : null,
+    });
+    if (enregistree) toast(`Fiche « ${enregistree.titre} » rangée en ${MATIERES[matiere].nom}`);
 
     if (outil === "quiz") {
       if (enregistree) { reviserFiche(enregistree); return; }
       etatQuiz.sujet = sujet;
-      etatQuiz.matiereTheme = fiche.matiere;
+      etatQuiz.matiereTheme = matiere === "autre" ? null : matiere;
       etatQuiz.ficheId = null;
       etatQuiz.complement = `Fiche scannée${niveauChoisi ? " — profil " + libelleNiveau().toLowerCase() : ""}.`;
       afficherVue("quiz");
@@ -1126,22 +1242,35 @@
     return trouve && (FLASHCARDS[trouve.id] || []).length ? trouve.id : null;
   }
 
-  /** Range le résumé affiché dans la bibliothèque, dans la bonne matière. */
-  function enregistrerLaFiche(source) {
+  /**
+   * Range le résumé affiché dans la bibliothèque. La fiche est d'abord
+   * nommée comme un chapitre, sauf si elle y est déjà : `suite` reçoit
+   * alors la fiche retenue.
+   */
+  function enregistrerLaFiche(source, suite) {
     if (source.ficheId) {
       const deja = trouverFiche(source.ficheId);
-      if (deja) { marquerRevisee(deja.id); return deja; }
+      if (deja) { marquerRevisee(deja.id); suite(deja); return; }
     }
     const reconnu = chercherBanque(source.titre, null);
     const matiere = source.matiere
       || (etatResume.matiere !== "toutes" ? etatResume.matiere : null)
       || (reconnu ? reconnu.matiere : "autre");
 
-    return ajouterFiche({
-      matiere,
+    ouvrirFeuilleNom({
       titre: source.titre,
-      source: etatResume.source === "cours" ? "cours" : "texte",
-      banqueId: reconnu ? reconnu.id : null,
+      matiere,
+      surValider: (nom, choisie) => {
+        const banque = chercherBanque(nom, choisie === "autre" ? null : choisie) || reconnu;
+        const gardee = ajouterFiche({
+          matiere: choisie,
+          titre: nom,
+          source: etatResume.source === "cours" ? "cours" : "texte",
+          banqueId: banque ? banque.id : null,
+        });
+        if (!gardee) { toast("Donne un titre à ta fiche pour l'enregistrer."); return; }
+        suite(gardee);
+      },
     });
   }
 
@@ -1180,21 +1309,20 @@
         const action = bouton.dataset.action;
         if (action === "refaire") { genererResume(); return; }
 
-        const gardee = enregistrerLaFiche(source);
-        if (!gardee) { toast("Donne un titre à ta fiche pour l'enregistrer."); return; }
-
-        if (action === "enregistrer") {
-          toast(`Fiche enregistrée en ${MATIERES[gardee.matiere].nom}`);
-          return;
-        }
-        // Flashcards : seulement si un paquet existe pour ce sujet.
-        if (!banqueDeLaFiche(gardee)) {
-          toast("Pas encore de cartes pour ce sujet : lance plutôt un quiz.");
-          return;
-        }
-        etatCartes.ficheId = gardee.id;
-        afficherVue("flashcards");
-        lancerCartes(null);
+        enregistrerLaFiche(source, (gardee) => {
+          if (action === "enregistrer") {
+            toast(`Fiche « ${gardee.titre} » enregistrée en ${MATIERES[gardee.matiere].nom}`);
+            return;
+          }
+          // Flashcards : seulement si un paquet existe pour ce sujet.
+          if (!banqueDeLaFiche(gardee)) {
+            toast("Pas encore de cartes pour ce sujet : lance plutôt un quiz.");
+            return;
+          }
+          etatCartes.ficheId = gardee.id;
+          afficherVue("flashcards");
+          lancerCartes(null);
+        });
       });
     });
 
@@ -1997,17 +2125,24 @@
         }
         else if (action === "garder") {
           const reconnu = chercherBanque(sujetLibre, etatQuiz.matiereTheme);
-          const gardee = ajouterFiche({
-            matiere: etatQuiz.matiereTheme || (reconnu ? reconnu.matiere : "autre"),
+          ouvrirFeuilleNom({
             titre: sujetLibre,
-            source: sampleClaude ? "ia" : "libre",
-            banqueId: reconnu ? reconnu.id : null,
+            matiere: etatQuiz.matiereTheme || (reconnu ? reconnu.matiere : "autre"),
+            surValider: (nom, matiere) => {
+              const banque = chercherBanque(nom, matiere === "autre" ? null : matiere) || reconnu;
+              const gardee = ajouterFiche({
+                matiere,
+                titre: nom,
+                source: sampleClaude ? "ia" : "libre",
+                banqueId: banque ? banque.id : null,
+              });
+              if (!gardee) { toast("Sujet trop court pour être enregistré."); return; }
+              marquerRevisee(gardee.id, pourcentage);
+              bouton.disabled = true;
+              bouton.textContent = "Rangée dans tes fiches";
+              toast(`Fiche « ${gardee.titre} » ajoutée en ${MATIERES[matiere].nom}`);
+            },
           });
-          if (!gardee) { toast("Sujet trop court pour être enregistré."); return; }
-          marquerRevisee(gardee.id, pourcentage);
-          bouton.disabled = true;
-          bouton.textContent = "Rangée dans tes fiches";
-          toast(`Fiche ajoutée en ${MATIERES[gardee.matiere].nom}`);
         }
         else { bilan.hidden = true; $("#form-quiz").hidden = false; }
       });
@@ -2341,6 +2476,7 @@
     });
 
     initCreation();
+    initNom();
     initIA();
     initScan();
     initResume();

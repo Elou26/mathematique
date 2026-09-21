@@ -558,6 +558,14 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 
 .feuille .bouton-texte { margin-top: 14px; }
 
+/* Feuille « Nommer ta fiche » */
+.nom-aide { margin: 14px 0 4px; }
+#feuille-nom { max-height: 88vh; overflow-y: auto; overscroll-behavior: contain; }
+#feuille-nom .champ-texte { margin-bottom: 4px; }
+#feuille-nom .bouton-principal { margin-top: 16px; }
+#nom-suggestions .puce { max-width: 100%; }
+#nom-suggestions:empty { display: none; }
+
 @media (min-width: 560px) {
   .feuille { left: 50%; right: auto; width: 440px; transform: translateX(-50%); }
   @keyframes montee {
