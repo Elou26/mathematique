@@ -49,7 +49,7 @@
            aria-valuenow="${cours.progression}" aria-label="Progression de ${cours.titre}">
         <div class="barre-progression-remplie"></div>
       </div>
-      <p class="barre-legende">${cours.chapitre} · ${cours.progression} % maîtrisé</p>
+      <p class="barre-legende">${libelleCours(cours)} · ${cours.progression} % maîtrisé</p>
       <button class="bouton-reviser" type="button">Réviser maintenant</button>
     `;
 
@@ -135,7 +135,7 @@
         <span class="echeance-palier">${e.palier}</span>
         <span class="ligne-texte">
           <span class="echeance-titre">${e.titre}</span>
-          <span class="echeance-detail">${quand}</span>
+          <span class="echeance-detail">${MATIERES[e.matiere] ? MATIERES[e.matiere].nom + " · " : ""}${quand}</span>
         </span>
         <svg class="ligne-fleche" aria-hidden="true"><use href="#i-horloge"></use></svg>
       `;
@@ -145,7 +145,7 @@
 
   /* ————— Navigation entre vues ———————————————————————————————— */
 
-  const VUES = ["accueil", "cours", "communaute", "profil", "revision", "resume"];
+  const VUES = ["accueil", "cours", "communaute", "profil", "revision", "resume", "quiz", "flashcards"];
 
   function afficherVue(nom) {
     if (!VUES.includes(nom)) nom = "accueil";
@@ -160,7 +160,8 @@
 
     // La révision espacée n'a pas d'onglet dédié : on garde « Accueil » allumé.
     // Les vues ouvertes depuis l'accueil (cloche, outils IA) gardent « Accueil » allumé.
-    const ongletActif = (nom === "revision" || nom === "resume") ? "accueil" : nom;
+    const OUVERTES_DEPUIS_ACCUEIL = ["revision", "resume", "quiz", "flashcards"];
+    const ongletActif = OUVERTES_DEPUIS_ACCUEIL.includes(nom) ? "accueil" : nom;
     $$(".barre-bas .onglet").forEach((onglet) => {
       const actif = onglet.dataset.onglet === ongletActif;
       onglet.classList.toggle("onglet--actif", actif);
@@ -204,10 +205,115 @@
     });
   }
 
+  /* ————— Matières et sélecteur de cours (partagé par les 3 outils) ——— */
+
+  function libelleCours(cours) {
+    const matiere = MATIERES[cours.matiere];
+    return `${matiere ? matiere.nom : "Cours"} · ${cours.chapitre}`;
+  }
+
+  function emojiMatiere(cours) {
+    const matiere = MATIERES[cours.matiere];
+    return matiere ? matiere.emoji : "📘";
+  }
+
+  function melanger(tableau) {
+    const copie = tableau.slice();
+    for (let i = copie.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copie[i], copie[j]] = [copie[j], copie[i]];
+    }
+    return copie;
+  }
+
+  /**
+   * Monte un sélecteur « filtre par matière + liste de chapitres ».
+   * `etat` porte { matiere, coursId } et est mis à jour en place.
+   * `filtreCours` permet de n'afficher que les chapitres disposant de contenu.
+   */
+  function initSelecteurCours({ liste, filtres, etat, filtreCours }) {
+    const conteneurListe = $(liste);
+    const conteneurFiltres = $(filtres);
+    if (!conteneurListe || !conteneurFiltres) return;
+
+    const disponibles = filtreCours ? COURS.filter(filtreCours) : COURS.slice();
+    if (!disponibles.some((c) => c.id === etat.coursId)) etat.coursId = disponibles[0].id;
+
+    const visibles = () =>
+      etat.matiere === "toutes" ? disponibles : disponibles.filter((c) => c.matiere === etat.matiere);
+
+    function rendreFiltres() {
+      const matieres = [...new Set(disponibles.map((c) => c.matiere))];
+      conteneurFiltres.textContent = "";
+      [["toutes", "Toutes"], ...matieres.map((m) => [m, `${MATIERES[m].emoji} ${MATIERES[m].court}`])]
+        .forEach(([valeur, libelle]) => {
+          const bouton = document.createElement("button");
+          bouton.type = "button";
+          bouton.className = "puce" + (etat.matiere === valeur ? " puce--active" : "");
+          bouton.setAttribute("aria-pressed", String(etat.matiere === valeur));
+          bouton.textContent = libelle;
+          bouton.addEventListener("click", () => {
+            etat.matiere = valeur;
+            const restants = visibles();
+            if (!restants.some((c) => c.id === etat.coursId)) etat.coursId = restants[0].id;
+            rendreFiltres();
+            rendreListe();
+          });
+          conteneurFiltres.appendChild(bouton);
+        });
+    }
+
+    function rendreListe() {
+      conteneurListe.textContent = "";
+      conteneurListe.setAttribute("role", "radiogroup");
+      visibles().forEach((cours) => {
+        const actif = cours.id === etat.coursId;
+        const li = document.createElement("li");
+        const bouton = document.createElement("button");
+        bouton.type = "button";
+        bouton.className = "choix" + (actif ? " choix--actif" : "");
+        bouton.setAttribute("role", "radio");
+        bouton.setAttribute("aria-checked", String(actif));
+        bouton.innerHTML = `
+          <span class="ligne-pastille">${emojiMatiere(cours)}</span>
+          <span class="choix-texte">
+            <span class="choix-nom">${cours.titre}</span>
+            <span class="choix-detail">${libelleCours(cours)}</span>
+          </span>
+          <span class="choix-marque" aria-hidden="true"></span>
+        `;
+        bouton.addEventListener("click", () => {
+          etat.coursId = cours.id;
+          rendreListe();
+        });
+        li.appendChild(bouton);
+        conteneurListe.appendChild(li);
+      });
+    }
+
+    rendreFiltres();
+    rendreListe();
+  }
+
+  /** Applique le choix « radio » à un groupe de puces et renvoie la valeur retenue. */
+  function brancherPuces(selecteur, cle, surChoix) {
+    $$(selecteur).forEach((puce) => {
+      puce.addEventListener("click", () => {
+        $$(selecteur).forEach((autre) => {
+          const actif = autre === puce;
+          autre.classList.toggle("puce--active", actif);
+          autre.setAttribute("aria-checked", String(actif));
+        });
+        surChoix(puce.dataset[cle]);
+      });
+    });
+  }
+
   /* ————— Page « Créer résumé » ————————————————————————————————— */
 
   const etatResume = {
     source: "cours",        // cours | texte | fichier
+    matiere: "toutes",
     coursId: COURS[0].id,
     longueur: "standard",
     options: { formules: true, exemples: true, pieges: false },
@@ -220,38 +326,11 @@
     detaille: { points: 99, libelle: "Fiche détaillée" },
   };
 
-  function rendreChoixCours(conteneur) {
-    if (!conteneur) return;
-    conteneur.textContent = "";
-    COURS.forEach((cours) => {
-      const li = document.createElement("li");
-      const bouton = document.createElement("button");
-      bouton.type = "button";
-      bouton.className = "choix" + (cours.id === etatResume.coursId ? " choix--actif" : "");
-      bouton.setAttribute("role", "radio");
-      bouton.setAttribute("aria-checked", String(cours.id === etatResume.coursId));
-      bouton.innerHTML = `
-        <span class="choix-texte">
-          <span class="choix-nom">${cours.titre}</span>
-          <span class="choix-detail">${cours.chapitre}</span>
-        </span>
-        <span class="choix-marque" aria-hidden="true"></span>
-      `;
-      bouton.addEventListener("click", () => {
-        etatResume.coursId = cours.id;
-        rendreChoixCours(conteneur);
-      });
-      li.appendChild(bouton);
-      conteneur.appendChild(li);
-    });
-    conteneur.setAttribute("role", "radiogroup");
-  }
-
   /** Source actuellement sélectionnée : titre affiché + contenu de la fiche. */
   function sourceChoisie() {
     if (etatResume.source === "cours") {
       const cours = COURS.find((c) => c.id === etatResume.coursId) || COURS[0];
-      return { titre: cours.titre, sousTitre: cours.chapitre, contenu: RESUMES[cours.id] || RESUME_GENERIQUE };
+      return { titre: cours.titre, sousTitre: libelleCours(cours), contenu: RESUMES[cours.id] || RESUME_GENERIQUE };
     }
     if (etatResume.source === "fichier") {
       return {
@@ -295,7 +374,11 @@
       </header>
       <p class="fiche-accroche">${contenu.accroche}</p>
       ${sectionFiche("L'essentiel", contenu.points.slice(0, max), "fiche-section--points")}
-      ${formules ? sectionFiche("Formules clés", contenu.formules, "fiche-section--formules") : ""}
+      ${formules ? sectionFiche(
+          contenu.libelleFormules || "Formules clés",
+          contenu.formules,
+          contenu.libelleFormules ? "fiche-section--reperes" : "fiche-section--formules"
+        ) : ""}
       ${exemples ? sectionFiche("Exemples corrigés", contenu.exemples, "fiche-section--exemples") : ""}
       ${pieges ? sectionFiche("Pièges fréquents", contenu.pieges, "fiche-section--pieges") : ""}
       <div class="fiche-actions">
@@ -344,7 +427,11 @@
     const form = $("#form-resume");
     if (!form) return;
 
-    rendreChoixCours($("#choix-cours"));
+    initSelecteurCours({
+      liste: "#choix-cours",
+      filtres: "#filtres-resume",
+      etat: etatResume,
+    });
 
     // Bascule entre les trois sources.
     $$(".segment", form).forEach((segment) => {
@@ -406,6 +493,301 @@
     });
   }
 
+  /* ————— Page « Créer quiz » ——————————————————————————————————— */
+
+  const etatQuiz = { matiere: "toutes", coursId: COURS[0].id, taille: 5, mode: "immediate" };
+  let partieQuiz = null;
+
+  /** Tire les questions du chapitre, mélange l'ordre des questions et des réponses. */
+  function preparerQuestions(coursId, taille) {
+    const banque = QUIZ[coursId] || [];
+    return melanger(banque).slice(0, Math.min(taille, banque.length)).map((question) => ({
+      enonce: question.q,
+      explication: question.explication,
+      choix: melanger(question.choix.map((texte, i) => ({ texte, correct: i === question.bonne }))),
+    }));
+  }
+
+  function afficherQuestion() {
+    const { questions, index, score } = partieQuiz;
+    const question = questions[index];
+
+    $("#quiz-position").textContent = `Question ${index + 1} / ${questions.length}`;
+    $("#quiz-score").textContent = score <= 1 ? `${score} point` : `${score} points`;
+    $("#quiz-barre").style.width = `${(index / questions.length) * 100}%`;
+    $("#quiz-question").textContent = question.enonce;
+    $("#quiz-explication").hidden = true;
+    $("#quiz-suivant").hidden = true;
+
+    const conteneur = $("#quiz-reponses");
+    conteneur.textContent = "";
+    question.choix.forEach((choix) => {
+      const bouton = document.createElement("button");
+      bouton.type = "button";
+      bouton.className = "reponse";
+      bouton.textContent = choix.texte;
+      bouton.addEventListener("click", () => repondre(choix, bouton));
+      conteneur.appendChild(bouton);
+    });
+  }
+
+  function repondre(choix, bouton) {
+    const { questions, index, mode } = partieQuiz;
+    const question = questions[index];
+    if (question.repondu) return;
+
+    question.repondu = true;
+    question.reussie = choix.correct;
+    question.donnee = choix.texte;
+    if (choix.correct) partieQuiz.score += 1;
+
+    if (mode === "immediate") {
+      $$("#quiz-reponses .reponse").forEach((autre) => {
+        autre.disabled = true;
+        const bonne = question.choix.find((c) => c.texte === autre.textContent && c.correct);
+        if (bonne) autre.classList.add("reponse--juste");
+      });
+      if (!choix.correct) bouton.classList.add("reponse--faux");
+
+      const explication = $("#quiz-explication");
+      explication.className = `explication ${choix.correct ? "explication--juste" : "explication--faux"}`;
+      explication.innerHTML = `<strong>${choix.correct ? "Bonne réponse" : "Raté"}</strong> — ${question.explication}`;
+      explication.hidden = false;
+
+      const suivant = $("#quiz-suivant");
+      suivant.textContent = index + 1 < questions.length ? "Question suivante" : "Voir mon résultat";
+      suivant.hidden = false;
+      $("#quiz-score").textContent = partieQuiz.score <= 1 ? `${partieQuiz.score} point` : `${partieQuiz.score} points`;
+    } else {
+      questionSuivante();
+    }
+  }
+
+  function questionSuivante() {
+    partieQuiz.index += 1;
+    if (partieQuiz.index >= partieQuiz.questions.length) bilanQuiz();
+    else afficherQuestion();
+  }
+
+  function bilanQuiz() {
+    const { questions, score } = partieQuiz;
+    const total = questions.length;
+    const pourcentage = Math.round((score / total) * 100);
+    const rates = questions.filter((q) => !q.reussie);
+    const message = pourcentage === 100 ? "Sans faute — le chapitre est solide."
+                  : pourcentage >= 60 ? "Bonne base : reprends les questions ratées."
+                  : "À retravailler : relis la fiche avant de refaire un tour.";
+
+    const corrections = rates.length ? `
+      <h4 class="bilan-soustitre">À revoir</h4>
+      <ul class="bilan-erreurs">
+        ${rates.map((q) => `
+          <li>
+            <span class="bilan-question">${q.enonce}</span>
+            <span class="bilan-mauvaise">Ta réponse : ${q.donnee}</span>
+            <span class="bilan-bonne">Réponse : ${q.choix.find((c) => c.correct).texte}</span>
+            <span class="bilan-explication">${q.explication}</span>
+          </li>`).join("")}
+      </ul>` : "";
+
+    $("#jeu-quiz").hidden = true;
+    const bilan = $("#bilan-quiz");
+    bilan.innerHTML = `
+      <p class="bilan-score">${score} / ${total}</p>
+      <p class="bilan-pourcentage">${pourcentage} % de bonnes réponses</p>
+      <p class="bilan-message">${message}</p>
+      ${corrections}
+      <div class="bilan-actions">
+        <button class="bouton-principal" type="button" data-quiz="rejouer">Refaire un quiz</button>
+        <button class="bouton-secondaire" type="button" data-quiz="chapitre">Changer de chapitre</button>
+        <button class="bouton-secondaire" type="button" data-quiz="enregistrer">Enregistrer le score</button>
+      </div>
+    `;
+    bilan.hidden = false;
+
+    $$("[data-quiz]", bilan).forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        const action = bouton.dataset.quiz;
+        if (action === "rejouer") lancerQuiz();
+        else if (action === "enregistrer") toast("Score ajouté à ta progression");
+        else { bilan.hidden = true; $("#form-quiz").hidden = false; }
+      });
+    });
+  }
+
+  let minuteurQuiz;
+  function lancerQuiz() {
+    const questions = preparerQuestions(etatQuiz.coursId, etatQuiz.taille);
+    if (!questions.length) { toast("Aucune question disponible pour ce chapitre."); return; }
+
+    const form = $("#form-quiz");
+    const chargement = $("#chargement-quiz");
+    form.hidden = true;
+    $("#bilan-quiz").hidden = true;
+    $("#jeu-quiz").hidden = true;
+    chargement.hidden = false;
+
+    // Génération simulée (à remplacer par l'appel au service).
+    clearTimeout(minuteurQuiz);
+    minuteurQuiz = setTimeout(() => {
+      chargement.hidden = true;
+      partieQuiz = { questions, index: 0, score: 0, mode: etatQuiz.mode };
+      $("#jeu-quiz").hidden = false;
+      afficherQuestion();
+    }, 900);
+  }
+
+  function initQuiz() {
+    const form = $("#form-quiz");
+    if (!form) return;
+
+    initSelecteurCours({
+      liste: "#choix-cours-quiz",
+      filtres: "#filtres-quiz",
+      etat: etatQuiz,
+      filtreCours: (cours) => (QUIZ[cours.id] || []).length > 0,
+    });
+
+    brancherPuces("#puces-quiz-taille .puce", "taille", (valeur) => { etatQuiz.taille = Number(valeur); });
+    brancherPuces("#puces-quiz-mode .puce", "mode", (valeur) => { etatQuiz.mode = valeur; });
+
+    form.addEventListener("submit", (evt) => { evt.preventDefault(); lancerQuiz(); });
+    $("#quiz-suivant").addEventListener("click", questionSuivante);
+    $("#quiz-quitter").addEventListener("click", () => {
+      $("#jeu-quiz").hidden = true;
+      $("#bilan-quiz").hidden = true;
+      form.hidden = false;
+    });
+  }
+
+  /* ————— Page « FlashCards » ————————————————————————————————————— */
+
+  const etatCartes = { matiere: "toutes", coursId: COURS[0].id, ordre: "melange" };
+  let paquet = null;
+
+  function afficherCarte() {
+    const carte = paquet.file[0];
+    const total = paquet.total;
+
+    $("#carte-flip").classList.remove("carte-flip--retournee");
+    $("#verdicts-cartes").hidden = true;
+    $("#carte-recto").textContent = carte.recto;
+    $("#carte-verso").textContent = carte.verso;
+    $("#cartes-position").textContent = paquet.file.length <= 1
+      ? "Dernière carte"
+      : `${paquet.file.length} cartes restantes`;
+    $("#cartes-score").textContent = paquet.sues.size <= 1
+      ? `${paquet.sues.size} sue`
+      : `${paquet.sues.size} sues`;
+    $("#cartes-barre").style.width = `${(paquet.sues.size / total) * 100}%`;
+  }
+
+  function verdictCarte(verdict) {
+    const carte = paquet.file.shift();
+
+    if (verdict === "su") {
+      paquet.sues.add(carte.id);
+    } else {
+      paquet.ratees.add(carte.id);
+      paquet.sues.delete(carte.id);
+      if (!carte.repassee) {           // une seule reprise par carte, pour ne pas boucler
+        carte.repassee = true;
+        paquet.file.push(carte);
+      } else {
+        paquet.sues.add(carte.id);     // vue deux fois : on la considère traitée
+      }
+    }
+
+    if (paquet.file.length) afficherCarte();
+    else bilanCartes();
+  }
+
+  function bilanCartes() {
+    const total = paquet.total;
+    const ratees = paquet.ratees.size;
+    const duPremierCoup = total - ratees;
+
+    $("#jeu-cartes").hidden = true;
+    const bilan = $("#bilan-cartes");
+    bilan.innerHTML = `
+      <p class="bilan-score">${duPremierCoup} / ${total}</p>
+      <p class="bilan-pourcentage">cartes sues du premier coup</p>
+      <p class="bilan-message">${ratees
+        ? `${ratees} carte${ratees > 1 ? "s" : ""} à replacer dans ta révision espacée.`
+        : "Paquet maîtrisé — prochaine révision dans quelques jours."}</p>
+      <div class="bilan-actions">
+        ${ratees ? '<button class="bouton-principal" type="button" data-cartes="ratees">Rejouer les cartes ratées</button>' : ""}
+        <button class="${ratees ? "bouton-secondaire" : "bouton-principal"}" type="button" data-cartes="tout">Rejouer tout le paquet</button>
+        <button class="bouton-secondaire" type="button" data-cartes="chapitre">Changer de chapitre</button>
+      </div>
+    `;
+    bilan.hidden = false;
+
+    const idsRates = new Set(paquet.ratees);
+    $$("[data-cartes]", bilan).forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        const action = bouton.dataset.cartes;
+        if (action === "chapitre") { bilan.hidden = true; $("#form-cartes").hidden = false; }
+        else lancerCartes(action === "ratees" ? idsRates : null);
+      });
+    });
+  }
+
+  let minuteurCartes;
+  function lancerCartes(seulement) {
+    const source = FLASHCARDS[etatCartes.coursId] || [];
+    let cartes = source.map((carte, i) => ({ ...carte, id: `${etatCartes.coursId}-${i}`, repassee: false }));
+    if (seulement) cartes = cartes.filter((c) => seulement.has(c.id));
+    if (!cartes.length) { toast("Aucune carte disponible pour ce chapitre."); return; }
+    if (etatCartes.ordre === "melange") cartes = melanger(cartes);
+
+    const form = $("#form-cartes");
+    form.hidden = true;
+    $("#bilan-cartes").hidden = true;
+    $("#jeu-cartes").hidden = true;
+    $("#chargement-cartes").hidden = false;
+
+    clearTimeout(minuteurCartes);
+    minuteurCartes = setTimeout(() => {
+      $("#chargement-cartes").hidden = true;
+      paquet = { file: cartes, total: cartes.length, sues: new Set(), ratees: new Set() };
+      $("#jeu-cartes").hidden = false;
+      afficherCarte();
+    }, 700);
+  }
+
+  function initCartes() {
+    const form = $("#form-cartes");
+    if (!form) return;
+
+    initSelecteurCours({
+      liste: "#choix-cours-cartes",
+      filtres: "#filtres-cartes",
+      etat: etatCartes,
+      filtreCours: (cours) => (FLASHCARDS[cours.id] || []).length > 0,
+    });
+
+    brancherPuces("#puces-cartes-ordre .puce", "ordre", (valeur) => { etatCartes.ordre = valeur; });
+
+    form.addEventListener("submit", (evt) => { evt.preventDefault(); lancerCartes(null); });
+
+    $("#carte-flip").addEventListener("click", () => {
+      const carte = $("#carte-flip");
+      carte.classList.toggle("carte-flip--retournee");
+      $("#verdicts-cartes").hidden = !carte.classList.contains("carte-flip--retournee");
+    });
+
+    $$("[data-verdict]").forEach((bouton) => {
+      bouton.addEventListener("click", () => verdictCarte(bouton.dataset.verdict));
+    });
+
+    $("#cartes-quitter").addEventListener("click", () => {
+      $("#jeu-cartes").hidden = true;
+      $("#bilan-cartes").hidden = true;
+      form.hidden = false;
+    });
+  }
+
   /* ————— Toast ————————————————————————————————————————————————— */
 
   let minuteurToast;
@@ -441,16 +823,14 @@
       });
     });
 
-    // Outils IA.
-    const LIBELLES = { quiz: "Créer quiz", flashcards: "FlashCards" };
+    // Outils IA : chaque tuile ouvre sa page.
     $$("[data-outil]").forEach((el) => {
-      el.addEventListener("click", () => {
-        if (el.dataset.outil === "resume") afficherVue("resume");
-        else toast(`${LIBELLES[el.dataset.outil]} — bientôt disponible`);
-      });
+      el.addEventListener("click", () => afficherVue(el.dataset.outil));
     });
 
     initResume();
+    initQuiz();
+    initCartes();
 
     $("#bouton-affronter").addEventListener("click", () => toast("Invitation envoyée à un ami 🤺"));
 

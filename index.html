@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#CFE0F7">
-<meta name="description" content="Mathématique — réviser ses cours de maths avec la répétition espacée, des quiz et des flashcards générés par IA.">
+<meta name="description" content="Mathématique — réviser toutes les matières avec la répétition espacée, des résumés, des quiz et des flashcards générés par IA.">
 <title>Mathématique</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231B2A6B'/><text x='16' y='23' font-size='18' font-family='Georgia,serif' fill='%23fff' text-anchor='middle'>π</text></svg>">
 <link rel="stylesheet" href="styles.css">
@@ -147,7 +147,7 @@
     </button>
 
     <h2 class="titre-categorie titre-categorie--grand">Créer un résumé</h2>
-    <p class="sous-texte">Choisis une source, l'IA en tire une fiche structurée avec les formules clés.</p>
+    <p class="sous-texte">Choisis une source, l'IA en tire une fiche structurée : l'essentiel, les repères et les pièges.</p>
 
     <form id="form-resume" novalidate>
       <p class="etiquette">1 · Source du contenu</p>
@@ -158,6 +158,7 @@
       </div>
 
       <div class="source" data-panneau="cours">
+        <div class="puces puces--filtres" id="filtres-resume" role="group" aria-label="Filtrer par matière"></div>
         <ul class="choix-cours" id="choix-cours"></ul>
       </div>
 
@@ -186,7 +187,7 @@
 
       <p class="etiquette">3 · À inclure</p>
       <div class="puces" id="puces-options">
-        <button class="puce puce--active" type="button" aria-pressed="true" data-option="formules">Formules clés</button>
+        <button class="puce puce--active" type="button" aria-pressed="true" data-option="formules">Formules &amp; repères</button>
         <button class="puce puce--active" type="button" aria-pressed="true" data-option="exemples">Exemples corrigés</button>
         <button class="puce" type="button" aria-pressed="false" data-option="pieges">Pièges fréquents</button>
       </div>
@@ -201,6 +202,127 @@
     </div>
 
     <article class="fiche" id="fiche-resume" hidden aria-live="polite"></article>
+  </section>
+
+  <!-- Vue : Créer quiz (outil IA) -->
+  <section class="vue" id="vue-quiz" hidden>
+    <button class="retour" type="button" data-onglet="accueil">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      Accueil
+    </button>
+
+    <h2 class="titre-categorie titre-categorie--grand">Créer un quiz</h2>
+    <p class="sous-texte">Un QCM corrigé, généré à partir d'un chapitre de n'importe quelle matière.</p>
+
+    <form id="form-quiz" novalidate>
+      <p class="etiquette">1 · Matière</p>
+      <div class="puces puces--filtres" id="filtres-quiz" role="group" aria-label="Filtrer par matière"></div>
+
+      <p class="etiquette">2 · Chapitre</p>
+      <ul class="choix-cours" id="choix-cours-quiz"></ul>
+
+      <p class="etiquette">3 · Nombre de questions</p>
+      <div class="puces" id="puces-quiz-taille" role="radiogroup" aria-label="Nombre de questions">
+        <button class="puce" type="button" role="radio" aria-checked="false" data-taille="3">3 questions</button>
+        <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-taille="5">5 questions</button>
+        <button class="puce" type="button" role="radio" aria-checked="false" data-taille="99">Tout le chapitre</button>
+      </div>
+
+      <p class="etiquette">4 · Correction</p>
+      <div class="puces" id="puces-quiz-mode" role="radiogroup" aria-label="Moment de la correction">
+        <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-mode="immediate">Immédiate</button>
+        <button class="puce" type="button" role="radio" aria-checked="false" data-mode="fin">À la fin</button>
+      </div>
+
+      <button class="bouton-principal" type="submit" id="bouton-quiz">Générer le quiz</button>
+      <p class="mention">Les questions sont tirées du chapitre choisi, puis mélangées à chaque partie.</p>
+    </form>
+
+    <div class="chargement" id="chargement-quiz" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <p class="chargement-texte">Rédaction des questions et des corrigés…</p>
+    </div>
+
+    <div class="jeu" id="jeu-quiz" hidden>
+      <div class="jeu-entete">
+        <span class="jeu-position" id="quiz-position">Question 1 / 5</span>
+        <span class="jeu-score" id="quiz-score">0 point</span>
+      </div>
+      <div class="barre-progression"><div class="barre-progression-remplie" id="quiz-barre"></div></div>
+
+      <p class="question" id="quiz-question"></p>
+      <div class="reponses" id="quiz-reponses"></div>
+      <div class="explication" id="quiz-explication" hidden></div>
+
+      <button class="bouton-principal" type="button" id="quiz-suivant" hidden>Question suivante</button>
+      <button class="bouton-texte" type="button" id="quiz-quitter">Quitter le quiz</button>
+    </div>
+
+    <div class="bilan" id="bilan-quiz" hidden aria-live="polite"></div>
+  </section>
+
+  <!-- Vue : FlashCards (outil IA) -->
+  <section class="vue" id="vue-flashcards" hidden>
+    <button class="retour" type="button" data-onglet="accueil">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      Accueil
+    </button>
+
+    <h2 class="titre-categorie titre-categorie--grand">FlashCards</h2>
+    <p class="sous-texte">Une question au recto, la réponse au verso : la mémoire se teste, elle ne se relit pas.</p>
+
+    <form id="form-cartes" novalidate>
+      <p class="etiquette">1 · Matière</p>
+      <div class="puces puces--filtres" id="filtres-cartes" role="group" aria-label="Filtrer par matière"></div>
+
+      <p class="etiquette">2 · Chapitre</p>
+      <ul class="choix-cours" id="choix-cours-cartes"></ul>
+
+      <p class="etiquette">3 · Ordre des cartes</p>
+      <div class="puces" id="puces-cartes-ordre" role="radiogroup" aria-label="Ordre des cartes">
+        <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-ordre="melange">Mélangées</button>
+        <button class="puce" type="button" role="radio" aria-checked="false" data-ordre="cours">Ordre du cours</button>
+      </div>
+
+      <button class="bouton-principal" type="submit" id="bouton-cartes">Lancer les cartes</button>
+      <p class="mention">Les cartes marquées « à revoir » repassent en fin de paquet.</p>
+    </form>
+
+    <div class="chargement" id="chargement-cartes" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <p class="chargement-texte">Préparation du paquet…</p>
+    </div>
+
+    <div class="jeu" id="jeu-cartes" hidden>
+      <div class="jeu-entete">
+        <span class="jeu-position" id="cartes-position">Carte 1 / 5</span>
+        <span class="jeu-score" id="cartes-score">0 sue</span>
+      </div>
+      <div class="barre-progression"><div class="barre-progression-remplie" id="cartes-barre"></div></div>
+
+      <button class="carte-flip" type="button" id="carte-flip" aria-live="polite">
+        <span class="carte-inner">
+          <span class="carte-face carte-face--recto">
+            <span class="carte-etiquette">Question</span>
+            <span class="carte-contenu" id="carte-recto"></span>
+            <span class="carte-aide">Touche la carte pour voir la réponse</span>
+          </span>
+          <span class="carte-face carte-face--verso">
+            <span class="carte-etiquette">Réponse</span>
+            <span class="carte-contenu" id="carte-verso"></span>
+          </span>
+        </span>
+      </button>
+
+      <div class="verdicts" id="verdicts-cartes" hidden>
+        <button class="bouton-verdict bouton-verdict--revoir" type="button" data-verdict="revoir">À revoir</button>
+        <button class="bouton-verdict bouton-verdict--su" type="button" data-verdict="su">Je savais</button>
+      </div>
+
+      <button class="bouton-texte" type="button" id="cartes-quitter">Quitter le paquet</button>
+    </div>
+
+    <div class="bilan" id="bilan-cartes" hidden aria-live="polite"></div>
   </section>
 
   <!-- Vue : Révision espacée (cible de la cloche) -->

@@ -565,6 +565,171 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .fiche-actions { margin-top: 18px; }
 .fiche-actions .bouton-principal { margin-top: 0; }
 
+/* ————— Pages « Créer quiz » et « FlashCards » ————————————————— */
+.puces--filtres { margin-bottom: 10px; }
+
+form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
+
+.jeu {
+  margin-top: 4px;
+  padding: 16px;
+  background: var(--blanc);
+  border: 1px solid var(--bordure);
+  border-radius: 18px;
+  box-shadow: var(--ombre);
+  animation: apparition .2s ease both;
+}
+.jeu-entete {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.jeu-position { font-size: 12px; font-weight: 700; color: var(--noir); }
+.jeu-score { font-size: 12px; font-weight: 600; color: var(--marine); }
+
+.question {
+  margin: 16px 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--noir);
+  line-height: 1.35;
+}
+
+.reponses { display: flex; flex-direction: column; gap: 8px; }
+.reponse {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--gris-fond);
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  font-size: 14px;
+  color: var(--noir);
+  text-align: left;
+  transition: background .15s ease, border-color .15s ease;
+}
+.reponse:active { background: #E4E8F2; }
+.reponse:disabled { opacity: 1; }
+.reponse--juste { background: #E7F6EC; border-color: #2E9E57; color: #17632F; font-weight: 600; }
+.reponse--faux { background: #FDECEC; border-color: #D84A4A; color: #96201F; font-weight: 600; }
+
+.explication {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  background: var(--gris-fond);
+  color: var(--noir);
+}
+.explication[hidden] { display: none; }
+.explication--juste { background: #E7F6EC; }
+.explication--faux { background: #FDECEC; }
+
+.bouton-texte {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gris-texte);
+  text-align: center;
+}
+
+.bilan {
+  margin-top: 4px;
+  padding: 18px 16px;
+  background: var(--blanc);
+  border: 1px solid var(--bordure);
+  border-radius: 18px;
+  box-shadow: var(--ombre);
+  text-align: center;
+  animation: apparition .22s ease both;
+}
+.bilan-score { margin: 0; font-size: 32px; font-weight: 700; color: var(--marine); line-height: 1.1; }
+.bilan-pourcentage { margin: 2px 0 0; font-size: 12px; color: var(--gris-texte); }
+.bilan-message { margin: 10px 0 0; font-size: 14px; color: var(--noir); }
+.bilan-soustitre { margin: 18px 0 8px; font-size: 12px; font-weight: 700; color: var(--marine); text-align: left; }
+.bilan-erreurs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.bilan-erreurs li {
+  padding: 10px 12px;
+  background: var(--gris-fond);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.bilan-question { font-size: 12px; font-weight: 700; color: var(--noir); }
+.bilan-mauvaise { font-size: 12px; color: #96201F; }
+.bilan-bonne { font-size: 12px; font-weight: 600; color: #17632F; }
+.bilan-explication { font-size: 12px; color: var(--gris-texte); }
+.bilan-actions { margin-top: 18px; }
+.bilan-actions .bouton-principal { margin-top: 0; }
+
+/* Carte à retourner */
+.carte-flip {
+  display: block;
+  width: 100%;
+  height: 240px;
+  margin-top: 16px;
+  padding: 0;
+  background: none;
+  perspective: 1200px;
+}
+.carte-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  transition: transform .5s cubic-bezier(.3, .8, .4, 1);
+  transform-style: preserve-3d;
+}
+.carte-flip--retournee .carte-inner { transform: rotateY(180deg); }
+
+.carte-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  border-radius: 18px;
+  border: 1px solid var(--bordure);
+  background: var(--blanc);
+  box-shadow: var(--ombre);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.carte-face--verso { transform: rotateY(180deg); background: var(--marine); border-color: var(--marine); }
+.carte-etiquette {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--gris-texte);
+}
+.carte-face--verso .carte-etiquette { color: var(--bleu-pastel); }
+.carte-contenu { font-size: 16px; font-weight: 600; color: var(--noir); text-align: center; line-height: 1.35; }
+.carte-face--verso .carte-contenu { color: var(--blanc); }
+.carte-aide { font-size: 12px; color: var(--gris-texte); }
+
+.verdicts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.verdicts[hidden] { display: none; }
+.bouton-verdict {
+  padding: 12px 8px;
+  border-radius: 50px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1.5px solid;
+}
+.bouton-verdict--revoir { background: #FDECEC; border-color: #E8A9A9; color: #96201F; }
+.bouton-verdict--su { background: #E7F6EC; border-color: #9CD3B0; color: #17632F; }
+.bouton-verdict:active { transform: scale(.98); }
+
 /* ————— Révision espacée ——————————————————————————————————————— */
 .liste-echeances { display: flex; flex-direction: column; gap: 10px; }
 

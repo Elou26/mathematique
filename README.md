@@ -1,7 +1,10 @@
 # Mathématique — app de révision (version mobile)
 
-Site statique mobile-first dédié à la révision des mathématiques, construit en HTML/CSS/JS
-vanille (aucune dépendance, aucun build).
+Site statique mobile-first de révision **toutes matières confondues** (maths, physique-chimie,
+SVT, histoire-géo, philosophie), construit en HTML/CSS/JS vanille (aucune dépendance, aucun build).
+
+Chaque cours porte une `matiere` (voir `MATIERES` dans `data.js`) : les trois outils IA
+proposent d'abord un filtre par matière, puis la liste des chapitres correspondants.
 
 ## Lancer
 
@@ -16,8 +19,8 @@ python3 -m http.server 8000
 | --- | --- |
 | `index.html` | Structure des 5 vues (accueil, cours, communauté, profil, révision espacée) |
 | `styles.css` | Charte graphique : bleu marine `#1B2A6B`, bleu pastel `#CFE0F7`, fond gris clair `#F4F5F7` |
-| `app.js` | Navigation par onglets, barres de progression, bascule Défis/Communauté |
-| `data.js` | Données de démonstration (cours, communautés, file de révision espacée) |
+| `app.js` | Navigation, sélecteur de cours partagé, moteurs résumé / quiz / flashcards |
+| `data.js` | Données de démonstration : matières, cours, communautés, révision espacée, banques de questions et de cartes |
 
 ## Écran d'accueil
 
@@ -42,3 +45,28 @@ La génération est aujourd'hui **simulée côté client** (`genererResume()` da
 vrai service revient à remplacer ce `setTimeout` par l'appel réseau et à passer la réponse à
 `rendreFiche()`. Les actions de la fiche (*Enregistrer*, *Générer des flashcards*) affichent
 pour l'instant une confirmation.
+
+## Page « Créer quiz »
+
+Filtre par matière → chapitre → nombre de questions (3, 5 ou tout le chapitre) → correction
+immédiate ou à la fin. Les questions **et** l'ordre des réponses sont mélangés à chaque partie
+(`preparerQuestions()`), avec explication pour chaque item. Le bilan affiche le score, le
+pourcentage et la liste des questions ratées avec la bonne réponse et son corrigé.
+
+Les banques de questions sont dans `QUIZ` (`data.js`), indexées par identifiant de cours.
+
+## Page « FlashCards »
+
+Filtre par matière → chapitre → ordre (mélangé ou ordre du cours). La carte se retourne au
+toucher (rotation 3D CSS), puis deux verdicts : *À revoir* (la carte repasse une fois en fin de
+paquet) ou *Je savais*. Le bilan compte les cartes sues du premier coup et propose de rejouer
+uniquement celles qui ont été ratées.
+
+Les paquets sont dans `FLASHCARDS` (`data.js`).
+
+## Ce qui reste simulé
+
+Les trois outils IA utilisent un `setTimeout` en guise d'appel réseau et piochent dans les
+données locales. Pour brancher un vrai service, remplacer ce délai dans `genererResume()`,
+`lancerQuiz()` et `lancerCartes()` par l'appel API correspondant. Aucune donnée n'est
+persistée entre deux visites (pas de stockage local pour l'instant).
