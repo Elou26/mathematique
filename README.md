@@ -111,6 +111,12 @@ propositions, indice de la bonne réponse, explication — et `validerQuizIA()` 
 question avant d'en faire une partie : quatre propositions distinctes, indice entre 0 et 3,
 énoncé non vide. Une réponse mal formée est refusée plutôt qu'affichée.
 
+**Tous les chemins y passent.** Un thème du carrousel, une fiche scannée ou une demande écrite
+dans l'atelier partent à Claude dès que la capacité répond — `lancerQuiz()` n'appelle
+`lancerQuizLocal()` qu'en repli. Le panneau « sujet non couvert » propose d'ailleurs un bouton
+« Demander à Claude » quand il est joignable. Tant que le runtime n'a pas répondu, la page
+attend (« Connexion à Claude… ») au lieu de basculer trop tôt sur le local.
+
 Un bandeau dit d'où viennent les questions, et chaque issue a son traitement :
 
 | Situation | Ce que fait la page |
@@ -128,7 +134,8 @@ noyé dans une phrase, `chercherBanque()` est appelée avec une couverture minim
 l'expression-clé doit figurer en entier dans la demande, mais elle n'a plus à en représenter la
 moitié des mots.
 
-`node tests/generation-claude.js` éprouve les quatre issues avec un faux runtime d'artefact.
+`node tests/generation-claude.js` éprouve les quatre issues avec un faux runtime d'artefact, et
+`node tests/generation-carrousel.js` vérifie qu'un thème du carrousel part bien à Claude.
 
 ## Page « Scanner ma fiche »
 

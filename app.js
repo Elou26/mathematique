@@ -938,8 +938,14 @@
    */
   let sampleClaude = null;
   let claudeResolu = false;
+  let attenteClaude = null;
 
-  async function preparerClaude() {
+  function preparerClaude() {
+    attenteClaude = resoudreClaude();
+    return attenteClaude;
+  }
+
+  async function resoudreClaude() {
     try {
       if (typeof claude === "undefined" || !claude || typeof claude.use !== "function") return;
       sampleClaude = await claude.use("sample");
@@ -1046,26 +1052,50 @@
   const REPLIS_LOCAUX = new Set(["not_granted", "sampling_disabled", "not_declared",
     "capability_disabled", "capability_removed", "rate_limited"]);
 
-  function messageIA(texte, ton) {
-    const ligne = $("#ia-message");
+  let controleurIA = null;
+
+  /** Les deux pages d'où l'on peut lancer une génération ont leur propre attente. */
+  const ZONES_ATTENTE = {
+    ia: { form: "#form-ia", chargement: "#chargement-ia", progres: "#ia-progres", stop: "#ia-stop", message: "#ia-message" },
+    quiz: { form: "#form-quiz", chargement: "#chargement-quiz", progres: "#quiz-progres", stop: "#quiz-stop", message: "#quiz-message" },
+  };
+
+  function messageIA(texte, ton, origine = "ia") {
+    const ligne = $(ZONES_ATTENTE[origine].message);
+    if (!ligne) return;
     ligne.textContent = texte || "";
     ligne.className = `ia-message${ton ? " ia-message--" + ton : ""}`;
     ligne.hidden = !texte;
   }
 
-  let controleurIA = null;
-
-  async function genererAvecClaude(demande) {
+  /**
+   * Demande le quiz à Claude. Renvoie true si la demande est traitée (quiz
+   * lancé, arrêt volontaire, erreur passagère annoncée), false s'il faut
+   * basculer sur les chapitres connus.
+   */
+  async function genererAvecClaude(demande, origine = "ia") {
+    const zone = ZONES_ATTENTE[origine];
     const invite = CONSIGNE_QUIZ
       .replace("<<<DEMANDE>>>", demande)
       .replace("<<<PROFIL>>>", niveauChoisi ? libelleNiveau().toLowerCase() : "non précisé");
 
     controleurIA = new AbortController();
-    $("#form-ia").hidden = true;
-    $("#chargement-ia").hidden = false;
-    $("#ia-stop").hidden = false;
-    $("#ia-progres").textContent = "Claude rédige ton quiz…";
-    messageIA("");
+    $(zone.form).hidden = true;
+    $(zone.chargement).hidden = false;
+    $(zone.stop).hidden = false;
+    $(zone.progres).textContent = "Claude rédige ton quiz…";
+    messageIA("", null, origine);
+    $("#indispo-quiz").hidden = true;
+    $("#jeu-quiz").hidden = true;
+    $("#bilan-quiz").hidden = true;
+
+    let aCommence = false;
+    // L'attente peut venir d'une autorisation restée ouverte : on le dit.
+    const rappel = setTimeout(() => {
+      if (!aCommence) {
+        $(zone.progres).textContent = "Toujours en attente… Si une demande d'autorisation s'est ouverte, accepte-la.";
+      }
+    }, 20000);
 
     try {
       const donnees = await sampleClaude.json(invite, {
@@ -1073,8 +1103,8 @@
         cache: false,
         signal: controleurIA.signal,
         onText: ({ text }) => {
-          // On ne montre pas le JSON brut : seulement le fait que ça avance.
-          $("#ia-progres").textContent = `Claude rédige ton quiz… (${text.length} caractères)`;
+          aCommence = true;
+          $(zone.progres).textContent = `Claude rédige ton quiz… (${text.length} caractères)`;
         },
       });
 
@@ -1087,15 +1117,16 @@
       return true;
     } catch (erreur) {
       const code = erreur && erreur.code ? erreur.code : "upstream_error";
-      if (code === "cancelled") { messageIA("Génération arrêtée.", null); return true; }
-      messageIA(MESSAGES_IA[code] || MESSAGES_IA.upstream_error, REPLIS_LOCAUX.has(code) ? null : "erreur");
+      if (code === "cancelled") { messageIA("Génération arrêtée.", null, origine); return true; }
+      messageIA(MESSAGES_IA[code] || MESSAGES_IA.upstream_error, REPLIS_LOCAUX.has(code) ? null : "erreur", origine);
       if (REPLIS_LOCAUX.has(code) && code !== "rate_limited") { sampleClaude = null; afficherMoteurIA(); return false; }
-      return true;                       // erreur passagère : on laisse l'élève réessayer
+      return true;                       // erreur passagère : on laisse réessayer
     } finally {
+      clearTimeout(rappel);
       controleurIA = null;
-      $("#chargement-ia").hidden = true;
-      $("#ia-stop").hidden = true;
-      $("#form-ia").hidden = false;
+      $(zone.chargement).hidden = true;
+      $(zone.stop).hidden = true;
+      $(zone.form).hidden = false;
     }
   }
 
@@ -1191,6 +1222,18 @@
 
   /** La demande part vers le moteur de quiz, telle qu'elle a été écrite. */
   function lancerDemandeIA() {
+    if (!claudeResolu && attenteClaude) {
+      $("#ia-progres").textContent = "Connexion à Claude…";
+      $("#form-ia").hidden = true;
+      $("#chargement-ia").hidden = false;
+      attenteClaude.then(() => {
+        $("#chargement-ia").hidden = true;
+        $("#form-ia").hidden = false;
+        lancerDemandeIA();
+      });
+      return;
+    }
+
     const demande = $("#ia-demande").value.trim();
     const { score } = rafraichirDemande();
     if (score < 2 || demande.length < 15) {
@@ -1219,7 +1262,7 @@
     $("#quiz-sujet").value = demande.slice(0, 80);
     $("#quiz-complement").value = demande;
     $("#compteur-complement").textContent = demande.length;
-    lancerQuiz();
+    lancerQuizLocal();
   }
 
   function initIA() {
@@ -1402,8 +1445,9 @@
     panneau.innerHTML = `
       <p class="bilan-message"><strong>« ${echapper(sujet)} »</strong> ne correspond à aucune banque de questions déjà
       présente dans l'application.</p>
-      <p class="bilan-pourcentage">Ta demande est prête pour le générateur : elle partira au service d'IA dès
-      qu'il sera branché.</p>
+      <p class="bilan-pourcentage">${sampleClaude
+        ? "Claude peut l'écrire à la demande : lance la génération ci-dessous."
+        : "Claude n'est pas joignable dans cette vue. Autorise-le, ou choisis un chapitre déjà prêt."}</p>
       <ul class="demande">
         <li><span class="demande-cle">Sujet</span><span class="demande-valeur">${echapper(sujet)}</span></li>
         <li><span class="demande-cle">Complément</span><span class="demande-valeur">${complement ? echapper(complement) : "—"}</span></li>
@@ -1417,7 +1461,8 @@
               <span class="bilan-explication">${libelleCours(cours)}</span></li>`).join("")}
       </ul>
       <div class="bilan-actions">
-        <button class="bouton-principal" type="button" data-indispo="cours">Choisir un chapitre</button>
+        ${sampleClaude ? '<button class="bouton-principal" type="button" data-indispo="claude">Demander à Claude</button>' : ""}
+        <button class="${sampleClaude ? "bouton-secondaire" : "bouton-principal"}" type="button" data-indispo="cours">Choisir un chapitre</button>
         <button class="bouton-secondaire" type="button" data-indispo="sujet">Modifier le sujet</button>
       </div>
     `;
@@ -1426,6 +1471,10 @@
     $$("[data-indispo]", panneau).forEach((bouton) => {
       bouton.addEventListener("click", () => {
         panneau.hidden = true;
+        if (bouton.dataset.indispo === "claude") {
+          genererAvecClaude(sujet, "quiz").then((traite) => { if (!traite) panneauSujetIndisponible(sujet); });
+          return;
+        }
         $("#form-quiz").hidden = false;
         choisirSourceQuiz(bouton.dataset.indispo);
       });
@@ -1569,7 +1618,31 @@
   }
 
   let minuteurQuiz;
+
+  /** Tout sujet libre — thème du carrousel, fiche scannée, atelier — passe par Claude. */
   function lancerQuiz() {
+    // Le runtime met un instant à répondre : on ne bascule pas au local trop tôt.
+    if (etatQuiz.source === "sujet" && !claudeResolu && attenteClaude) {
+      $("#form-quiz").hidden = true;
+      $("#chargement-quiz").hidden = false;
+      $("#quiz-progres").textContent = "Connexion à Claude…";
+      attenteClaude.then(() => { $("#chargement-quiz").hidden = true; lancerQuiz(); });
+      return;
+    }
+
+    if (etatQuiz.source === "sujet" && sampleClaude) {
+      const sujet = etatQuiz.sujet.trim();
+      if (sujet.length < 3) { toast("Indique d'abord le sujet du quiz."); return; }
+      const complement = (etatQuiz.complement || "").trim();
+      const demande = complement ? `${sujet}\n\n${complement}` : sujet;
+      genererAvecClaude(demande, "quiz").then((traite) => { if (!traite) lancerQuizLocal(); });
+      return;
+    }
+    lancerQuizLocal();
+  }
+
+  /** Repli : questions rédigées et générateurs de l'application. */
+  function lancerQuizLocal() {
     let coursId = etatQuiz.coursId;
     let contexte = "";
 
@@ -1680,6 +1753,7 @@
 
     form.addEventListener("submit", (evt) => { evt.preventDefault(); lancerQuiz(); });
     $("#quiz-suivant").addEventListener("click", questionSuivante);
+    $("#quiz-stop").addEventListener("click", () => { if (controleurIA) controleurIA.abort(); });
     $("#quiz-quitter").addEventListener("click", () => {
       if (partieQuiz && partieQuiz.sansFin) { bilanQuiz(); return; }
       $("#jeu-quiz").hidden = true;
