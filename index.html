@@ -268,9 +268,10 @@
 
       <p class="etiquette">2 · Nombre de questions</p>
       <div class="puces" id="puces-quiz-taille" role="radiogroup" aria-label="Nombre de questions">
-        <button class="puce" type="button" role="radio" aria-checked="false" data-taille="3">3 questions</button>
         <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-taille="5">5 questions</button>
-        <button class="puce" type="button" role="radio" aria-checked="false" data-taille="99">Tout le chapitre</button>
+        <button class="puce" type="button" role="radio" aria-checked="false" data-taille="10">10 questions</button>
+        <button class="puce" type="button" role="radio" aria-checked="false" data-taille="20">20 questions</button>
+        <button class="puce" type="button" role="radio" aria-checked="false" data-taille="infini">Sans fin ∞</button>
       </div>
 
       <p class="etiquette">3 · Correction</p>
@@ -280,7 +281,7 @@
       </div>
 
       <button class="bouton-principal" type="submit" id="bouton-quiz">Générer le quiz</button>
-      <p class="mention" id="mention-quiz">Les questions sont tirées du chapitre choisi, puis mélangées à chaque partie.</p>
+      <p class="mention" id="mention-quiz">Les questions sont générées à la volée : tu ne retombes pas deux fois sur la même.</p>
     </form>
 
     <div class="chargement" id="chargement-quiz" hidden>
@@ -294,7 +295,7 @@
         <span class="jeu-position" id="quiz-position">Question 1 / 5</span>
         <span class="jeu-score" id="quiz-score">0 point</span>
       </div>
-      <div class="barre-progression"><div class="barre-progression-remplie" id="quiz-barre"></div></div>
+      <div class="barre-progression" id="quiz-progression"><div class="barre-progression-remplie" id="quiz-barre"></div></div>
 
       <p class="question" id="quiz-question"></p>
       <div class="reponses" id="quiz-reponses"></div>
@@ -439,6 +440,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="data.js"></script>
+<script src="generateurs.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

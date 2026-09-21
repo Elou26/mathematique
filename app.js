@@ -701,14 +701,60 @@
   };
   let partieQuiz = null;
 
-  /** Tire les questions du chapitre, mélange l'ordre des questions et des réponses. */
+  /** Met une question brute en forme et mélange l'ordre des réponses. */
+  function formaterQuestion(brute) {
+    return {
+      enonce: brute.q,
+      explication: brute.explication,
+      choix: melanger(brute.choix.map((texte, i) => ({ texte, correct: i === brute.bonne }))),
+    };
+  }
+
+  /**
+   * Ouvre un tirage pour un chapitre : les questions rédigées d'abord, puis des
+   * questions fabriquées à la volée par les générateurs, sans jamais répéter un
+   * énoncé déjà posé. Renvoie null seulement si le chapitre n'a rien du tout.
+   */
+  function ouvrirTirage(coursId) {
+    const restantes = melanger(QUIZ[coursId] || []);
+    const modeles = GENERATEURS[coursId] || [];
+    const vues = new Set();
+
+    return function tirer() {
+      // On panache les questions rédigées et les questions générées.
+      if (restantes.length && (!modeles.length || Math.random() < 0.45)) {
+        const brute = restantes.pop();
+        vues.add(normaliser(brute.q));
+        return formaterQuestion(brute);
+      }
+
+      for (let essai = 0; essai < 60 && modeles.length; essai++) {
+        const brute = modeles[Math.floor(Math.random() * modeles.length)]();
+        const signature = normaliser(brute.q);
+        if (vues.has(signature)) continue;
+        vues.add(signature);
+        return formaterQuestion(brute);
+      }
+
+      if (restantes.length) {
+        const brute = restantes.pop();
+        vues.add(normaliser(brute.q));
+        return formaterQuestion(brute);
+      }
+      return null;   // plus rien de neuf à proposer
+    };
+  }
+
+  /** Tire `taille` questions d'un chapitre (mode classique). */
   function preparerQuestions(coursId, taille) {
-    const banque = QUIZ[coursId] || [];
-    return melanger(banque).slice(0, Math.min(taille, banque.length)).map((question) => ({
-      enonce: question.q,
-      explication: question.explication,
-      choix: melanger(question.choix.map((texte, i) => ({ texte, correct: i === question.bonne }))),
-    }));
+    const tirer = ouvrirTirage(coursId);
+    const questions = [];
+    for (let i = 0; i < taille; i++) {
+      const question = tirer();
+      if (!question) break;
+      questions.push(question);
+    }
+    return questions;
   }
 
   /** Minuscules sans accents ni ponctuation, pour comparer un sujet saisi librement. */
@@ -806,7 +852,7 @@
         <li><span class="demande-cle">Sujet</span><span class="demande-valeur">${echapper(sujet)}</span></li>
         <li><span class="demande-cle">Complément</span><span class="demande-valeur">${complement ? echapper(complement) : "—"}</span></li>
         <li><span class="demande-cle">Niveau</span><span class="demande-valeur">${niveauChoisi || "non renseigné"}</span></li>
-        <li><span class="demande-cle">Format</span><span class="demande-valeur">${etatQuiz.taille === 99 ? "Maximum" : etatQuiz.taille} questions · correction ${etatQuiz.mode === "immediate" ? "immédiate" : "à la fin"}</span></li>
+        <li><span class="demande-cle">Format</span><span class="demande-valeur">${etatQuiz.taille === "infini" ? "Sans fin" : etatQuiz.taille + " questions"} · correction ${etatQuiz.mode === "immediate" ? "immédiate" : "à la fin"}</span></li>
       </ul>
       <h4 class="bilan-soustitre">En attendant, des chapitres disponibles</h4>
       <ul class="bilan-erreurs">
@@ -834,9 +880,12 @@
     const { questions, index, score } = partieQuiz;
     const question = questions[index];
 
-    $("#quiz-position").textContent = `Question ${index + 1} / ${questions.length}`;
+    $("#quiz-position").textContent = partieQuiz.sansFin
+      ? `Question ${index + 1} · sans fin`
+      : `Question ${index + 1} / ${questions.length}`;
     $("#quiz-score").textContent = score <= 1 ? `${score} point` : `${score} points`;
-    $("#quiz-barre").style.width = `${(index / questions.length) * 100}%`;
+    $("#quiz-progression").hidden = partieQuiz.sansFin;
+    if (!partieQuiz.sansFin) $("#quiz-barre").style.width = `${(index / questions.length) * 100}%`;
     $("#quiz-question").innerHTML = question.enonce;
     $("#quiz-explication").hidden = true;
     $("#quiz-suivant").hidden = true;
@@ -877,7 +926,8 @@
       explication.hidden = false;
 
       const suivant = $("#quiz-suivant");
-      suivant.textContent = index + 1 < questions.length ? "Question suivante" : "Voir mon résultat";
+      suivant.textContent = (partieQuiz.sansFin || index + 1 < questions.length)
+        ? "Question suivante" : "Voir mon résultat";
       suivant.hidden = false;
       $("#quiz-score").textContent = partieQuiz.score <= 1 ? `${partieQuiz.score} point` : `${partieQuiz.score} points`;
     } else {
@@ -887,13 +937,30 @@
 
   function questionSuivante() {
     partieQuiz.index += 1;
-    if (partieQuiz.index >= partieQuiz.questions.length) bilanQuiz();
-    else afficherQuestion();
+
+    if (partieQuiz.index >= partieQuiz.questions.length) {
+      if (!partieQuiz.sansFin) { bilanQuiz(); return; }
+
+      const question = partieQuiz.tirer();
+      if (!question) {                      // cas limite : le chapitre est à sec
+        toast("Tu as fait le tour de ce chapitre !");
+        bilanQuiz();
+        return;
+      }
+      partieQuiz.questions.push(question);
+    }
+    afficherQuestion();
   }
 
   function bilanQuiz() {
-    const { questions, score } = partieQuiz;
+    const { score } = partieQuiz;
+    const questions = partieQuiz.questions.filter((question) => question.repondu);
     const total = questions.length;
+    if (!total) {                            // quitté avant la première réponse
+      $("#jeu-quiz").hidden = true;
+      $("#form-quiz").hidden = false;
+      return;
+    }
     const pourcentage = Math.round((score / total) * 100);
     const rates = questions.filter((q) => !q.reussie);
     const message = pourcentage === 100 ? "Sans faute — le chapitre est solide."
@@ -953,7 +1020,15 @@
       contexte = `${sujet} — questions du chapitre « ${banque.titre} »`;
     }
 
-    const questions = preparerQuestions(coursId, etatQuiz.taille);
+    const sansFin = etatQuiz.taille === "infini";
+    const tirer = ouvrirTirage(coursId);
+    const questions = [];
+    const voulues = sansFin ? 1 : etatQuiz.taille;
+    for (let i = 0; i < voulues; i++) {
+      const question = tirer();
+      if (!question) break;
+      questions.push(question);
+    }
     if (!questions.length) { toast("Aucune question disponible pour ce chapitre."); return; }
 
     const ligneContexte = $("#quiz-contexte");
@@ -972,7 +1047,8 @@
     clearTimeout(minuteurQuiz);
     minuteurQuiz = setTimeout(() => {
       chargement.hidden = true;
-      partieQuiz = { questions, index: 0, score: 0, mode: etatQuiz.mode, coursId };
+      partieQuiz = { questions, index: 0, score: 0, mode: etatQuiz.mode, coursId, sansFin, tirer };
+      $("#quiz-quitter").textContent = sansFin ? "Terminer et voir mon score" : "Quitter le quiz";
       $("#jeu-quiz").hidden = false;
       afficherQuestion();
     }, 900);
@@ -1024,12 +1100,14 @@
       filtreCours: (cours) => (QUIZ[cours.id] || []).length > 0,
     });
 
-    brancherPuces("#puces-quiz-taille .puce", "taille", (valeur) => { etatQuiz.taille = Number(valeur); });
+    brancherPuces("#puces-quiz-taille .puce", "taille",
+      (valeur) => { etatQuiz.taille = valeur === "infini" ? "infini" : Number(valeur); });
     brancherPuces("#puces-quiz-mode .puce", "mode", (valeur) => { etatQuiz.mode = valeur; });
 
     form.addEventListener("submit", (evt) => { evt.preventDefault(); lancerQuiz(); });
     $("#quiz-suivant").addEventListener("click", questionSuivante);
     $("#quiz-quitter").addEventListener("click", () => {
+      if (partieQuiz && partieQuiz.sansFin) { bilanQuiz(); return; }
       $("#jeu-quiz").hidden = true;
       $("#bilan-quiz").hidden = true;
       $("#indispo-quiz").hidden = true;

@@ -20,7 +20,8 @@ python3 -m http.server 8000
 | `index.html` | Structure des 5 vues (accueil, cours, communauté, profil, révision espacée) |
 | `styles.css` | Charte graphique : bleu marine `#1B2A6B`, bleu pastel `#CFE0F7`, fond gris clair `#F4F5F7` |
 | `app.js` | Navigation, sélecteur de cours partagé, moteurs résumé / quiz / flashcards |
-| `data.js` | Données de démonstration : matières, cours, communautés, révision espacée, banques de questions et de cartes |
+| `data.js` | Données : matières, cours, catalogue des thèmes, communautés, révision espacée, questions rédigées et cartes |
+| `generateurs.js` | Générateurs de questions : la banque des quiz ne s'épuise pas |
 
 ## Écran de bienvenue (choix du niveau)
 
@@ -96,8 +97,29 @@ Deux origines au choix :
   (sujet, complément, format) telle qu'elle partira au service de génération, et propose des
   chapitres disponibles.
 
-Ensuite : nombre de questions (3, 5 ou tout le chapitre) → correction
-immédiate ou à la fin. Les questions **et** l'ordre des réponses sont mélangés à chaque partie
+Ensuite : nombre de questions (5, 10, 20 ou **sans fin**) → correction immédiate ou à la fin.
+
+### Une banque qui ne s'épuise pas
+
+`generateurs.js` expose `GENERATEURS[idDuCours]`, une liste de modèles de questions tirés au
+sort et paramétrés au hasard. `ouvrirTirage()` (dans `app.js`) panache les questions rédigées
+à la main et les questions fabriquées, en mémorisant les énoncés déjà posés : une partie ne
+repose jamais deux fois la même question.
+
+- **Chapitres calculatoires** (dérivées, probabilités, suites, géométrie, ondes) : les valeurs
+  sont tirées au hasard à chaque question, et les mauvaises réponses reproduisent les erreurs
+  classiques (coefficient oublié, exposant non abaissé, tirage avec remise…). Le nombre
+  d'énoncés possibles n'est pas borné.
+- **Chapitres factuels** (guerre froide, génétique, conscience) : les questions naissent d'une
+  table de faits avec plusieurs tournures (date → événement, événement → date, notion →
+  définition, auteur → thèse). Le réservoir est large mais fini ; c'est la limite honnête de
+  ce qui se génère sans modèle de langue.
+
+Le mode **sans fin** enchaîne les questions jusqu'à « Terminer et voir mon score ».
+
+`node tests/generateurs.js` tire 500 questions par chapitre et vérifie la forme des QCM
+(quatre propositions distinctes, bonne réponse présente, pas de `NaN`, signes moins corrects)
+ainsi que la variété des énoncés. Les questions **et** l'ordre des réponses sont mélangés à chaque partie
 (`preparerQuestions()`), avec explication pour chaque item. Le bilan affiche le score, le
 pourcentage et la liste des questions ratées avec la bonne réponse et son corrigé.
 
