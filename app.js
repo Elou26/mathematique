@@ -223,6 +223,7 @@
     niveauChoisi = niveau || null;
     const ligne = $("#profil-niveau");
     if (ligne) ligne.textContent = niveauChoisi ? `Classe : ${niveauChoisi}` : "Niveau non renseigné";
+    rendreThemes();
   }
 
   function ouvrirEcranNiveau() {
@@ -278,6 +279,123 @@
 
     ecran.hidden = false;
     document.body.classList.add("corps--bloque");
+  }
+
+  /* ————— Carrousel dépliant des thèmes du niveau ————————————————— */
+
+  let matiereDepliee = null;
+
+  function programmeDuNiveau() {
+    const cle = NIVEAU_VERS_PROGRAMME[niveauChoisi];
+    return cle ? CATALOGUE[cle] : null;
+  }
+
+  /** Ouvre « Créer quiz » en mode sujet libre, pré-rempli avec le thème. */
+  function lancerThemeEnQuiz(theme, matiere) {
+    etatQuiz.sujet = theme;
+    etatQuiz.complement = `Programme de ${niveauChoisi} en ${MATIERES[matiere].nom}.`;
+    afficherVue("quiz");
+    choisirSourceQuiz("sujet");
+    $("#quiz-sujet").value = theme;
+    $("#quiz-complement").value = etatQuiz.complement;
+    $("#compteur-complement").textContent = etatQuiz.complement.length;
+    $("#form-quiz").hidden = false;
+    $("#jeu-quiz").hidden = true;
+    $("#bilan-quiz").hidden = true;
+    $("#indispo-quiz").hidden = true;
+  }
+
+  function deplierMatiere(matiere, programme, deplie, cartes) {
+    matiereDepliee = matiereDepliee === matiere ? null : matiere;
+
+    cartes.forEach((carte) => {
+      const actif = carte.dataset.matiere === matiereDepliee;
+      carte.classList.toggle("matiere-carte--active", actif);
+      carte.setAttribute("aria-expanded", String(actif));
+      if (actif) carte.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    });
+
+    if (!matiereDepliee) { deplie.hidden = true; return; }
+
+    const themes = programme[matiereDepliee];
+    deplie.innerHTML = `
+      <p class="deplie-titre">${MATIERES[matiereDepliee].emoji} ${MATIERES[matiereDepliee].nom}
+        <span class="deplie-niveau">${niveauChoisi}</span></p>
+      <ul class="liste-themes">
+        ${themes.map((theme, i) => `
+          <li>
+            <button class="theme" type="button" data-theme="${i}">
+              <span class="theme-numero">${i + 1}</span>
+              <span class="theme-nom">${theme}</span>
+              <svg class="ligne-fleche" aria-hidden="true"><use href="#i-fleche"></use></svg>
+            </button>
+          </li>`).join("")}
+      </ul>
+    `;
+    deplie.hidden = false;
+
+    $$("[data-theme]", deplie).forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        lancerThemeEnQuiz(themes[Number(bouton.dataset.theme)], matiereDepliee);
+      });
+    });
+  }
+
+  function rendreThemes() {
+    const bloc = $("#bloc-themes");
+    const titre = $("#titre-themes");
+    if (!bloc) return;
+
+    const programme = programmeDuNiveau();
+    matiereDepliee = null;
+    bloc.textContent = "";
+
+    if (!programme) {
+      titre.textContent = "Thèmes de ta classe";
+      const vide = document.createElement("div");
+      vide.className = "themes-vide";
+      vide.innerHTML = `
+        <p class="themes-vide-texte">Indique ta classe pour afficher les thèmes de ton programme,
+        matière par matière.</p>
+        <button class="bouton-principal" type="button" id="themes-choisir-niveau">Choisir ma classe</button>
+      `;
+      bloc.appendChild(vide);
+      $("#themes-choisir-niveau").addEventListener("click", ouvrirEcranNiveau);
+      return;
+    }
+
+    titre.textContent = `Thèmes · ${niveauChoisi}`;
+
+    const carrousel = document.createElement("div");
+    carrousel.className = "carrousel";
+    carrousel.setAttribute("aria-label", `Matières du programme de ${niveauChoisi}`);
+
+    const deplie = document.createElement("div");
+    deplie.className = "deplie";
+    deplie.hidden = true;
+
+    const cartes = Object.keys(programme).map((matiere) => {
+      const carte = document.createElement("button");
+      carte.type = "button";
+      carte.className = "matiere-carte";
+      carte.dataset.matiere = matiere;
+      carte.setAttribute("aria-expanded", "false");
+      carte.innerHTML = `
+        <span class="matiere-emoji" aria-hidden="true">${MATIERES[matiere].emoji}</span>
+        <span class="matiere-nom">${MATIERES[matiere].nom}</span>
+        <span class="matiere-compte">${programme[matiere].length} thèmes</span>
+        <svg class="matiere-chevron" aria-hidden="true"><use href="#i-fleche"></use></svg>
+      `;
+      carrousel.appendChild(carte);
+      return carte;
+    });
+
+    cartes.forEach((carte) => {
+      carte.addEventListener("click", () => deplierMatiere(carte.dataset.matiere, programme, deplie, cartes));
+    });
+
+    bloc.appendChild(carrousel);
+    bloc.appendChild(deplie);
   }
 
   /* ————— Matières et sélecteur de cours (partagé par les 3 outils) ——— */

@@ -7,6 +7,20 @@ const MATIERES = {
   svt:      { nom: "SVT",             court: "SVT",      emoji: "🧬" },
   histoire: { nom: "Histoire-Géo",    court: "Histoire", emoji: "🗺️" },
   philo:    { nom: "Philosophie",     court: "Philo",    emoji: "💭" },
+  francais: { nom: "Français",        court: "Français", emoji: "📖" },
+  info:     { nom: "Informatique",    court: "Info",     emoji: "💻" },
+  economie: { nom: "Économie-Gestion",court: "Éco",      emoji: "📊" },
+  methodo:  { nom: "Méthodologie",    court: "Méthodo",  emoji: "🎓" },
+};
+
+/* Chaque classe renvoie vers un programme du catalogue (voir CATALOGUE). */
+const NIVEAU_VERS_PROGRAMME = {
+  "6ᵉ": "6e", "5ᵉ": "5e", "4ᵉ": "4e", "3ᵉ": "3e",
+  "Seconde": "2de", "Première": "1re", "Terminale": "Tle",
+  "Prépa": "prepa", "BTS / BUT": "bts",
+  "Licence 1": "licence", "Licence 2": "licence", "Licence 3": "licence",
+  "Master": "master", "Doctorat": "master",
+  "Reprise d'études": "reprise",
 };
 
 /* Niveaux proposés au premier lancement, du collège au doctorat. */
@@ -293,4 +307,90 @@ const FLASHCARDS = {
     { recto: "La mauvaise foi selon Sartre ?", verso: "Se mentir à soi-même pour fuir sa liberté" },
     { recto: "Conscience psychologique vs morale ?", verso: "Présence à soi vs jugement du bien et du mal" },
   ],
+};
+
+/* ————————————————————————————————————————————————————————————————
+   Catalogue des thèmes, programme par programme.
+   Au moins 8 thèmes par matière, calés sur le programme de la classe.
+   ———————————————————————————————————————————————————————————————— */
+const CATALOGUE = {
+  "6e": {
+    maths: ["Nombres entiers et décimaux", "Fractions simples", "Proportionnalité", "Figures planes et constructions", "Périmètres et aires", "Symétrie axiale", "Solides et volumes", "Tableaux et graphiques"],
+    physique: ["États et changements d'état de la matière", "Mélanges et solutions", "Le mouvement et la vitesse", "Sources et formes d'énergie", "Circuits électriques simples", "Les objets techniques", "Signaux et information", "La Terre dans le système solaire"],
+    svt: ["Le vivant de mon environnement", "Classer les êtres vivants", "Le régime alimentaire des animaux", "Le cycle de vie des végétaux", "Les saisons et le climat local", "Le sol et la biodiversité", "Les besoins des plantes vertes", "Respirer dans différents milieux"],
+    histoire: ["La longue histoire de l'humanité", "Premiers États, première écriture", "Le monde des cités grecques", "Rome, du mythe à l'histoire", "Naissance du judaïsme et du christianisme", "L'empire chinois des Han", "Habiter une métropole", "Habiter les littoraux"],
+    francais: ["Le monstre, aux limites de l'humain", "Récits de création et déluge", "Récits d'aventure", "Le conte et le merveilleux", "Initiation à la poésie", "La phrase simple", "Les classes grammaticales", "Présent, imparfait et passé simple"],
+  },
+  "5e": {
+    maths: ["Nombres relatifs", "Calcul avec les fractions", "Proportionnalité et pourcentages", "Calcul littéral et distributivité", "Triangles et parallélogrammes", "Symétrie centrale", "Aires, prismes et cylindres", "Statistiques : moyenne et effectifs"],
+    physique: ["Mélanges homogènes et hétérogènes", "Masse, volume et masse volumique", "Les changements d'état de l'eau", "Circuits en série et en dérivation", "La lumière : sources et propagation", "Trajectoire et vitesse", "Formes et conversions d'énergie", "Les signaux sonores"],
+    svt: ["La nutrition des organismes", "Respiration et milieux de vie", "Reproduction sexuée et asexuée", "Paysages et érosion", "Les risques naturels", "Alimentation et digestion", "Les climats de la Terre", "Biodiversité et peuplement des milieux"],
+    histoire: ["Chrétientés et islam (VIᵉ-XIIIᵉ)", "Société féodale et seigneuries", "L'essor des villes et du commerce", "L'affirmation de l'État monarchique", "Humanisme, Renaissance et Réformes", "Le monde au temps de Charles Quint", "Richesse et pauvreté dans le monde", "L'eau et l'énergie : des ressources à ménager"],
+    francais: ["Le voyage et l'aventure", "Avec autrui : familles, amis, réseaux", "Héros, héroïnes et héroïsmes", "Imaginer des univers nouveaux", "La comédie de Molière", "Les expansions du nom", "Les temps du récit", "L'accord du participe passé"],
+  },
+  "4e": {
+    maths: ["Puissances", "Nombres premiers et fractions irréductibles", "Calcul littéral et équations", "Théorème de Pythagore", "Théorème de Thalès", "Translations et transformations", "Vitesse, débit et proportionnalité", "Premières probabilités"],
+    physique: ["Atomes et molécules", "Les transformations chimiques", "Les combustions", "Lumière et couleurs", "Tension et intensité électriques", "La loi d'Ohm", "Poids et masse", "Fréquence et signal sonore"],
+    svt: ["La tectonique des plaques", "Séismes et volcanisme", "Reproduction humaine et puberté", "Transmission de la vie", "Les risques géologiques", "Respiration et circulation sanguine", "Le système nerveux et les réflexes", "Les climats du passé"],
+    histoire: ["Bourgeoisies, commerce et traite au XVIIIᵉ", "L'Europe des Lumières", "La Révolution française et l'Empire", "L'Europe de la révolution industrielle", "Conquêtes et sociétés coloniales", "L'urbanisation du monde", "Les mobilités humaines transnationales", "Mers et océans : un monde maritimisé"],
+    francais: ["Dire l'amour : la poésie lyrique", "Individu et société : romans du XIXᵉ", "La fiction pour interroger le réel", "Informer, s'informer, déformer", "Le théâtre du XVIIᵉ au XIXᵉ", "Les propositions subordonnées", "Discours direct et indirect", "Les figures de style"],
+  },
+  "3e": {
+    maths: ["PGCD et nombres premiers", "Identités remarquables", "Équations et inéquations", "Notion de fonction", "Fonctions linéaires et affines", "Thalès et agrandissement-réduction", "Trigonométrie du triangle rectangle", "Statistiques et probabilités"],
+    physique: ["Atomes, ions et organisation de la matière", "Équations de réaction chimique", "Acides, bases et pH", "Énergie, puissance et consommation", "Gravitation et poids", "Mouvements et vitesse", "Signaux et communication", "Circuits électriques et sécurité"],
+    svt: ["Gènes, ADN et chromosomes", "Divisions cellulaires", "Reproduction et diversité génétique", "Évolution et sélection naturelle", "Immunité et vaccination", "Microbiote et santé", "Risques et ressources géologiques", "Climat et activités humaines"],
+    histoire: ["La Première Guerre mondiale", "Démocraties fragilisées et régimes totalitaires", "La Seconde Guerre mondiale", "La France défaite, occupée et résistante", "Indépendances et décolonisation", "La guerre froide", "La Vᵉ République", "Aires urbaines et espaces productifs français"],
+    francais: ["Se raconter, se représenter", "Dénoncer les travers de la société", "Agir dans la cité : individu et pouvoir", "Progrès et rêves scientifiques", "Poésie et engagement", "La subordination complexe", "Les registres littéraires", "Thèse, arguments et exemples"],
+  },
+  "2de": {
+    maths: ["Ensembles de nombres et intervalles", "Calcul littéral et équations", "Fonctions de référence", "Fonctions affines", "Géométrie repérée et vecteurs", "Trigonométrie et cercle", "Statistiques descriptives", "Probabilités et échantillonnage"],
+    physique: ["Constitution de la matière", "Mole et quantité de matière", "Solutions et concentrations", "Transformations chimiques", "Mouvements et vitesse", "Forces et principe d'inertie", "Ondes et signaux", "Lentilles et formation des images"],
+    svt: ["La Terre dans l'Univers", "Cellule, ADN et information génétique", "Biodiversité et évolution", "Écosystèmes et services rendus", "Agrosystèmes et alimentation", "Le corps humain à l'effort", "Microorganismes et santé", "Érosion et sédimentation"],
+    histoire: ["Le monde méditerranéen médiéval", "L'ouverture atlantique (XVᵉ-XVIᵉ)", "Renaissance, Humanisme et Réformes", "L'Amérique et l'Europe en révolution", "La Révolution française", "Sociétés et environnements", "Territoires, populations et développement", "Mobilités, tourisme et loisirs"],
+    francais: ["La poésie du XIXᵉ au XXIᵉ", "Le roman et le récit du XVIIIᵉ au XXIᵉ", "Le théâtre du XVIIᵉ au XXIᵉ", "La littérature d'idées et la presse", "La méthode du commentaire", "La dissertation littéraire", "La contraction de texte", "L'oral et la lecture linéaire"],
+  },
+  "1re": {
+    maths: ["Second degré", "Suites numériques", "Dérivation", "Fonction exponentielle", "Trigonométrie et fonctions circulaires", "Produit scalaire", "Probabilités conditionnelles", "Variables aléatoires"],
+    physique: ["Réactions acide-base", "Oxydoréduction et piles", "Suivi d'une transformation chimique", "Forces et énergie mécanique", "Ondes mécaniques", "Lumière : modèles et spectres", "Circuits électriques et bilans d'énergie", "Champs de gravitation et électrostatique"],
+    svt: ["Transmission et expression du patrimoine génétique", "Mutations et variabilité", "L'histoire humaine lue dans son génome", "Structure et dynamique de la Terre", "Écosystèmes et durabilité", "Le système immunitaire", "Variation génétique et santé", "Climats passés et actuels"],
+    histoire: ["L'Europe face aux révolutions", "La France de 1848 à 1870", "La Troisième République", "Industrialisation et société", "La Première Guerre mondiale", "Les totalitarismes de l'entre-deux-guerres", "La métropolisation", "Espaces ruraux et systèmes productifs"],
+    francais: ["La poésie : œuvre au programme", "Le roman et le récit : œuvre au programme", "Le théâtre : œuvre au programme", "La littérature d'idées du XVIᵉ au XVIIIᵉ", "La dissertation sur œuvre", "Le commentaire composé", "La contraction de texte et l'essai", "L'explication linéaire à l'oral"],
+  },
+  "Tle": {
+    maths: ["Limites et continuité", "Dérivation et convexité", "Fonction logarithme népérien", "Fonction exponentielle", "Suites et raisonnement par récurrence", "Calcul intégral", "Géométrie dans l'espace", "Probabilités conditionnelles et loi binomiale"],
+    physique: ["Cinétique chimique et catalyse", "Équilibres, acides et bases", "Piles et oxydoréduction", "Deuxième loi de Newton", "Mouvements dans un champ uniforme", "Ondes et interférences", "Effet Doppler et spectres", "Bilans d'énergie et transferts thermiques"],
+    svt: ["Génétique et brassage à la méiose", "Diversification du vivant", "Évolution et sélection naturelle", "Climat : passé, présent, futur", "Les enveloppes fluides de la Terre", "Le système immunitaire", "Cerveau, plasticité et comportement", "Glycémie, diabète et alimentation"],
+    histoire: ["Fragilités des démocraties et totalitarismes", "La Seconde Guerre mondiale", "La guerre froide (1947-1991)", "Décolonisations et nouveaux États", "La construction européenne", "La France sous la Vᵉ République", "Mers et océans au cœur de la mondialisation", "La France et l'UE dans le monde"],
+    philo: ["La conscience", "L'inconscient", "La liberté", "Le devoir", "La justice", "La vérité", "L'art", "La technique"],
+  },
+  "prepa": {
+    maths: ["Suites et séries numériques", "Fonctions d'une variable réelle", "Intégration", "Algèbre linéaire et matrices", "Espaces euclidiens", "Séries entières et séries de Fourier", "Équations différentielles", "Probabilités et variables aléatoires"],
+    physique: ["Mécanique du point et du solide", "Thermodynamique", "Électrocinétique et filtres", "Électromagnétisme", "Optique ondulatoire", "Ondes et propagation", "Introduction à la mécanique quantique", "Chimie des solutions"],
+    info: ["Algorithmique et complexité", "Structures de données", "Programmation en Python", "Récursivité", "Bases de données et SQL", "Graphes et parcours", "Tris et recherche", "Logique et automates"],
+    francais: ["Le thème de l'année et ses œuvres", "La dissertation de culture générale", "Le résumé de texte", "L'explication de texte philosophique", "Problématiser un sujet", "Les grands courants d'idées", "L'exposé et l'entretien à l'oral", "Citations et références clés"],
+  },
+  "bts": {
+    maths: ["Statistiques descriptives", "Probabilités appliquées", "Fonctions et dérivées appliquées", "Suites et calcul financier", "Calcul matriciel", "Régression et corrélation", "Calcul intégral appliqué", "Algorithmique et tableur"],
+    economie: ["Marchés, prix et concurrence", "Politiques économiques", "Management des organisations", "Relation client et négociation", "Comptabilité et analyse financière", "Droit des contrats", "Droit du travail", "Marketing et communication"],
+    info: ["Tableur avancé", "Bases de données", "Développement web", "Réseaux et sécurité", "Gestion de projet", "Outils collaboratifs", "Analyse de données", "Cybersécurité au quotidien"],
+    francais: ["Communication professionnelle écrite", "La note de synthèse", "Le rapport de stage", "La prise de parole en public", "Argumenter et négocier", "Culture générale : premier thème", "Culture générale : second thème", "Mails et comptes rendus"],
+  },
+  "licence": {
+    maths: ["Analyse réelle et suites", "Algèbre linéaire", "Topologie et espaces métriques", "Calcul différentiel", "Intégrale de Lebesgue", "Probabilités et statistiques", "Équations différentielles", "Groupes, anneaux et corps"],
+    physique: ["Mécanique classique", "Thermodynamique et physique statistique", "Électromagnétisme", "Optique", "Mécanique quantique", "Physique des ondes", "Relativité restreinte", "Travaux pratiques et incertitudes"],
+    info: ["Programmation orientée objet", "Algorithmique avancée", "Systèmes d'exploitation", "Réseaux", "Bases de données relationnelles", "Théorie des langages", "Génie logiciel", "Introduction à l'intelligence artificielle"],
+    economie: ["Microéconomie", "Macroéconomie", "Statistiques et économétrie", "Économie monétaire", "Comptabilité nationale", "Économie internationale", "Histoire de la pensée économique", "Économie du développement"],
+  },
+  "master": {
+    maths: ["Analyse fonctionnelle", "Probabilités avancées et processus", "Optimisation", "Analyse numérique", "Modélisation stochastique", "Statistique inférentielle", "Théorie des graphes", "Séminaire de recherche"],
+    info: ["Apprentissage automatique", "Apprentissage profond", "Big data et calcul distribué", "Sécurité des systèmes", "Architecture logicielle", "Traitement automatique du langage", "Vision par ordinateur", "Éthique et IA"],
+    economie: ["Économétrie appliquée", "Finance quantitative", "Économie industrielle", "Évaluation des politiques publiques", "Théorie des jeux", "Économie comportementale", "Données et modélisation", "Mémoire de recherche"],
+    methodo: ["Méthodologie de la recherche", "Revue de littérature", "Rédaction scientifique", "Citations et bibliographie", "Présenter en conférence", "Éthique de la recherche", "Rédiger son mémoire", "Préparer sa soutenance"],
+  },
+  "reprise": {
+    maths: ["Les quatre opérations", "Fractions et pourcentages", "La proportionnalité au quotidien", "Unités et conversions", "Lire un graphique", "Calcul mental", "Géométrie pratique", "Statistiques de base"],
+    francais: ["Les accords de base", "La conjugaison essentielle", "La construction de la phrase", "Enrichir son vocabulaire", "Rédiger un courrier", "Comprendre un texte", "Prendre des notes", "S'exprimer à l'oral"],
+    histoire: ["Les repères chronologiques", "Les institutions françaises", "L'Union européenne", "Citoyenneté et vie civique", "Les grandes dates du XXᵉ siècle", "La géographie de la France", "Lire une carte", "Actualité et médias"],
+    info: ["Prendre en main un ordinateur", "Naviguer sur internet", "Messagerie et pièces jointes", "Traitement de texte", "Tableur : les bases", "Mots de passe et sécurité", "Faire ses démarches en ligne", "Smartphone et applications"],
+  },
 };

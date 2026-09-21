@@ -35,6 +35,31 @@ session et l'écran revient à la visite suivante. Le niveau s'affiche dans l'on
 se change avec le bouton « Changer de niveau », et accompagne la demande d'un quiz sur sujet
 libre.
 
+## Carrousel dépliant des thèmes
+
+La page d'accueil s'ouvre sur « Thèmes · <classe> » : un carrousel horizontal des matières du
+programme, chaque carte se dépliant sur la liste de ses thèmes. Un thème ouvre directement
+« Créer quiz » en mode *sujet libre*, pré-rempli avec le thème et la classe.
+
+Le contenu vit dans `CATALOGUE` (`data.js`) : **12 programmes, 440 thèmes**, au moins 8 par
+matière, calés sur le programme officiel de chaque classe. `NIVEAU_VERS_PROGRAMME` relie les
+15 classes proposées à leur programme (Licence 1/2/3 partagent `licence`, Master et Doctorat
+partagent `master`).
+
+| Programme | Matières |
+| --- | --- |
+| 6e, 5e, 4e, 3e | Maths, Physique-Chimie, SVT, Histoire-Géo, Français |
+| 2de, 1re | Maths, Physique-Chimie, SVT, Histoire-Géo, Français |
+| Tle | Maths, Physique-Chimie, SVT, Histoire-Géo, Philosophie |
+| prepa | Maths, Physique, Informatique, Français-Culture générale |
+| bts | Maths, Économie-Gestion, Informatique, Français |
+| licence | Maths, Physique, Informatique, Économie |
+| master | Maths, Informatique, Économie, Méthodologie |
+| reprise | Maths, Français, Histoire-Géo, Informatique |
+
+Sans niveau renseigné, le bloc affiche un bouton « Choisir ma classe » qui rouvre l'écran de
+bienvenue ; changer de niveau reconstruit le carrousel.
+
 ## Écran d'accueil
 
 - **Header** bleu pastel : logo + nom du site (16 px), cloche à droite → onglet *Révision espacée*.
