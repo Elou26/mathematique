@@ -257,7 +257,7 @@
     <form id="form-resume" novalidate>
       <p class="etiquette">Source du contenu</p>
       <div class="segments" role="tablist" aria-label="Source du contenu">
-        <button class="segment segment--actif" type="button" role="tab" aria-selected="true" data-source="cours">Mes cours</button>
+        <button class="segment segment--actif" type="button" role="tab" aria-selected="true" data-source="cours">Mes fiches</button>
         <button class="segment" type="button" role="tab" aria-selected="false" data-source="texte">Coller un texte</button>
         <button class="segment" type="button" role="tab" aria-selected="false" data-source="fichier">Importer</button>
       </div>
@@ -374,19 +374,19 @@
     </button>
 
     <h2 class="titre-categorie titre-categorie--grand">Créer un quiz</h2>
-    <p class="sous-texte">Un QCM corrigé, à partir d'un de tes chapitres ou de n'importe quel sujet libre.</p>
+    <p class="sous-texte">Un QCM corrigé, à partir d'une de tes fiches ou de n'importe quel sujet libre.</p>
 
     <form id="form-quiz" novalidate>
       <p class="etiquette">Sur quoi veux-tu t'entraîner ?</p>
       <div class="segments" role="tablist" aria-label="Origine du quiz">
-        <button class="segment segment--actif" type="button" role="tab" aria-selected="true" data-quiz-source="cours">Mes cours</button>
+        <button class="segment segment--actif" type="button" role="tab" aria-selected="true" data-quiz-source="cours">Mes fiches</button>
         <button class="segment" type="button" role="tab" aria-selected="false" data-quiz-source="sujet">Sujet libre</button>
       </div>
 
       <div class="source" data-panneau-quiz="cours">
         <p class="etiquette etiquette--sous">Matière</p>
         <div class="puces puces--filtres" id="filtres-quiz" role="group" aria-label="Filtrer par matière"></div>
-        <p class="etiquette etiquette--sous">Chapitre</p>
+        <p class="etiquette etiquette--sous">Fiche</p>
         <ul class="choix-cours" id="choix-cours-quiz"></ul>
       </div>
 
@@ -465,7 +465,7 @@
       <p class="etiquette">Matière</p>
       <div class="puces puces--filtres" id="filtres-cartes" role="group" aria-label="Filtrer par matière"></div>
 
-      <p class="etiquette">Chapitre</p>
+      <p class="etiquette">Fiche</p>
       <ul class="choix-cours" id="choix-cours-cartes"></ul>
 
       <details class="reglages">
@@ -520,14 +520,14 @@
   <!-- Vue : Révision espacée (cible de la cloche) -->
   <section class="vue" id="vue-revision" hidden>
     <h2 class="titre-categorie titre-categorie--grand">Révision espacée</h2>
-    <p class="sous-texte">Chaque cours revient à J+1, J+3, J+7, J+15 puis J+30 pour ancrer la notion en mémoire longue.</p>
+    <p class="sous-texte">Chaque fiche que tu crées revient à J+1, J+3, J+7, J+15 puis J+30 pour ancrer la notion en mémoire longue.</p>
     <div class="liste-echeances" id="liste-echeances"></div>
   </section>
 
-  <!-- Vue : Cours -->
+  <!-- Vue : Mes fiches — une catégorie par matière, vide au départ -->
   <section class="vue" id="vue-cours" hidden>
-    <h2 class="titre-categorie titre-categorie--grand">Mes cours</h2>
-    <p class="sous-texte">Tous les chapitres suivis, du plus récemment travaillé au plus ancien.</p>
+    <h2 class="titre-categorie titre-categorie--grand">Mes fiches</h2>
+    <p class="sous-texte">Une catégorie par matière. Touche-en une pour y créer ta fiche de révision.</p>
     <div class="liste-cours" id="liste-tous-cours"></div>
   </section>
 
@@ -542,8 +542,8 @@
       </div>
     </div>
     <div class="stats">
-      <div class="stat"><span class="stat-valeur" id="stat-cours">0</span><span class="stat-nom">cours suivis</span></div>
-      <div class="stat"><span class="stat-valeur" id="stat-serie">14</span><span class="stat-nom">jours d'affilée</span></div>
+      <div class="stat"><span class="stat-valeur" id="stat-cours">0</span><span class="stat-nom">fiches créées</span></div>
+      <div class="stat"><span class="stat-valeur" id="stat-serie">0</span><span class="stat-nom">matières suivies</span></div>
       <div class="stat"><span class="stat-valeur" id="stat-moyenne">0%</span><span class="stat-nom">progression</span></div>
     </div>
     <button class="bouton-secondaire" type="button" id="changer-niveau">Changer de niveau</button>
@@ -566,7 +566,7 @@
     <button class="option-creation" type="button" data-creation="cours">
       <span class="option-icone option-icone--vert" aria-hidden="true"><svg><use href="#i-cours"></use></svg></span>
       <span class="option-nom">Avec tes cours</span>
-      <span class="option-detail">Transforme un chapitre en fiche</span>
+      <span class="option-detail">Pars d'une fiche déjà créée</span>
     </button>
 
     <button class="option-creation" type="button" data-creation="ia">
@@ -594,7 +594,7 @@
   </button>
   <button class="onglet" type="button" data-onglet="cours">
     <svg class="onglet-icone" aria-hidden="true"><use href="#i-cours"></use></svg>
-    <span class="onglet-nom">Cours</span>
+    <span class="onglet-nom">Fiches</span>
     <span class="onglet-trait" aria-hidden="true"></span>
   </button>
   <button class="onglet" type="button" data-onglet="profil">

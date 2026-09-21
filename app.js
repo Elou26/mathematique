@@ -27,42 +27,233 @@
     return n <= 1 ? `${n} jour de révision` : `${n} jours de révision`;
   }
 
-  /* ————— Cartes « Mes révisions » ————————————————————————————— */
+  /* ————— Bibliothèque de fiches ————————————————————————————————
+     Plus aucun cours n'est livré avec l'application : chaque matière
+     démarre vide et propose de créer une fiche. Ce que l'utilisateur
+     crée reste sur son téléphone.
+     ———————————————————————————————————————————————————————————— */
 
-  function carteCours(cours) {
-    const jours = joursEntre(cours.premierJour, new Date());
+  const CLE_FICHES = "mathematique.fiches";
+  const SOURCES_FICHE = {
+    scan: "Depuis une photo",
+    ia: "Écrite avec Claude",
+    texte: "Depuis tes notes",
+    cours: "Depuis ton cours",
+    libre: "Sujet libre",
+  };
+
+  let fiches = [];
+  let dossierOuvert = null;
+
+  function lireBibliotheque() {
+    try {
+      const brut = localStorage.getItem(CLE_FICHES);
+      const liste = brut ? JSON.parse(brut) : [];
+      if (!Array.isArray(liste)) return [];
+      return liste.filter((f) => f && f.id && f.titre && MATIERES[f.matiere]);
+    } catch (erreur) { return []; }
+  }
+
+  function ecrireBibliotheque() {
+    try { localStorage.setItem(CLE_FICHES, JSON.stringify(fiches)); } catch (erreur) { /* stockage indisponible */ }
+  }
+
+  /** Ajoute une fiche, ou remonte celle qui porte déjà ce titre dans la matière. */
+  function ajouterFiche({ matiere, titre, source, banqueId }) {
+    const propre = (titre || "").trim().slice(0, 80);
+    if (propre.length < 3) return null;
+
+    const cle = MATIERES[matiere] ? matiere : "autre";
+    const deja = fiches.find((f) => f.matiere === cle && normaliser(f.titre) === normaliser(propre));
+    if (deja) {
+      if (banqueId && !deja.banqueId) deja.banqueId = banqueId;
+      majBibliotheque();
+      return deja;
+    }
+
+    const maintenant = new Date().toISOString();
+    const fiche = {
+      id: `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      matiere: cle,
+      titre: propre,
+      source: SOURCES_FICHE[source] ? source : "libre",
+      banqueId: banqueId || null,
+      creee: maintenant,
+      derniereRevision: maintenant,
+      progression: 0,
+    };
+    fiches.push(fiche);
+    majBibliotheque();
+    return fiche;
+  }
+
+  function trouverFiche(id) { return fiches.find((f) => f.id === id) || null; }
+
+  function supprimerFiche(id) {
+    fiches = fiches.filter((f) => f.id !== id);
+    majBibliotheque();
+  }
+
+  /** Après une partie : date du jour, et on garde le meilleur score obtenu. */
+  function marquerRevisee(id, pourcentage) {
+    const fiche = trouverFiche(id);
+    if (!fiche) return;
+    fiche.derniereRevision = new Date().toISOString();
+    if (typeof pourcentage === "number") {
+      fiche.progression = Math.max(fiche.progression || 0, pourcentage);
+    }
+    majBibliotheque();
+  }
+
+  /** Porte unique : tout ce qui dépend de la bibliothèque se remet à jour ici. */
+  const aRafraichir = [];
+  function majBibliotheque() {
+    ecrireBibliotheque();
+    rendreDossiers();
+    rendreEcheances($("#liste-echeances"));
+    majCloche();
+    majProfil();
+    aRafraichir.forEach((rafraichir) => rafraichir());
+  }
+
+  /** Les matières du programme, plus celles où l'utilisateur a déjà une fiche. */
+  function matieresAffichees() {
+    const programme = programmeDuNiveau();
+    const cles = programme ? Object.keys(programme) : Object.keys(MATIERES).filter((m) => m !== "autre");
+    fiches.forEach((f) => { if (!cles.includes(f.matiere)) cles.push(f.matiere); });
+    return cles;
+  }
+
+  /** « de Mathématiques », mais « d'Histoire-Géo » (h muet compris). */
+  function deLaMatiere(nom) {
+    return /^[aeiouyhéèêàâîôûAEIOUYHÉÈÊÀÂÎÔÛ]/.test(nom) ? `d'${nom}` : `de ${nom}`;
+  }
+
+  function detailFiche(fiche) {
+    const matiere = MATIERES[fiche.matiere];
+    return `${matiere ? matiere.nom : "Fiche"} · ${SOURCES_FICHE[fiche.source] || "Sujet libre"}`;
+  }
+
+  /* ————— Vue « Mes fiches » : une catégorie par matière ————————— */
+
+  function carteFiche(fiche) {
+    const jours = joursEntre(fiche.creee, new Date());
     const carte = document.createElement("article");
     carte.className = "carte-cours";
     carte.innerHTML = `
       <div class="carte-entete">
-        <h3 class="carte-titre">${cours.titre}</h3>
-        <span class="carte-jours">${accordJours(jours)}</span>
+        <h3 class="carte-titre">${echapper(fiche.titre)}</h3>
+        <span class="carte-jours">${jours ? accordJours(jours) : "créée aujourd'hui"}</span>
       </div>
-      <p class="carte-date">Dernière révision : ${formatDate.format(new Date(cours.derniereRevision))}</p>
+      <p class="carte-date">Dernière révision : ${formatDate.format(new Date(fiche.derniereRevision))}</p>
       <div class="barre-progression" role="progressbar" aria-valuemin="0" aria-valuemax="100"
-           aria-valuenow="${cours.progression}" aria-label="Progression de ${cours.titre}">
+           aria-valuenow="${fiche.progression}" aria-label="Progression de ${echapper(fiche.titre)}">
         <div class="barre-progression-remplie"></div>
       </div>
-      <p class="barre-legende">${libelleCours(cours)} · ${cours.progression} % maîtrisé</p>
-      <button class="bouton-reviser" type="button">Réviser maintenant</button>
+      <p class="barre-legende">${detailFiche(fiche)} · ${fiche.progression} % maîtrisé</p>
+      <div class="carte-actions">
+        <button class="bouton-reviser" type="button" data-fiche="reviser">Réviser maintenant</button>
+        <button class="bouton-texte" type="button" data-fiche="supprimer">Supprimer</button>
+      </div>
     `;
 
-    $(".bouton-reviser", carte).addEventListener("click", () => {
-      toast(`Séance lancée : ${cours.titre}`);
+    $$("[data-fiche]", carte).forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        if (bouton.dataset.fiche === "reviser") reviserFiche(fiche);
+        else { supprimerFiche(fiche.id); toast("Fiche supprimée"); }
+      });
     });
 
     // Remplissage animé au moment de l'affichage.
     requestAnimationFrame(() => {
-      $(".barre-progression-remplie", carte).style.width = `${cours.progression}%`;
+      $(".barre-progression-remplie", carte).style.width = `${fiche.progression}%`;
     });
 
     return carte;
   }
 
-  function rendreCours(conteneur, liste) {
+  function remplirDossier(contenu, cle, liste) {
+    contenu.textContent = "";
+
+    if (!liste.length) {
+      const vide = document.createElement("p");
+      vide.className = "dossier-vide";
+      vide.textContent = `Aucune fiche en ${MATIERES[cle].nom} pour l'instant.`;
+      contenu.appendChild(vide);
+    } else {
+      liste.forEach((fiche) => contenu.appendChild(carteFiche(fiche)));
+    }
+
+    const creer = document.createElement("button");
+    creer.type = "button";
+    creer.className = "bouton-principal";
+    creer.textContent = "Créer une fiche de révision";
+    creer.addEventListener("click", () => ouvrirFeuilleCreation(cle));
+    contenu.appendChild(creer);
+  }
+
+  /** Une catégorie par matière : ouverte, elle propose de créer une fiche. */
+  function rendreDossiers() {
+    const conteneur = $("#liste-tous-cours");
     if (!conteneur) return;
     conteneur.textContent = "";
-    liste.forEach((cours) => conteneur.appendChild(carteCours(cours)));
+
+    matieresAffichees().forEach((cle) => {
+      const matiere = MATIERES[cle];
+      const liste = fiches.filter((f) => f.matiere === cle);
+      const moyenne = liste.length
+        ? Math.round(liste.reduce((somme, f) => somme + (f.progression || 0), 0) / liste.length)
+        : 0;
+      const ouvert = dossierOuvert === cle;
+
+      const dossier = document.createElement("section");
+      dossier.className = "dossier" + (ouvert ? " dossier--ouvert" : "");
+      dossier.innerHTML = `
+        <button class="dossier-tete" type="button" aria-expanded="${ouvert}">
+          <span class="dossier-emoji" aria-hidden="true">${matiere.emoji}</span>
+          <span class="ligne-texte">
+            <span class="ligne-nom">${matiere.nom}</span>
+            <span class="ligne-detail">${liste.length} fiche${liste.length > 1 ? "s" : ""} · ${moyenne} %</span>
+          </span>
+          <svg class="matiere-chevron" aria-hidden="true"><use href="#i-fleche"></use></svg>
+        </button>
+        <div class="dossier-contenu"${ouvert ? "" : " hidden"}></div>
+      `;
+
+      if (ouvert) remplirDossier($(".dossier-contenu", dossier), cle, liste);
+      $(".dossier-tete", dossier).addEventListener("click", () => {
+        dossierOuvert = ouvert ? null : cle;
+        rendreDossiers();
+      });
+      conteneur.appendChild(dossier);
+    });
+  }
+
+  /** Réviser une fiche : quiz sur son titre, écrit par Claude ou repris d'une banque. */
+  function reviserFiche(fiche) {
+    etatQuiz.source = "sujet";
+    etatQuiz.sujet = fiche.titre;
+    etatQuiz.matiereTheme = fiche.matiere === "autre" ? null : fiche.matiere;
+    etatQuiz.ficheId = fiche.id;
+    etatQuiz.complement = `Fiche « ${fiche.titre} » en ${MATIERES[fiche.matiere].nom}`
+      + (niveauChoisi ? `, profil ${libelleNiveau().toLowerCase()}.` : ".");
+
+    afficherVue("quiz");
+    choisirSourceQuiz("sujet");
+    $("#quiz-sujet").value = fiche.titre;
+    $("#quiz-complement").value = etatQuiz.complement;
+    $("#compteur-complement").textContent = etatQuiz.complement.length;
+    lancerQuiz();
+  }
+
+  function majProfil() {
+    const total = fiches.length;
+    const moyenne = total
+      ? Math.round(fiches.reduce((somme, f) => somme + (f.progression || 0), 0) / total)
+      : 0;
+    if ($("#stat-cours")) $("#stat-cours").textContent = total;
+    if ($("#stat-moyenne")) $("#stat-moyenne").textContent = `${moyenne} %`;
+    if ($("#stat-serie")) $("#stat-serie").textContent = new Set(fiches.map((f) => f.matiere)).size;
   }
 
   /* ————— Liste des défis ——————————————————————————————————————— */
@@ -98,30 +289,88 @@
     });
   }
 
-  /* ————— Révision espacée ————————————————————————————————————— */
+  /* ————— Révision espacée ————————————————————————————————————
+     La file n'est plus une donnée figée : elle se calcule à partir des
+     fiches créées et de leur dernière révision.
+     ———————————————————————————————————————————————————————————— */
+
+  function echeancesFiches() {
+    const aujourdhui = new Date();
+    return fiches
+      .map((fiche) => {
+        const depuis = joursEntre(fiche.derniereRevision, aujourdhui);
+        const palier = PALIERS_REVISION.find((jours) => jours > depuis);
+        const reste = palier === undefined ? 0 : palier - depuis;
+        const echeance = new Date(minuit(fiche.derniereRevision).getTime()
+          + (palier === undefined ? depuis : palier) * JOUR_MS);
+        return {
+          fiche,
+          palier: `J+${palier === undefined ? PALIERS_REVISION[PALIERS_REVISION.length - 1] : palier}`,
+          echeance,
+          reste,
+          etat: reste <= 0 ? "aujourdhui" : reste === 1 ? "demain" : "a-venir",
+        };
+      })
+      .sort((a, b) => a.reste - b.reste);
+  }
 
   function rendreEcheances(conteneur) {
     if (!conteneur) return;
     conteneur.textContent = "";
-    REVISION_ESPACEE.forEach((e) => {
-      const date = new Date(e.echeance);
-      const ecart = joursEntre(new Date(), date);
-      const quand = e.etat === "aujourdhui" ? "À revoir aujourd'hui"
-                  : ecart === 1 ? "Demain"
-                  : `Dans ${ecart} jours · ${formatCourt.format(date)}`;
 
-      const bloc = document.createElement("div");
+    const echeances = echeancesFiches();
+    if (!echeances.length) {
+      const vide = document.createElement("div");
+      vide.className = "themes-vide";
+      vide.innerHTML = `
+        <p class="themes-vide-texte">Rien à revoir pour l'instant : la file se remplit toute seule
+        dès que tu crées ta première fiche.</p>
+      `;
+      const creer = document.createElement("button");
+      creer.type = "button";
+      creer.className = "bouton-principal";
+      creer.textContent = "Créer une fiche de révision";
+      creer.addEventListener("click", () => ouvrirFeuilleCreation(null));
+      vide.appendChild(creer);
+      conteneur.appendChild(vide);
+      return;
+    }
+
+    echeances.forEach((e) => {
+      const quand = e.etat === "aujourdhui" ? "À revoir aujourd'hui"
+                  : e.etat === "demain" ? "Demain"
+                  : `Dans ${e.reste} jours · ${formatCourt.format(e.echeance)}`;
+
+      const bloc = document.createElement("button");
+      bloc.type = "button";
       bloc.className = `echeance echeance--${e.etat}`;
       bloc.innerHTML = `
         <span class="echeance-palier">${e.palier}</span>
         <span class="ligne-texte">
-          <span class="echeance-titre">${e.titre}</span>
-          <span class="echeance-detail">${MATIERES[e.matiere] ? MATIERES[e.matiere].nom + " · " : ""}${quand}</span>
+          <span class="echeance-titre">${echapper(e.fiche.titre)}</span>
+          <span class="echeance-detail">${MATIERES[e.fiche.matiere] ? MATIERES[e.fiche.matiere].nom + " · " : ""}${quand}</span>
         </span>
         <svg class="ligne-fleche" aria-hidden="true"><use href="#i-horloge"></use></svg>
       `;
+      bloc.addEventListener("click", () => reviserFiche(e.fiche));
       conteneur.appendChild(bloc);
     });
+  }
+
+  /** Pastille de la cloche : le nombre de fiches à revoir aujourd'hui. */
+  function majCloche() {
+    const pastille = $("#cloche-compteur");
+    if (!pastille) return;
+    const dues = echeancesFiches().filter((e) => e.etat === "aujourdhui").length;
+    pastille.textContent = dues;
+    pastille.hidden = dues === 0;
+
+    const cloche = $(".cloche");
+    if (cloche) {
+      cloche.setAttribute("aria-label", dues
+        ? `Révision espacée — ${dues} fiche${dues > 1 ? "s" : ""} à revoir aujourd'hui`
+        : "Révision espacée — rien à revoir aujourd'hui");
+    }
   }
 
   /* ————— Navigation entre vues ———————————————————————————————— */
@@ -186,6 +435,7 @@
     const ligne = $("#profil-niveau");
     if (ligne) ligne.textContent = niveauChoisi ? libelleNiveau() : "Profil non renseigné";
     rendreThemes();
+    rendreDossiers();
     if ($("#ia-ajouts")) rendreAjoutsIA();
   }
 
@@ -258,6 +508,7 @@
   function lancerThemeEnQuiz(theme, matiere) {
     etatQuiz.sujet = theme;
     etatQuiz.matiereTheme = matiere;
+    etatQuiz.ficheId = null;
     etatQuiz.complement = `Programme ${libelleNiveau().toLowerCase()} en ${MATIERES[matiere].nom}.`;
     afficherVue("quiz");
     choisirSourceQuiz("sujet");
@@ -304,6 +555,14 @@
         lancerThemeEnQuiz(themes[Number(bouton.dataset.theme)], matiereDepliee);
       });
     });
+
+    const creer = document.createElement("button");
+    creer.type = "button";
+    creer.className = "bouton-secondaire deplie-creer";
+    creer.textContent = `Créer une fiche en ${MATIERES[matiereDepliee].nom}`;
+    const ouverte = matiereDepliee;
+    creer.addEventListener("click", () => ouvrirFeuilleCreation(ouverte));
+    deplie.appendChild(creer);
   }
 
   function rendreThemes() {
@@ -365,13 +624,8 @@
 
   /* ————— Matières et sélecteur de cours (partagé par les 3 outils) ——— */
 
-  function libelleCours(cours) {
-    const matiere = MATIERES[cours.matiere];
-    return `${matiere ? matiere.nom : "Cours"} · ${cours.chapitre}`;
-  }
-
-  function emojiMatiere(cours) {
-    const matiere = MATIERES[cours.matiere];
+  function emojiMatiere(fiche) {
+    const matiere = MATIERES[fiche.matiere];
     return matiere ? matiere.emoji : "📘";
   }
 
@@ -385,24 +639,25 @@
   }
 
   /**
-   * Monte un sélecteur « filtre par matière + liste de chapitres ».
-   * `etat` porte { matiere, coursId } et est mis à jour en place.
-   * `filtreCours` permet de n'afficher que les chapitres disposant de contenu.
+   * Monte un sélecteur « filtre par matière + liste de fiches », partagé par
+   * les trois outils. `etat` porte { matiere, ficheId } et est mis à jour en
+   * place. Bibliothèque vide : on propose d'en créer une plutôt que d'afficher
+   * une liste creuse.
    */
-  function initSelecteurCours({ liste, filtres, etat, filtreCours }) {
+  function initSelecteurCours({ liste, filtres, etat, vide }) {
     const conteneurListe = $(liste);
     const conteneurFiltres = $(filtres);
     if (!conteneurListe || !conteneurFiltres) return;
 
-    const disponibles = filtreCours ? COURS.filter(filtreCours) : COURS.slice();
-    if (!disponibles.some((c) => c.id === etat.coursId)) etat.coursId = disponibles[0].id;
-
     const visibles = () =>
-      etat.matiere === "toutes" ? disponibles : disponibles.filter((c) => c.matiere === etat.matiere);
+      etat.matiere === "toutes" ? fiches.slice() : fiches.filter((f) => f.matiere === etat.matiere);
 
     function rendreFiltres() {
-      const matieres = [...new Set(disponibles.map((c) => c.matiere))];
+      const matieres = [...new Set(fiches.map((f) => f.matiere))];
       conteneurFiltres.textContent = "";
+      conteneurFiltres.hidden = matieres.length < 2;
+      if (matieres.length < 2) return;
+
       [["toutes", "Toutes"], ...matieres.map((m) => [m, `${MATIERES[m].emoji} ${MATIERES[m].court}`])]
         .forEach(([valeur, libelle]) => {
           const bouton = document.createElement("button");
@@ -412,10 +667,7 @@
           bouton.textContent = libelle;
           bouton.addEventListener("click", () => {
             etat.matiere = valeur;
-            const restants = visibles();
-            if (!restants.some((c) => c.id === etat.coursId)) etat.coursId = restants[0].id;
-            rendreFiltres();
-            rendreListe();
+            rendreTout();
           });
           conteneurFiltres.appendChild(bouton);
         });
@@ -424,8 +676,26 @@
     function rendreListe() {
       conteneurListe.textContent = "";
       conteneurListe.setAttribute("role", "radiogroup");
-      visibles().forEach((cours) => {
-        const actif = cours.id === etat.coursId;
+
+      if (!fiches.length) {
+        const li = document.createElement("li");
+        li.className = "choix-vide";
+        const texte = document.createElement("p");
+        texte.className = "dossier-vide";
+        texte.textContent = vide || "Ta bibliothèque est vide : ta première fiche apparaîtra ici.";
+        const bouton = document.createElement("button");
+        bouton.type = "button";
+        bouton.className = "bouton-secondaire";
+        bouton.textContent = "Créer une fiche";
+        bouton.addEventListener("click", () => ouvrirFeuilleCreation(null));
+        li.appendChild(texte);
+        li.appendChild(bouton);
+        conteneurListe.appendChild(li);
+        return;
+      }
+
+      visibles().forEach((fiche) => {
+        const actif = fiche.id === etat.ficheId;
         const li = document.createElement("li");
         const bouton = document.createElement("button");
         bouton.type = "button";
@@ -433,15 +703,15 @@
         bouton.setAttribute("role", "radio");
         bouton.setAttribute("aria-checked", String(actif));
         bouton.innerHTML = `
-          <span class="ligne-pastille">${emojiMatiere(cours)}</span>
+          <span class="ligne-pastille">${emojiMatiere(fiche)}</span>
           <span class="choix-texte">
-            <span class="choix-nom">${cours.titre}</span>
-            <span class="choix-detail">${libelleCours(cours)}</span>
+            <span class="choix-nom">${echapper(fiche.titre)}</span>
+            <span class="choix-detail">${detailFiche(fiche)}</span>
           </span>
           <span class="choix-marque" aria-hidden="true"></span>
         `;
         bouton.addEventListener("click", () => {
-          etat.coursId = cours.id;
+          etat.ficheId = fiche.id;
           rendreListe();
         });
         li.appendChild(bouton);
@@ -449,8 +719,17 @@
       });
     }
 
-    rendreFiltres();
-    rendreListe();
+    function rendreTout() {
+      const restantes = visibles();
+      if (!restantes.some((f) => f.id === etat.ficheId)) {
+        etat.ficheId = restantes.length ? restantes[0].id : null;
+      }
+      rendreFiltres();
+      rendreListe();
+    }
+
+    rendreTout();
+    aRafraichir.push(rendreTout);      // la bibliothèque change : le sélecteur suit
   }
 
   /** Applique le choix « radio » à un groupe de puces et renvoie la valeur retenue. */
@@ -469,7 +748,13 @@
 
   /* ————— Feuille « Option de création de fiche » ————————————————— */
 
-  function ouvrirFeuilleCreation() {
+  let matiereCreation = null;      // matière d'où la feuille a été ouverte
+
+  function ouvrirFeuilleCreation(matiere) {
+    matiereCreation = MATIERES[matiere] ? matiere : null;
+    $("#feuille-titre").textContent = matiereCreation
+      ? `Créer une fiche · ${MATIERES[matiereCreation].nom}`
+      : "Option de création de fiche";
     $("#feuille-fond").hidden = false;
     $("#feuille-creation").hidden = false;
     document.body.classList.add("corps--bloque");
@@ -483,12 +768,30 @@
 
   /** Chaque option mène au bon outil, déjà réglé sur la bonne source. */
   function lancerCreation(option) {
+    const matiere = matiereCreation;
     fermerFeuilleCreation();
 
-    if (option === "scan") { afficherVue("scan"); return; }
+    if (option === "scan") {
+      afficherVue("scan");
+      if (matiere) {
+        fiche.matiere = matiere;
+        rendreSuggestionsScan(matiere);
+        $("#scan-sous-texte").textContent =
+          `Fiche ${deLaMatiere(MATIERES[matiere].nom)} : cadre-la, puis choisis ce que tu veux en faire.`;
+      }
+      return;
+    }
 
     if (option === "ia") {
       afficherVue("ia");
+      if (matiere) {
+        const amorce = `Quiz ${deLaMatiere(MATIERES[matiere].nom)}`
+          + (niveauChoisi ? `, niveau ${libelleNiveau().toLowerCase()}` : "") + ", sur ";
+        const champ = $("#ia-demande");
+        champ.value = amorce;
+        rafraichirDemande();
+        champ.setSelectionRange(amorce.length, amorce.length);
+      }
       $("#ia-demande").focus();
       return;
     }
@@ -496,6 +799,7 @@
     // « Avec tes cours » et « Rédiger » ouvrent la fiche de résumé, sur la bonne source.
     const source = option === "cours" ? "cours" : "texte";
     etatResume.source = source;
+    if (matiere) etatResume.matiere = matiere;
     afficherVue("resume");
     $("#form-resume").hidden = false;
     $("#fiche-resume").hidden = true;
@@ -516,7 +820,7 @@
     const bouton = $("#ouvrir-creation");
     if (!bouton) return;
 
-    bouton.addEventListener("click", ouvrirFeuilleCreation);
+    bouton.addEventListener("click", () => ouvrirFeuilleCreation(null));
     $("#feuille-fond").addEventListener("click", fermerFeuilleCreation);
     $("#fermer-creation").addEventListener("click", fermerFeuilleCreation);
     $$("[data-creation]").forEach((tuile) => {
@@ -646,7 +950,7 @@
     });
   }
 
-  /** Envoie la fiche scannée vers l'un des trois outils. */
+  /** Envoie la fiche scannée vers l'un des trois outils — et l'ajoute à la bibliothèque. */
   function exploiterFiche(outil) {
     const sujet = $("#scan-sujet").value.trim();
     if (sujet.length < 3) {
@@ -656,10 +960,18 @@
     }
     fiche.sujet = sujet;
     const chapitre = chercherBanque(sujet, fiche.matiere);
+    const enregistree = ajouterFiche({
+      matiere: fiche.matiere || (chapitre ? chapitre.matiere : "autre"),
+      titre: sujet,
+      source: "scan",
+      banqueId: chapitre ? chapitre.id : null,
+    });
 
     if (outil === "quiz") {
+      if (enregistree) { reviserFiche(enregistree); return; }
       etatQuiz.sujet = sujet;
       etatQuiz.matiereTheme = fiche.matiere;
+      etatQuiz.ficheId = null;
       etatQuiz.complement = `Fiche scannée${niveauChoisi ? " — profil " + libelleNiveau().toLowerCase() : ""}.`;
       afficherVue("quiz");
       choisirSourceQuiz("sujet");
@@ -672,11 +984,11 @@
 
     if (outil === "flashcards") {
       afficherVue("flashcards");
-      if (chapitre && (FLASHCARDS[chapitre.id] || []).length) {
-        etatCartes.coursId = chapitre.id;
+      if (enregistree && banqueDeLaFiche(enregistree)) {
+        etatCartes.ficheId = enregistree.id;
         lancerCartes(null);
       } else {
-        toast("Aucun paquet tout prêt pour cette fiche : choisis un chapitre.");
+        toast("Pas encore de cartes toutes prêtes pour cette fiche : lance plutôt un quiz.");
         $("#form-cartes").hidden = false;
         $("#jeu-cartes").hidden = true;
         $("#bilan-cartes").hidden = true;
@@ -684,12 +996,13 @@
       return;
     }
 
-    // Résumé : on part du chapitre reconnu, sinon de la fiche scannée elle-même.
+    // Résumé : on part de la fiche enregistrée, sinon de la photo elle-même.
     afficherVue("resume");
     $("#form-resume").hidden = false;
-    if (chapitre) {
+    if (enregistree) {
       etatResume.source = "cours";
-      etatResume.coursId = chapitre.id;
+      etatResume.ficheId = enregistree.id;
+      etatResume.matiere = "toutes";
     } else {
       etatResume.source = "fichier";
       etatResume.fichier = fiche.nom;
@@ -739,7 +1052,7 @@
   const etatResume = {
     source: "cours",        // cours | texte | fichier
     matiere: "toutes",
-    coursId: COURS[0].id,
+    ficheId: null,
     longueur: "standard",
     options: { formules: true, exemples: true, pieges: false },
     fichier: null,
@@ -754,21 +1067,41 @@
   /** Source actuellement sélectionnée : titre affiché + contenu de la fiche. */
   function sourceChoisie() {
     if (etatResume.source === "cours") {
-      const cours = COURS.find((c) => c.id === etatResume.coursId) || COURS[0];
-      return { titre: cours.titre, sousTitre: libelleCours(cours), contenu: RESUMES[cours.id] || RESUME_GENERIQUE };
+      const fiche = trouverFiche(etatResume.ficheId);
+      if (!fiche) return null;
+      return {
+        titre: fiche.titre,
+        sousTitre: detailFiche(fiche),
+        contenu: RESUMES[fiche.banqueId] || RESUME_GENERIQUE,
+        matiere: fiche.matiere,
+        ficheId: fiche.id,
+      };
     }
     if (etatResume.source === "fichier") {
       return {
         titre: etatResume.fichier ? etatResume.fichier.replace(/\.[^.]+$/, "") : "Document importé",
         sousTitre: "À partir d'un fichier importé",
         contenu: RESUME_GENERIQUE,
+        matiere: null,
+        ficheId: null,
       };
     }
-    return { titre: "Texte collé", sousTitre: "À partir de tes notes", contenu: RESUME_GENERIQUE };
+    return {
+      titre: "Texte collé",
+      sousTitre: "À partir de tes notes",
+      contenu: RESUME_GENERIQUE,
+      matiere: null,
+      ficheId: null,
+    };
   }
 
   /** Vérifie que la source est exploitable ; renvoie un message d'erreur ou null. */
   function erreurSource() {
+    if (etatResume.source === "cours" && !trouverFiche(etatResume.ficheId)) {
+      return fiches.length
+        ? "Choisis d'abord une fiche à résumer."
+        : "Ta bibliothèque est vide : crée d'abord une fiche.";
+    }
     if (etatResume.source === "texte") {
       const texte = $("#texte-source").value.trim();
       if (texte.length < 200) return `Il manque ${200 - texte.length} caractères pour générer une fiche.`;
@@ -785,9 +1118,38 @@
     return `<section class="fiche-section ${classe}"><h4 class="fiche-soustitre">${titre}</h4><ul>${items}</ul></section>`;
   }
 
+  /** Le chapitre de secours associé à une fiche, s'il en existe un. */
+  function banqueDeLaFiche(fiche) {
+    if (!fiche) return null;
+    if (fiche.banqueId && (FLASHCARDS[fiche.banqueId] || []).length) return fiche.banqueId;
+    const trouve = chercherBanque(fiche.titre, fiche.matiere === "autre" ? null : fiche.matiere);
+    return trouve && (FLASHCARDS[trouve.id] || []).length ? trouve.id : null;
+  }
+
+  /** Range le résumé affiché dans la bibliothèque, dans la bonne matière. */
+  function enregistrerLaFiche(source) {
+    if (source.ficheId) {
+      const deja = trouverFiche(source.ficheId);
+      if (deja) { marquerRevisee(deja.id); return deja; }
+    }
+    const reconnu = chercherBanque(source.titre, null);
+    const matiere = source.matiere
+      || (etatResume.matiere !== "toutes" ? etatResume.matiere : null)
+      || (reconnu ? reconnu.matiere : "autre");
+
+    return ajouterFiche({
+      matiere,
+      titre: source.titre,
+      source: etatResume.source === "cours" ? "cours" : "texte",
+      banqueId: reconnu ? reconnu.id : null,
+    });
+  }
+
   function rendreFiche() {
     const fiche = $("#fiche-resume");
-    const { titre, sousTitre, contenu } = sourceChoisie();
+    const source = sourceChoisie();
+    if (!source) return;
+    const { titre, sousTitre, contenu } = source;
     const max = LONGUEURS[etatResume.longueur].points;
     const { formules, exemples, pieges } = etatResume.options;
 
@@ -807,7 +1169,7 @@
       ${exemples ? sectionFiche("Exemples corrigés", contenu.exemples, "fiche-section--exemples") : ""}
       ${pieges ? sectionFiche("Pièges fréquents", contenu.pieges, "fiche-section--pieges") : ""}
       <div class="fiche-actions">
-        <button class="bouton-principal" type="button" data-action="enregistrer">Enregistrer dans mes cours</button>
+        <button class="bouton-principal" type="button" data-action="enregistrer">Enregistrer dans mes fiches</button>
         <button class="bouton-secondaire" type="button" data-action="flashcards">Générer des flashcards</button>
         <button class="bouton-secondaire" type="button" data-action="refaire">Régénérer</button>
       </div>
@@ -816,9 +1178,23 @@
     $$("[data-action]", fiche).forEach((bouton) => {
       bouton.addEventListener("click", () => {
         const action = bouton.dataset.action;
-        if (action === "enregistrer") toast("Résumé enregistré dans tes cours");
-        else if (action === "flashcards") toast("FlashCards — bientôt disponible");
-        else genererResume();
+        if (action === "refaire") { genererResume(); return; }
+
+        const gardee = enregistrerLaFiche(source);
+        if (!gardee) { toast("Donne un titre à ta fiche pour l'enregistrer."); return; }
+
+        if (action === "enregistrer") {
+          toast(`Fiche enregistrée en ${MATIERES[gardee.matiere].nom}`);
+          return;
+        }
+        // Flashcards : seulement si un paquet existe pour ce sujet.
+        if (!banqueDeLaFiche(gardee)) {
+          toast("Pas encore de cartes pour ce sujet : lance plutôt un quiz.");
+          return;
+        }
+        etatCartes.ficheId = gardee.id;
+        afficherVue("flashcards");
+        lancerCartes(null);
       });
     });
 
@@ -856,6 +1232,7 @@
       liste: "#choix-cours",
       filtres: "#filtres-resume",
       etat: etatResume,
+      vide: "Aucune fiche à résumer : crée-en une, elle apparaîtra ici.",
     });
 
     // Bascule entre les trois sources.
@@ -1028,6 +1405,7 @@
     partieQuiz = {
       questions, index: 0, score: 0,
       mode: etatQuiz.mode, coursId: null, sansFin: false,
+      ficheId: etatQuiz.ficheId || null,
       tirer: () => null, demandeIA,
     };
     $("#quiz-quitter").textContent = "Quitter le quiz";
@@ -1143,7 +1521,8 @@
     Object.values(CATALOGUE).forEach((programme) => {
       Object.values(programme).forEach((themes) => libelles.push(...themes));
     });
-    COURS.forEach((cours) => libelles.push(cours.titre, ...(cours.motsCles || [])));
+    BANQUES.forEach((chapitre) => libelles.push(chapitre.titre, ...(chapitre.motsCles || [])));
+    fiches.forEach((fiche) => libelles.push(fiche.titre));
     sujetsConnus = libelles.map(motsUtiles).filter((mots) => mots.length);
     return sujetsConnus;
   }
@@ -1253,6 +1632,7 @@
     etatQuiz.sujet = demande;
     etatQuiz.complement = "Demande rédigée dans l'atelier IA.";
     etatQuiz.matiereTheme = null;
+    etatQuiz.ficheId = null;
     // Une demande rédigée noie le chapitre dans une phrase : on n'exige plus
     // qu'il pèse la moitié des mots, seulement qu'il y figure en entier.
     etatQuiz.couvertureSujet = 0;
@@ -1288,9 +1668,9 @@
   /* ————— Page « Créer quiz » ——————————————————————————————————— */
 
   const etatQuiz = {
-    source: "cours",        // cours | sujet
+    source: "cours",        // cours (mes fiches) | sujet
     matiere: "toutes",
-    coursId: COURS[0].id,
+    ficheId: null,
     sujet: "",
     matiereTheme: null,     // matière imposée quand le sujet vient du carrousel
     couvertureSujet: undefined,
@@ -1415,7 +1795,7 @@
     if (!mots.length) return null;
 
     let meilleur = null;
-    COURS
+    BANQUES
       .filter((cours) => (QUIZ[cours.id] || []).length)
       .filter((cours) => !matiereAttendue || cours.matiere === matiereAttendue)
       .forEach((cours) => {
@@ -1435,10 +1815,7 @@
 
   function panneauSujetIndisponible(sujet) {
     const complement = etatQuiz.complement.trim();
-    const proches = [];
-    COURS.filter((cours) => (QUIZ[cours.id] || []).length).forEach((cours) => {
-      if (proches.length < 3 && !proches.some((autre) => autre.matiere === cours.matiere)) proches.push(cours);
-    });
+    const proches = fiches.slice(-3).reverse();
 
     $("#form-quiz").hidden = true;
     const panneau = $("#indispo-quiz");
@@ -1454,15 +1831,16 @@
         <li><span class="demande-cle">Niveau</span><span class="demande-valeur">${libelleNiveau() || "non renseigné"}</span></li>
         <li><span class="demande-cle">Format</span><span class="demande-valeur">${etatQuiz.taille === "infini" ? "Sans fin" : etatQuiz.taille + " questions"} · correction ${etatQuiz.mode === "immediate" ? "immédiate" : "à la fin"}</span></li>
       </ul>
-      <h4 class="bilan-soustitre">En attendant, des chapitres disponibles</h4>
+      ${proches.length ? `
+      <h4 class="bilan-soustitre">En attendant, tes dernières fiches</h4>
       <ul class="bilan-erreurs">
-        ${proches.map((cours) => `
-          <li><span class="bilan-question">${cours.titre}</span>
-              <span class="bilan-explication">${libelleCours(cours)}</span></li>`).join("")}
-      </ul>
+        ${proches.map((f) => `
+          <li><span class="bilan-question">${echapper(f.titre)}</span>
+              <span class="bilan-explication">${detailFiche(f)}</span></li>`).join("")}
+      </ul>` : ""}
       <div class="bilan-actions">
         ${sampleClaude ? '<button class="bouton-principal" type="button" data-indispo="claude">Demander à Claude</button>' : ""}
-        <button class="${sampleClaude ? "bouton-secondaire" : "bouton-principal"}" type="button" data-indispo="cours">Choisir un chapitre</button>
+        ${proches.length ? `<button class="${sampleClaude ? "bouton-secondaire" : "bouton-principal"}" type="button" data-indispo="cours">Choisir une fiche</button>` : ""}
         <button class="bouton-secondaire" type="button" data-indispo="sujet">Modifier le sujet</button>
       </div>
     `;
@@ -1569,6 +1947,10 @@
     }
     const pourcentage = Math.round((score / total) * 100);
     const rates = questions.filter((q) => !q.reussie);
+    // Une fiche révisée : on note la date et le meilleur score, la file suit.
+    if (partieQuiz.ficheId) marquerRevisee(partieQuiz.ficheId, pourcentage);
+    const dejaRangee = Boolean(partieQuiz.ficheId);
+    const sujetLibre = etatQuiz.source === "sujet" ? etatQuiz.sujet.trim() : "";
     const message = pourcentage === 100 ? "Sans faute — le chapitre est solide."
                   : pourcentage >= 60 ? "Bonne base : reprends les questions ratées."
                   : "À retravailler : relis la fiche avant de refaire un tour.";
@@ -1594,8 +1976,10 @@
       ${corrections}
       <div class="bilan-actions">
         <button class="bouton-principal" type="button" data-quiz="rejouer">Refaire un quiz</button>
-        <button class="bouton-secondaire" type="button" data-quiz="chapitre">Changer de chapitre</button>
-        <button class="bouton-secondaire" type="button" data-quiz="enregistrer">Enregistrer le score</button>
+        ${!dejaRangee && sujetLibre.length >= 3
+          ? '<button class="bouton-secondaire" type="button" data-quiz="garder">Garder ce sujet dans mes fiches</button>'
+          : ""}
+        <button class="bouton-secondaire" type="button" data-quiz="chapitre">Changer de sujet</button>
       </div>
     `;
     bilan.hidden = false;
@@ -1611,7 +1995,20 @@
             lancerDemandeIA();
           } else lancerQuiz();
         }
-        else if (action === "enregistrer") toast("Score ajouté à ta progression");
+        else if (action === "garder") {
+          const reconnu = chercherBanque(sujetLibre, etatQuiz.matiereTheme);
+          const gardee = ajouterFiche({
+            matiere: etatQuiz.matiereTheme || (reconnu ? reconnu.matiere : "autre"),
+            titre: sujetLibre,
+            source: sampleClaude ? "ia" : "libre",
+            banqueId: reconnu ? reconnu.id : null,
+          });
+          if (!gardee) { toast("Sujet trop court pour être enregistré."); return; }
+          marquerRevisee(gardee.id, pourcentage);
+          bouton.disabled = true;
+          bouton.textContent = "Rangée dans tes fiches";
+          toast(`Fiche ajoutée en ${MATIERES[gardee.matiere].nom}`);
+        }
         else { bilan.hidden = true; $("#form-quiz").hidden = false; }
       });
     });
@@ -1621,6 +2018,17 @@
 
   /** Tout sujet libre — thème du carrousel, fiche scannée, atelier — passe par Claude. */
   function lancerQuiz() {
+    // Mode « Mes fiches » : la fiche choisie devient le sujet du quiz.
+    if (etatQuiz.source === "cours") {
+      const fiche = trouverFiche(etatQuiz.ficheId);
+      if (!fiche) {
+        toast(fiches.length ? "Choisis une fiche à réviser." : "Ta bibliothèque est vide : crée d'abord une fiche.");
+        return;
+      }
+      reviserFiche(fiche);
+      return;
+    }
+
     // Le runtime met un instant à répondre : on ne bascule pas au local trop tôt.
     if (etatQuiz.source === "sujet" && !claudeResolu && attenteClaude) {
       $("#form-quiz").hidden = true;
@@ -1643,7 +2051,7 @@
 
   /** Repli : questions rédigées et générateurs de l'application. */
   function lancerQuizLocal() {
-    let coursId = etatQuiz.coursId;
+    let coursId = null;
     let contexte = "";
 
     if (etatQuiz.source === "sujet") {
@@ -1659,6 +2067,8 @@
       const resume = sujet.length > 48 ? `${sujet.slice(0, 45)}…` : sujet;
       contexte = `${resume} — questions du chapitre « ${banque.titre} »`;
     }
+
+    if (!coursId) { toast("Indique d'abord le sujet du quiz."); return; }
 
     const sansFin = etatQuiz.taille === "infini";
     const tirer = ouvrirTirage(coursId);
@@ -1687,7 +2097,10 @@
     clearTimeout(minuteurQuiz);
     minuteurQuiz = setTimeout(() => {
       chargement.hidden = true;
-      partieQuiz = { questions, index: 0, score: 0, mode: etatQuiz.mode, coursId, sansFin, tirer };
+      partieQuiz = {
+        questions, index: 0, score: 0, mode: etatQuiz.mode, coursId, sansFin, tirer,
+        ficheId: etatQuiz.ficheId || null,
+      };
       $("#quiz-quitter").textContent = sansFin ? "Terminer et voir mon score" : "Quitter le quiz";
       $("#jeu-quiz").hidden = false;
       afficherQuestion();
@@ -1718,13 +2131,17 @@
     if (!form) return;
 
     $$("[data-quiz-source]").forEach((segment) => {
-      segment.addEventListener("click", () => choisirSourceQuiz(segment.dataset.quizSource));
+      segment.addEventListener("click", () => {
+        if (segment.dataset.quizSource === "sujet") etatQuiz.ficheId = null;
+        choisirSourceQuiz(segment.dataset.quizSource);
+      });
     });
 
     const champSujet = $("#quiz-sujet");
     champSujet.addEventListener("input", () => {
       etatQuiz.sujet = champSujet.value;
       etatQuiz.matiereTheme = null;
+      etatQuiz.ficheId = null;
     });
 
     const champComplement = $("#quiz-complement");
@@ -1737,7 +2154,7 @@
       liste: "#choix-cours-quiz",
       filtres: "#filtres-quiz",
       etat: etatQuiz,
-      filtreCours: (cours) => (QUIZ[cours.id] || []).length > 0,
+      vide: "Aucune fiche à réviser : crée-en une, ou passe en « Sujet libre ».",
     });
 
     const majResumeQuiz = () => {
@@ -1765,7 +2182,7 @@
 
   /* ————— Page « FlashCards » ————————————————————————————————————— */
 
-  const etatCartes = { matiere: "toutes", coursId: COURS[0].id, ordre: "melange" };
+  const etatCartes = { matiere: "toutes", ficheId: null, ordre: "melange" };
   let paquet = null;
 
   function afficherCarte() {
@@ -1838,10 +2255,16 @@
 
   let minuteurCartes;
   function lancerCartes(seulement) {
-    const source = FLASHCARDS[etatCartes.coursId] || [];
-    let cartes = source.map((carte, i) => ({ ...carte, id: `${etatCartes.coursId}-${i}`, repassee: false }));
+    const fiche = trouverFiche(etatCartes.ficheId);
+    if (!fiche) {
+      toast(fiches.length ? "Choisis une fiche." : "Ta bibliothèque est vide : crée d'abord une fiche.");
+      return;
+    }
+    const banqueId = banqueDeLaFiche(fiche);
+    const source = FLASHCARDS[banqueId] || [];
+    let cartes = source.map((carte, i) => ({ ...carte, id: `${banqueId}-${i}`, repassee: false }));
     if (seulement) cartes = cartes.filter((c) => seulement.has(c.id));
-    if (!cartes.length) { toast("Aucune carte disponible pour ce chapitre."); return; }
+    if (!cartes.length) { toast("Pas encore de cartes pour cette fiche : lance plutôt un quiz."); return; }
     if (etatCartes.ordre === "melange") cartes = melanger(cartes);
 
     const form = $("#form-cartes");
@@ -1867,7 +2290,7 @@
       liste: "#choix-cours-cartes",
       filtres: "#filtres-cartes",
       etat: etatCartes,
-      filtreCours: (cours) => (FLASHCARDS[cours.id] || []).length > 0,
+      vide: "Aucune fiche pour l'instant : crée-en une pour en tirer des cartes.",
     });
 
     brancherPuces("#puces-cartes-ordre .puce", "ordre", (valeur) => { etatCartes.ordre = valeur; });
@@ -1906,14 +2329,8 @@
   /* ————— Démarrage ————————————————————————————————————————————— */
 
   function init() {
-    rendreCours($("#liste-tous-cours"), COURS);
+    fiches = lireBibliotheque();
     rendreDefis($("#liste-defis"));
-    rendreEcheances($("#liste-echeances"));
-
-    // Statistiques du profil, calculées depuis les données.
-    const moyenne = Math.round(COURS.reduce((s, c) => s + c.progression, 0) / COURS.length);
-    $("#stat-cours").textContent = COURS.length;
-    $("#stat-moyenne").textContent = `${moyenne} %`;
 
     // Cloche + onglets du bas + logo → changement de vue.
     $$("[data-onglet]").forEach((el) => {
@@ -1939,6 +2356,10 @@
 
     // Première visite : on demande la classe avant tout le reste.
     appliquerNiveau(lireNiveau());
+
+    // Dossiers, file de révision, cloche, profil et sélecteurs d'un seul coup.
+    majBibliotheque();
+
     if (!niveauChoisi) ouvrirEcranNiveau();
   }
 

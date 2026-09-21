@@ -3,8 +3,11 @@
 Site statique mobile-first de révision **toutes matières confondues** (maths, physique-chimie,
 SVT, histoire-géo, philosophie), construit en HTML/CSS/JS vanille (aucune dépendance, aucun build).
 
-Chaque cours porte une `matiere` (voir `MATIERES` dans `data.js`) : les trois outils IA
-proposent d'abord un filtre par matière, puis la liste des chapitres correspondants.
+**Aucun cours n'est livré avec l'application.** La bibliothèque démarre vide : chaque matière
+est une catégorie (voir `MATIERES` dans `data.js`) qui, une fois ouverte, propose de créer une
+fiche de révision avec les outils déjà en place — photo, cours, IA ou texte écrit à la main.
+Les fiches créées sont enregistrées sur l'appareil (`localStorage`, clé `mathematique.fiches`)
+et alimentent ensuite les trois outils, la file de révision espacée et le profil.
 
 ## Lancer
 
@@ -18,8 +21,8 @@ python3 -m http.server 8000
 | Fichier | Rôle |
 | --- | --- |
 | `styles.css` | Charte graphique : bleu marine `#1B2A6B`, bleu pastel `#CFE0F7`, fond gris clair `#F4F5F7` |
-| `app.js` | Navigation, sélecteur de cours partagé, moteurs résumé / quiz / flashcards |
-| `data.js` | Données : matières, cours, catalogue des thèmes, révision espacée, défis, questions rédigées et cartes |
+| `app.js` | Navigation, bibliothèque de fiches, sélecteur partagé, moteurs résumé / quiz / flashcards |
+| `data.js` | Données : matières, catalogue des thèmes, paliers de révision, défis, banques de secours (questions rédigées et cartes) |
 | `generateurs.js` | Générateurs de questions : la banque des quiz ne s'épuise pas |
 
 ## Écran de bienvenue (choix du profil)
@@ -70,8 +73,34 @@ bienvenue ; changer de niveau reconstruit le carrousel.
 - **Créer une fiche** : une carte bleu marine ouvre la feuille d'options (voir ci-dessous).
 - ~~Outils IA~~ (14 px, gras) : 3 tuiles cliquables — Créer résumé, Créer quiz, FlashCards.
 - **Défis** (16 px, gras) : les défis de la semaine et le bouton « Affronter un ami ».
-- **Barre du bas** bleu marine : accueil, cours, profil ; icône bleu gris pastel,
+- **Barre du bas** bleu marine : accueil, fiches, profil ; icône bleu gris pastel,
   blanche + trait blanc sous l'onglet actif.
+
+## Onglet « Mes fiches » — une catégorie par matière
+
+Chaque matière du programme du profil est un dossier replié : nom, nombre de fiches et
+progression moyenne. L'ouvrir déplie soit les fiches déjà créées (titre, ancienneté, dernière
+révision, barre de progression, « Réviser maintenant », « Supprimer »), soit — tant qu'elle est
+vide — la phrase « Aucune fiche en *matière* pour l'instant » ; dans les deux cas, un bouton
+**« Créer une fiche de révision »** ouvre la feuille de création **pré-réglée sur cette
+matière** (son titre devient « Créer une fiche · Histoire-Géo », la demande IA est amorcée,
+le scan pré-sélectionne les thèmes de la matière).
+
+Le carrousel de l'accueil suit la même règle : la matière dépliée propose, sous ses thèmes, un
+bouton « Créer une fiche en *matière* ».
+
+Une fiche entre dans la bibliothèque par trois chemins : une fiche scannée envoyée vers un
+outil, un résumé « Enregistré dans mes fiches », ou le bilan d'un quiz sur sujet libre
+(« Garder ce sujet dans mes fiches »). Les quiz lancés depuis une fiche mettent à jour sa date
+de révision et son meilleur score.
+
+## Révision espacée (cloche) et profil
+
+La file n'est plus une donnée figée : `echeancesFiches()` la calcule à partir de la dernière
+révision de chaque fiche et des paliers `PALIERS_REVISION` (J+1, J+3, J+7, J+15, J+30). La
+pastille de la cloche compte les fiches dues aujourd'hui — invisible tant qu'il n'y en a pas —
+et toucher une échéance relance directement la révision. Sans fiche, la page propose d'en créer
+une. Le profil compte les fiches créées, les matières suivies et la progression moyenne.
 
 ## Feuille « Option de création de fiche »
 
@@ -81,7 +110,7 @@ au clic sur le fond, sur « Annuler » ou avec Échap) avec quatre tuiles en 2×
 | Tuile | Icône | Destination |
 | --- | --- | --- |
 | Avec ta fiche | scan, violet | La page de scan (photo) |
-| Avec tes cours | livre, vert | Fiche de résumé, source « Mes cours » |
+| Avec tes cours | livre, vert | Fiche de résumé, source « Mes fiches » |
 | Générer par l'IA | baguette, bleu | L'atelier de demande (voir ci-dessous) |
 | Rédiger | crayon, orange | Fiche de résumé, source « Coller un texte », zone au focus |
 
@@ -92,7 +121,7 @@ demande sur quatre critères (`analyserDemande()` dans `app.js`) :
 
 | Critère | Comment il est détecté |
 | --- | --- |
-| Le chapitre ou la notion | un thème du catalogue ou un chapitre suivi est nommé, ou au moins trois mots significatifs |
+| Le chapitre ou la notion | un thème du catalogue ou une de tes fiches est nommé, ou au moins trois mots significatifs |
 | Ton niveau | un mot de niveau (collège, terminale, licence…) apparaît |
 | Le nombre de questions | un nombre accompagné de « question », « QCM » ou « quiz » |
 | Ce que tu veux travailler | un mot d'angle (surtout, uniquement, en évitant, calcul, dates…) ou une demande de 140 caractères |
@@ -134,8 +163,10 @@ noyé dans une phrase, `chercherBanque()` est appelée avec une couverture minim
 l'expression-clé doit figurer en entier dans la demande, mais elle n'a plus à en représenter la
 moitié des mots.
 
-`node tests/generation-claude.js` éprouve les quatre issues avec un faux runtime d'artefact, et
-`node tests/generation-carrousel.js` vérifie qu'un thème du carrousel part bien à Claude.
+`node tests/generation-claude.js` éprouve les quatre issues avec un faux runtime d'artefact,
+`node tests/generation-carrousel.js` vérifie qu'un thème du carrousel part bien à Claude, et
+`node tests/bibliotheque.js` vérifie qu'aucun cours n'est livré d'avance, que chaque catégorie
+propose la création d'une fiche, et que la fiche créée irrigue les outils, la file et le profil.
 
 ## Page « Scanner ma fiche »
 
@@ -149,8 +180,8 @@ C'est le point d'entrée des trois outils : on scanne d'abord, on choisit ensuit
    se cochent.
 3. **Exploitation** — on confirme le thème de la fiche (champ libre, plus des raccourcis à deux
    niveaux : matière du programme puis ses huit thèmes), puis on choisit **Résumé**, **Quiz** ou
-   **FlashCards**. Le thème est rapproché d'un chapitre connu : le quiz démarre aussitôt, la
-   fiche de résumé se génère, le paquet de cartes se lance.
+   **FlashCards**. Le thème rejoint la bibliothèque dans la matière correspondante, puis le quiz
+   démarre, la fiche de résumé se génère ou le paquet de cartes se lance.
 
 **L'OCR n'est pas branchée.** `lireLaFiche()` dans `app.js` est le point d'accroche unique : il
 renvoie aujourd'hui `{ texte: "", titre: "" }`, d'où l'étape de confirmation du thème. Aucun
@@ -160,7 +191,7 @@ faux texte n'est fabriqué à partir de la photo, et l'image ne quitte pas l'app
 
 Ouverte depuis la tuile *Créer résumé* des Outils IA (`#vue-resume`).
 
-1. **Source** : un cours suivi, un texte collé (200 caractères minimum) ou un fichier importé
+1. **Source** : une de tes fiches, un texte collé (200 caractères minimum) ou un fichier importé
    (PDF / photo — seul le nom du fichier est lu, rien n'est envoyé).
 2. **Longueur** : court / standard / détaillé — pilote le nombre de points retenus.
 3. **À inclure** : formules clés, exemples corrigés, pièges fréquents.
@@ -168,14 +199,15 @@ Ouverte depuis la tuile *Créer résumé* des Outils IA (`#vue-resume`).
 La génération est aujourd'hui **simulée côté client** (`genererResume()` dans `app.js`, un
 `setTimeout` de 1,2 s puis une fiche construite depuis `RESUMES` dans `data.js`). Brancher un
 vrai service revient à remplacer ce `setTimeout` par l'appel réseau et à passer la réponse à
-`rendreFiche()`. Les actions de la fiche (*Enregistrer*, *Générer des flashcards*) affichent
-pour l'instant une confirmation.
+`rendreFiche()`. *Enregistrer dans mes fiches* range vraiment la fiche dans la bibliothèque, à
+la matière reconnue ; *Générer des flashcards* lance le paquet quand une banque de cartes
+correspond au sujet, et le dit franchement sinon.
 
 ## Page « Créer quiz »
 
 Deux origines au choix :
 
-- **Mes cours** — filtre par matière puis chapitre.
+- **Mes fiches** — filtre par matière puis fiche ; bibliothèque vide, le sélecteur propose d'en créer une.
 - **Sujet libre** — un champ *Sujet du quiz* (obligatoire, 80 caractères) et une zone
   *Complément d'information* facultative (600 caractères) pour préciser le niveau, les notions à
   cibler ou les consignes. `chercherBanque()` rapproche le sujet saisi des banques locales via
@@ -209,7 +241,9 @@ ainsi que la variété des énoncés. Les questions **et** l'ordre des réponses
 (`preparerQuestions()`), avec explication pour chaque item. Le bilan affiche le score, le
 pourcentage et la liste des questions ratées avec la bonne réponse et son corrigé.
 
-Les banques de questions sont dans `QUIZ` (`data.js`), indexées par identifiant de cours.
+Les banques de questions sont dans `QUIZ` (`data.js`), indexées par identifiant de chapitre de
+secours (`BANQUES`). Ces chapitres ne sont jamais présentés comme des cours de l'utilisateur :
+ils servent de repli hors ligne quand Claude n'est pas joignable.
 
 ## Page « FlashCards »
 

@@ -186,8 +186,61 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   color: var(--gris-texte);
 }
 
-/* ————— Mes révisions ——————————————————————————————————————————— */
-.liste-cours { display: flex; flex-direction: column; gap: 12px; }
+/* ————— Mes fiches : une catégorie par matière ——————————————————— */
+.liste-cours { display: flex; flex-direction: column; gap: 10px; }
+
+.dossier {
+  background: var(--blanc);
+  border: 1px solid var(--bordure);
+  border-radius: 16px;
+  box-shadow: var(--ombre);
+  overflow: hidden;
+}
+
+.dossier-tete {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  text-align: left;
+  background: var(--blanc);
+}
+.dossier-tete:active { background: #EAEDF5; }
+.dossier-emoji { font-size: 20px; flex: none; }
+.dossier-tete .matiere-chevron { position: static; flex: none; }
+.dossier--ouvert .dossier-tete { border-bottom: 1px solid var(--bordure); }
+.dossier--ouvert .dossier-tete .matiere-chevron { transform: rotate(-90deg); color: var(--marine); }
+
+.dossier-contenu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 12px 14px;
+  background: var(--gris-fond);
+  animation: depliage .22s ease both;
+}
+.dossier-contenu[hidden] { display: none; }
+.dossier-vide { margin: 2px 0; font-size: 12px; color: var(--gris-texte); }
+
+.carte-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+.carte-actions .bouton-texte { margin-top: 6px; }
+
+.choix-vide {
+  padding: 12px;
+  background: var(--blanc);
+  border: 1px dashed var(--bordure);
+  border-radius: 14px;
+  text-align: center;
+}
+.choix-vide .bouton-secondaire { margin-top: 10px; }
+
+.deplie-creer { margin-top: 12px; }
 
 .carte-cours {
   background: var(--blanc);
@@ -1325,6 +1378,8 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
   display: flex;
   align-items: center;
   gap: 12px;
+  width: 100%;
+  text-align: left;
   padding: 12px 14px;
   background: var(--blanc);
   border: 1px solid var(--bordure);

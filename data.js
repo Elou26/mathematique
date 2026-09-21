@@ -11,6 +11,7 @@ const MATIERES = {
   info:     { nom: "Informatique",    court: "Info",     emoji: "💻" },
   economie: { nom: "Économie-Gestion",court: "Éco",      emoji: "📊" },
   methodo:  { nom: "Méthodologie",    court: "Méthodo",  emoji: "🎓" },
+  autre:    { nom: "Autre",           court: "Autre",    emoji: "🗂️" },
 };
 
 /* Chaque classe renvoie vers un programme du catalogue (voir CATALOGUE). */
@@ -48,7 +49,14 @@ const ANCIENS_NIVEAUX = {
   "Reprise d'études": "autre",
 };
 
-const COURS = [
+/* ————————————————————————————————————————————————————————————————
+   Banques de secours.
+   Ce ne sont PAS des cours de l'utilisateur : sa bibliothèque démarre
+   vide et se remplit des fiches qu'il crée. Ces chapitres servent
+   uniquement de repli hors ligne — questions, cartes et résumés déjà
+   rédigés — quand Claude n'est pas joignable.
+   ———————————————————————————————————————————————————————————————— */
+const BANQUES = [
   { id: "derivees",  matiere: "maths",    titre: "Dérivées et taux de variation",   chapitre: "Analyse",              niveau: "Terminale", premierJour: "2026-08-19", derniereRevision: "2026-09-19", progression: 72, motsCles: ["derivee", "derivees", "derivation", "nombre derive", "tangente", "taux de variation"] },
   { id: "probas",    matiere: "maths",    titre: "Probabilités conditionnelles",    chapitre: "Probabilités",         niveau: "Terminale", premierJour: "2026-09-02", derniereRevision: "2026-09-17", progression: 45, motsCles: ["probabilite conditionnelle", "probabilites conditionnelles", "conditionnelle", "arbre pondere", "independance", "probabilites totales", "bayes"] },
   { id: "suites",    matiere: "maths",    titre: "Suites arithmético-géométriques", chapitre: "Suites",               niveau: "Terminale", premierJour: "2026-09-08", derniereRevision: "2026-09-20", progression: 28, motsCles: ["suite arithmetico geometrique", "suites arithmetico geometriques", "point fixe", "suite geometrique", "suite arithmetique", "raison de la suite", "suite numerique", "suites numeriques"] },
@@ -60,19 +68,14 @@ const COURS = [
 ];
 
 const DEFIS = [
-  { id: "duel-derivees", nom: "Duel express — Dérivées", detail: "10 questions · 5 min", xp: 150 },
-  { id: "marathon", nom: "Marathon de calcul mental", detail: "30 questions · 10 min", xp: 300 },
-  { id: "survie", nom: "Mode survie — Guerre froide", detail: "Jusqu'à 3 erreurs", xp: 220 },
+  { id: "express", nom: "Duel express", detail: "10 questions · 5 min", xp: 150 },
+  { id: "marathon", nom: "Marathon de révision", detail: "30 questions · 10 min", xp: 300 },
+  { id: "survie", nom: "Mode survie", detail: "Jusqu'à 3 erreurs", xp: 220 },
 ];
 
-/* File de révision espacée : intervalles 1 / 3 / 7 / 15 / 30 jours, toutes matières. */
-const REVISION_ESPACEE = [
-  { id: "derivees", titre: "Dérivées et taux de variation", matiere: "maths", palier: "J+7", echeance: "2026-09-21", etat: "aujourdhui" },
-  { id: "genetique", titre: "Brassage génétique et méiose", matiere: "svt", palier: "J+3", echeance: "2026-09-21", etat: "aujourdhui" },
-  { id: "conscience", titre: "La conscience", matiere: "philo", palier: "J+1", echeance: "2026-09-22", etat: "demain" },
-  { id: "guerrefroide", titre: "La guerre froide (1947-1991)", matiere: "histoire", palier: "J+15", echeance: "2026-09-27", etat: "a-venir" },
-  { id: "ondes", titre: "Ondes et interférences", matiere: "physique", palier: "J+30", echeance: "2026-10-12", etat: "a-venir" },
-];
+/* Paliers de la révision espacée : la file est calculée à partir des
+   fiches créées par l'utilisateur (voir app.js), plus aucune donnée figée. */
+const PALIERS_REVISION = [1, 3, 7, 15, 30];
 
 /* ————————————————————————————————————————————————————————————————
    Fiches de résumé (outil « Créer résumé »)

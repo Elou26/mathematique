@@ -6,7 +6,7 @@ const racine = path.join(__dirname, '..');
 const data = fs.readFileSync(path.join(racine, 'data.js'), 'utf8');
 const app = fs.readFileSync(path.join(racine, 'app.js'), 'utf8');
 const bloc = app.slice(app.indexOf('  /** Minuscules sans accents'), app.indexOf('  function panneauSujetIndisponible('));
-(0, eval)(data + bloc + ';globalThis.T = { chercherBanque, CATALOGUE, NIVEAU_VERS_PROGRAMME, MATIERES, COURS, QUIZ };');
+(0, eval)(data + bloc + ';globalThis.T = { chercherBanque, CATALOGUE, NIVEAU_VERS_PROGRAMME, MATIERES, BANQUES, QUIZ };');
 const { chercherBanque, CATALOGUE, MATIERES, QUIZ } = globalThis.T;
 
 console.log('— Cas attendus —');
