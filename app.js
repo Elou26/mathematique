@@ -928,6 +928,177 @@
     });
   }
 
+  /* ————— Génération par Claude ——————————————————————————————————— */
+
+  /**
+   * La page publiée peut demander un quiz à Claude, sur le compte du
+   * lecteur. Hors de ce cadre (site servi tel quel, capacité refusée),
+   * `claude.use` est absent ou répond null : on retombe alors sur les
+   * banques et générateurs locaux.
+   */
+  let sampleClaude = null;
+  let claudeResolu = false;
+
+  async function preparerClaude() {
+    try {
+      if (typeof claude === "undefined" || !claude || typeof claude.use !== "function") return;
+      sampleClaude = await claude.use("sample");
+    } catch (erreur) {
+      sampleClaude = null;
+    } finally {
+      claudeResolu = true;
+      afficherMoteurIA();
+    }
+  }
+
+  function afficherMoteurIA() {
+    const ligne = $("#ia-moteur");
+    if (!ligne) return;
+    if (!claudeResolu) { ligne.hidden = true; return; }
+    ligne.textContent = sampleClaude
+      ? "✳︎ Les questions sont écrites par Claude, à la demande."
+      : "Claude n'est pas joignable ici : les questions viennent des chapitres déjà connus.";
+    ligne.classList.toggle("ia-moteur--actif", Boolean(sampleClaude));
+    ligne.hidden = false;
+  }
+
+  const CONSIGNE_QUIZ = [
+    "Tu es professeur et tu rédiges un QCM de révision pour un élève francophone.",
+    "",
+    "Demande de l'élève :",
+    "<<<DEMANDE>>>",
+    "",
+    "Profil de l'élève : <<<PROFIL>>>.",
+    "",
+    "Réponds uniquement avec un objet JSON de cette forme :",
+    '{"titre": "Titre court du quiz", "questions": [{"enonce": "…", "choix": ["…", "…", "…", "…"], "bonne": 0, "explication": "…"}]}',
+    "",
+    "Règles :",
+    "- respecte le nombre de questions demandé ; à défaut, rédige-en 5 (jamais plus de 15) ;",
+    "- exactement quatre propositions par question, une seule correcte ;",
+    '- "bonne" est l\'indice de la bonne réponse dans "choix" (0, 1, 2 ou 3) ;',
+    "- varie la position de la bonne réponse d'une question à l'autre ;",
+    "- les propositions fausses doivent être plausibles et refléter des erreurs classiques ;",
+    "- l'explication tient en une ou deux phrases et justifie la bonne réponse ;",
+    "- tout est en français et calé sur le niveau de l'élève ;",
+    "- aucun texte en dehors du JSON.",
+  ].join("\n");
+
+  /** Vérifie la forme de ce que Claude renvoie avant d'en faire un quiz. */
+  function validerQuizIA(donnees) {
+    if (!donnees || !Array.isArray(donnees.questions)) return null;
+
+    const questions = donnees.questions
+      .filter((question) => question && typeof question.enonce === "string" && Array.isArray(question.choix))
+      .map((question) => {
+        const choix = question.choix.map((texte) => String(texte).trim()).filter(Boolean);
+        const bonne = Number(question.bonne);
+        if (choix.length !== 4 || new Set(choix).size !== 4) return null;
+        if (!Number.isInteger(bonne) || bonne < 0 || bonne > 3) return null;
+        if (!question.enonce.trim()) return null;
+        return formaterQuestion({
+          q: question.enonce.trim(),
+          choix,
+          bonne,
+          explication: String(question.explication || "").trim() || "Pas d'explication fournie.",
+        });
+      })
+      .filter(Boolean);
+
+    return questions.length ? questions.slice(0, 20) : null;
+  }
+
+  /** Démarre une partie avec des questions déjà écrites (pas de tirage local). */
+  function demarrerPartie(questions, contexte, demandeIA) {
+    const ligneContexte = $("#quiz-contexte");
+    ligneContexte.textContent = contexte || "";
+    ligneContexte.hidden = !contexte;
+
+    $("#form-quiz").hidden = true;
+    $("#chargement-quiz").hidden = true;
+    $("#bilan-quiz").hidden = true;
+    $("#indispo-quiz").hidden = true;
+
+    partieQuiz = {
+      questions, index: 0, score: 0,
+      mode: etatQuiz.mode, coursId: null, sansFin: false,
+      tirer: () => null, demandeIA,
+    };
+    $("#quiz-quitter").textContent = "Quitter le quiz";
+    $("#jeu-quiz").hidden = false;
+    afficherQuestion();
+  }
+
+  const MESSAGES_IA = {
+    not_granted: "Tu n'as pas autorisé cette page à utiliser Claude : je pioche dans les chapitres connus.",
+    sampling_disabled: "Claude n'est pas disponible sur ce compte : je pioche dans les chapitres connus.",
+    not_declared: "Claude n'est pas disponible ici : je pioche dans les chapitres connus.",
+    capability_disabled: "Claude n'est pas disponible ici : je pioche dans les chapitres connus.",
+    capability_removed: "Cette version de l'application ne sait pas appeler Claude : je pioche dans les chapitres connus.",
+    rate_limited: "Trop de demandes d'un coup. Réessaie dans un moment.",
+    session_expired: "Ta session a expiré : reconnecte-toi puis réessaie.",
+    refused: "Claude a décliné cette demande. Reformule-la autrement.",
+    empty_completion: "Claude n'a rien écrit. Demande un peu moins à la fois.",
+    invalid_json: "La réponse de Claude n'était pas exploitable. Réessaie, ou précise ta demande.",
+    prompt_too_large: "Ta demande est trop longue : résume-la.",
+    upstream_error: "La connexion à Claude a échoué. Réessaie dans un instant.",
+  };
+  const REPLIS_LOCAUX = new Set(["not_granted", "sampling_disabled", "not_declared",
+    "capability_disabled", "capability_removed", "rate_limited"]);
+
+  function messageIA(texte, ton) {
+    const ligne = $("#ia-message");
+    ligne.textContent = texte || "";
+    ligne.className = `ia-message${ton ? " ia-message--" + ton : ""}`;
+    ligne.hidden = !texte;
+  }
+
+  let controleurIA = null;
+
+  async function genererAvecClaude(demande) {
+    const invite = CONSIGNE_QUIZ
+      .replace("<<<DEMANDE>>>", demande)
+      .replace("<<<PROFIL>>>", niveauChoisi ? libelleNiveau().toLowerCase() : "non précisé");
+
+    controleurIA = new AbortController();
+    $("#form-ia").hidden = true;
+    $("#chargement-ia").hidden = false;
+    $("#ia-stop").hidden = false;
+    $("#ia-progres").textContent = "Claude rédige ton quiz…";
+    messageIA("");
+
+    try {
+      const donnees = await sampleClaude.json(invite, {
+        modelTier: "default",
+        cache: false,
+        signal: controleurIA.signal,
+        onText: ({ text }) => {
+          // On ne montre pas le JSON brut : seulement le fait que ça avance.
+          $("#ia-progres").textContent = `Claude rédige ton quiz… (${text.length} caractères)`;
+        },
+      });
+
+      const questions = validerQuizIA(donnees);
+      if (!questions) throw { code: "invalid_json", message: "forme inattendue" };
+
+      const titre = String(donnees.titre || "").trim();
+      afficherVue("quiz");
+      demarrerPartie(questions, `${titre || "Quiz sur mesure"} · écrit par Claude`, demande);
+      return true;
+    } catch (erreur) {
+      const code = erreur && erreur.code ? erreur.code : "upstream_error";
+      if (code === "cancelled") { messageIA("Génération arrêtée.", null); return true; }
+      messageIA(MESSAGES_IA[code] || MESSAGES_IA.upstream_error, REPLIS_LOCAUX.has(code) ? null : "erreur");
+      if (REPLIS_LOCAUX.has(code) && code !== "rate_limited") { sampleClaude = null; afficherMoteurIA(); return false; }
+      return true;                       // erreur passagère : on laisse l'élève réessayer
+    } finally {
+      controleurIA = null;
+      $("#chargement-ia").hidden = true;
+      $("#ia-stop").hidden = true;
+      $("#form-ia").hidden = false;
+    }
+  }
+
   /* ————— Page « Générer par l'IA » ————————————————————————————— */
 
   const MOTS_NIVEAU = /\b(college|collegien|6e|5e|4e|3e|sixieme|cinquieme|quatrieme|troisieme|lycee|lyceen|seconde|premiere|terminale|bac|prepa|licence|master|doctorat|bts|but|etudiant|superieur)\b/;
@@ -1027,6 +1198,15 @@
       return;
     }
 
+    if (sampleClaude) {
+      genererAvecClaude(demande).then((traite) => { if (!traite) lancerDepuisLesChapitres(demande); });
+      return;
+    }
+    lancerDepuisLesChapitres(demande);
+  }
+
+  /** Repli : on cherche le chapitre correspondant dans ce que l'application connaît. */
+  function lancerDepuisLesChapitres(demande) {
     etatQuiz.sujet = demande;
     etatQuiz.complement = "Demande rédigée dans l'atelier IA.";
     etatQuiz.matiereTheme = null;
@@ -1054,8 +1234,12 @@
     });
 
     form.addEventListener("submit", (evt) => { evt.preventDefault(); lancerDemandeIA(); });
+    $("#ia-stop").addEventListener("click", () => { if (controleurIA) controleurIA.abort(); });
+
     rendreAjoutsIA();
     rafraichirDemande();
+    afficherMoteurIA();
+    preparerClaude();
   }
 
   /* ————— Page « Créer quiz » ——————————————————————————————————— */
@@ -1326,6 +1510,7 @@
 
   function bilanQuiz() {
     const { score } = partieQuiz;
+    const demandeIA = partieQuiz.demandeIA;
     const questions = partieQuiz.questions.filter((question) => question.repondu);
     const total = questions.length;
     if (!total) {                            // quitté avant la première réponse
@@ -1369,7 +1554,14 @@
     $$("[data-quiz]", bilan).forEach((bouton) => {
       bouton.addEventListener("click", () => {
         const action = bouton.dataset.quiz;
-        if (action === "rejouer") lancerQuiz();
+        if (action === "rejouer") {
+          if (demandeIA && sampleClaude) {
+            afficherVue("ia");
+            $("#ia-demande").value = demandeIA;
+            rafraichirDemande();
+            lancerDemandeIA();
+          } else lancerQuiz();
+        }
         else if (action === "enregistrer") toast("Score ajouté à ta progression");
         else { bilan.hidden = true; $("#form-quiz").hidden = false; }
       });

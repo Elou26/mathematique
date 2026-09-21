@@ -102,9 +102,33 @@ désactivé sous deux critères : une demande vague donnerait un quiz à côté 
 puces ajoutent un bout de phrase en un geste (« + niveau lycéen », « + 10 questions »…), et un
 exemple de demande précise se recopie d'un bouton.
 
-La demande part ensuite vers le moteur de quiz. Comme le chapitre y est noyé dans une phrase,
-`chercherBanque()` est appelée avec une couverture minimale de 0 : l'expression-clé doit figurer
-en entier dans la demande, mais elle n'a plus à en représenter la moitié des mots.
+### Les questions écrites par Claude
+
+Publiée comme Artifact, la page déclare la capacité `sample` et peut demander le quiz à Claude,
+**sur le compte du lecteur** : `await claude.use("sample")` puis `sample.json(invite, …)`.
+L'invite (`CONSIGNE_QUIZ` dans `app.js`) impose la forme attendue — titre, questions, quatre
+propositions, indice de la bonne réponse, explication — et `validerQuizIA()` vérifie chaque
+question avant d'en faire une partie : quatre propositions distinctes, indice entre 0 et 3,
+énoncé non vide. Une réponse mal formée est refusée plutôt qu'affichée.
+
+Un bandeau dit d'où viennent les questions, et chaque issue a son traitement :
+
+| Situation | Ce que fait la page |
+| --- | --- |
+| Claude répond | Le quiz démarre, bandeau « … · écrit par Claude » |
+| Quota atteint, session expirée, refus, réponse illisible | Message sur la page, la demande reste modifiable |
+| Capacité absente ou refusée | Repli sur les chapitres connus, bandeau mis à jour |
+| Bouton « Arrêter » | La génération est interrompue (`AbortController`) |
+
+Hors Artifact — le site servi tel quel — `window.claude` n'existe pas : la page bascule
+d'elle-même sur le repli local.
+
+**Le repli local.** La demande part vers le moteur de quiz interne. Comme le chapitre y est
+noyé dans une phrase, `chercherBanque()` est appelée avec une couverture minimale de 0 :
+l'expression-clé doit figurer en entier dans la demande, mais elle n'a plus à en représenter la
+moitié des mots.
+
+`node tests/generation-claude.js` éprouve les quatre issues avec un faux runtime d'artefact.
 
 ## Page « Scanner ma fiche »
 

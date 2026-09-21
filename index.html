@@ -322,6 +322,7 @@
     <h2 class="titre-categorie titre-categorie--grand">Générer par l'IA</h2>
     <p class="sous-texte">Décris ce que tu veux réviser. Plus ta demande est précise, plus le quiz
       tombe juste : chapitre, niveau, nombre de questions, et ce que tu veux travailler.</p>
+    <p class="ia-moteur" id="ia-moteur" hidden></p>
 
     <form id="form-ia" novalidate>
       <label class="champ-libelle" for="ia-demande">Ta demande</label>
@@ -354,8 +355,15 @@
       </details>
 
       <button class="bouton-principal" type="submit" id="bouton-ia" disabled>Générer le quiz</button>
-      <p class="mention">Une demande vague donne un quiz à côté de la plaque : vise au moins deux critères.</p>
+      <p class="mention" id="ia-mention">Une demande vague donne un quiz à côté de la plaque : vise au moins deux critères.</p>
     </form>
+
+    <div class="chargement" id="chargement-ia" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <p class="chargement-texte" id="ia-progres">Claude rédige ton quiz…</p>
+    </div>
+    <button class="bouton-texte" type="button" id="ia-stop" hidden>Arrêter</button>
+    <p class="ia-message" id="ia-message" hidden aria-live="polite"></p>
   </section>
 
   <!-- Vue : Créer quiz (outil IA) -->
