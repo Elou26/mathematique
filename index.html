@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#CFE0F7">
+<meta name="description" content="Mathématique — réviser ses cours de maths avec la répétition espacée, des quiz et des flashcards générés par IA.">
+<title>Mathématique</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231B2A6B'/><text x='16' y='23' font-size='18' font-family='Georgia,serif' fill='%23fff' text-anchor='middle'>π</text></svg>">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ————— Banque d'icônes (SVG, référencées via <use>) ————— -->
+<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-cloche" viewBox="0 0 24 24">
+    <path d="M12 3a6 6 0 0 0-6 6c0 3.2-.7 5.1-1.5 6.2-.5.7 0 1.6.8 1.6h13.4c.8 0 1.3-.9.8-1.6C18.7 14.1 18 12.2 18 9a6 6 0 0 0-6-6Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M9.7 19.3a2.4 2.4 0 0 0 4.6 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-fichier" viewBox="0 0 24 24">
+    <path d="M13.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5L13.5 3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M13.5 3v4a1.5 1.5 0 0 0 1.5 1.5h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M8.5 12.5h7M8.5 16h4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-cahier" viewBox="0 0 24 24">
+    <path d="M7 3h11a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M5 8h3M5 12h3M5 16h3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M11 12.4l2 2 3.6-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-cartes" viewBox="0 0 24 24">
+    <rect x="3" y="4.5" width="13" height="9.5" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <rect x="8" y="10" width="13" height="9.5" rx="2.2" fill="var(--blanc, #fff)" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M11.3 14.8h6.4M11.3 17h3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-accueil" viewBox="0 0 24 24">
+    <path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19v-8.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M9.5 20.5v-5.2h5v5.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-cours" viewBox="0 0 24 24">
+    <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10a2.5 2.5 0 0 1 2 1v13a2.5 2.5 0 0 0-2-1H5.5A1.5 1.5 0 0 1 4 15.5v-10Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H14a2.5 2.5 0 0 0-2 1v13a2.5 2.5 0 0 1 2-1h4.5a1.5 1.5 0 0 0 1.5-1.5v-10Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-communaute" viewBox="0 0 24 24">
+    <circle cx="9" cy="9" r="3.1" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M3.5 19.2c0-3 2.5-4.7 5.5-4.7s5.5 1.7 5.5 4.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M16 6.3a3 3 0 0 1 0 5.6M17.3 14.8c2 .5 3.2 2 3.2 4.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-profil" viewBox="0 0 24 24">
+    <circle cx="12" cy="8.5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M4.8 20c0-3.6 3.2-5.8 7.2-5.8s7.2 2.2 7.2 5.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-fleche" viewBox="0 0 24 24">
+    <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-epee" viewBox="0 0 24 24">
+    <path d="M20 4h-3.5L6 14.5 9.5 18 20 7.5V4Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M7.7 16.3 4 20M3.5 16.5 7 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-horloge" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M12 7.4V12l3.2 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<!-- ————— Header ————— -->
+<header class="header">
+  <a class="marque" href="#accueil" data-onglet="accueil">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <rect width="40" height="40" rx="12" fill="#1B2A6B"/>
+        <path d="M8 27c4.5 0 5.5-14 10-14s5.5 14 10 14" fill="none" stroke="#CFE0F7" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="30.5" cy="12.5" r="2.6" fill="#7FA8E8"/>
+      </svg>
+    </span>
+    <span class="marque-nom">Mathématique</span>
+  </a>
+
+  <button class="cloche" type="button" data-onglet="revision" aria-label="Révision espacée — 2 cours à revoir aujourd'hui">
+    <svg aria-hidden="true"><use href="#i-cloche"></use></svg>
+    <span class="cloche-pastille" id="cloche-compteur">2</span>
+  </button>
+</header>
+
+<!-- ————— Corps ————— -->
+<main class="corps">
+
+  <!-- Vue : Accueil -->
+  <section class="vue vue--active" id="vue-accueil">
+
+    <h2 class="titre-categorie">Mes révisions</h2>
+    <div class="liste-cours" id="liste-cours"><!-- injecté par app.js --></div>
+
+    <h2 class="titre-categorie">Outils IA</h2>
+    <div class="outils">
+      <button class="outil" type="button" data-outil="resume">
+        <svg class="outil-icone" aria-hidden="true"><use href="#i-fichier"></use></svg>
+        <span class="outil-nom">Créer résumé</span>
+      </button>
+      <button class="outil" type="button" data-outil="quiz">
+        <svg class="outil-icone" aria-hidden="true"><use href="#i-cahier"></use></svg>
+        <span class="outil-nom">Créer quiz</span>
+      </button>
+      <button class="outil" type="button" data-outil="flashcards">
+        <svg class="outil-icone" aria-hidden="true"><use href="#i-cartes"></use></svg>
+        <span class="outil-nom">FlashCards</span>
+      </button>
+    </div>
+
+    <h2 class="titre-categorie titre-categorie--grand">Communauté et Défis</h2>
+    <div class="bloc-social">
+      <div class="bascule" role="tablist" aria-label="Défis ou communauté">
+        <button class="bascule-option" type="button" role="tab" id="tab-defis"
+                aria-selected="false" aria-controls="panneau-defis" data-bascule="defis">Défis</button>
+        <button class="bascule-option bascule-option--active" type="button" role="tab" id="tab-communaute"
+                aria-selected="true" aria-controls="panneau-communaute" data-bascule="communaute">Communauté</button>
+        <span class="bascule-curseur" aria-hidden="true"></span>
+      </div>
+
+      <div class="panneau" id="panneau-communaute" role="tabpanel" aria-labelledby="tab-communaute">
+        <p class="panneau-legende">Les communautés les plus rejointes</p>
+        <ul class="liste-communautes" id="liste-communautes"></ul>
+      </div>
+
+      <div class="panneau panneau--masque" id="panneau-defis" role="tabpanel" aria-labelledby="tab-defis" hidden>
+        <p class="panneau-legende">Défis de la semaine</p>
+        <ul class="liste-defis" id="liste-defis"></ul>
+        <button class="bouton-affronter" type="button" id="bouton-affronter">
+          <svg aria-hidden="true"><use href="#i-epee"></use></svg>
+          Affronter un ami
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Vue : Révision espacée (cible de la cloche) -->
+  <section class="vue" id="vue-revision" hidden>
+    <h2 class="titre-categorie titre-categorie--grand">Révision espacée</h2>
+    <p class="sous-texte">Chaque cours revient à J+1, J+3, J+7, J+15 puis J+30 pour ancrer la notion en mémoire longue.</p>
+    <div class="liste-echeances" id="liste-echeances"></div>
+  </section>
+
+  <!-- Vue : Cours -->
+  <section class="vue" id="vue-cours" hidden>
+    <h2 class="titre-categorie titre-categorie--grand">Mes cours</h2>
+    <p class="sous-texte">Tous les chapitres suivis, du plus récemment travaillé au plus ancien.</p>
+    <div class="liste-cours" id="liste-tous-cours"></div>
+  </section>
+
+  <!-- Vue : Communauté -->
+  <section class="vue" id="vue-communaute" hidden>
+    <h2 class="titre-categorie titre-categorie--grand">Communauté</h2>
+    <p class="sous-texte">Rejoins un groupe pour poser tes questions et suivre les classements.</p>
+    <ul class="liste-communautes" id="liste-communautes-page"></ul>
+  </section>
+
+  <!-- Vue : Profil -->
+  <section class="vue" id="vue-profil" hidden>
+    <h2 class="titre-categorie titre-categorie--grand">Profil</h2>
+    <div class="carte-profil">
+      <div class="avatar" aria-hidden="true">EL</div>
+      <div>
+        <p class="profil-nom">Elouan</p>
+        <p class="profil-detail">Terminale · Série générale</p>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="stat-valeur" id="stat-cours">0</span><span class="stat-nom">cours suivis</span></div>
+      <div class="stat"><span class="stat-valeur" id="stat-serie">14</span><span class="stat-nom">jours d'affilée</span></div>
+      <div class="stat"><span class="stat-valeur" id="stat-moyenne">0%</span><span class="stat-nom">progression</span></div>
+    </div>
+  </section>
+</main>
+
+<!-- ————— Barre du bas ————— -->
+<nav class="barre-bas" aria-label="Navigation principale">
+  <button class="onglet onglet--actif" type="button" data-onglet="accueil" aria-current="page">
+    <svg class="onglet-icone" aria-hidden="true"><use href="#i-accueil"></use></svg>
+    <span class="onglet-nom">Accueil</span>
+    <span class="onglet-trait" aria-hidden="true"></span>
+  </button>
+  <button class="onglet" type="button" data-onglet="cours">
+    <svg class="onglet-icone" aria-hidden="true"><use href="#i-cours"></use></svg>
+    <span class="onglet-nom">Cours</span>
+    <span class="onglet-trait" aria-hidden="true"></span>
+  </button>
+  <button class="onglet" type="button" data-onglet="communaute">
+    <svg class="onglet-icone" aria-hidden="true"><use href="#i-communaute"></use></svg>
+    <span class="onglet-nom">Communauté</span>
+    <span class="onglet-trait" aria-hidden="true"></span>
+  </button>
+  <button class="onglet" type="button" data-onglet="profil">
+    <svg class="onglet-icone" aria-hidden="true"><use href="#i-profil"></use></svg>
+    <span class="onglet-nom">Profil</span>
+    <span class="onglet-trait" aria-hidden="true"></span>
+  </button>
+</nav>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
