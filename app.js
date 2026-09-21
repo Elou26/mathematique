@@ -221,82 +221,90 @@
     try { localStorage.setItem(CLE_NIVEAU, niveau); } catch (erreur) { /* on garde la valeur en mémoire */ }
   }
 
+  function profilNiveau() { return NIVEAUX.find((profil) => profil.id === niveauChoisi) || null; }
+  function libelleNiveau() { const profil = profilNiveau(); return profil ? profil.nom : ""; }
+
   function appliquerNiveau(niveau) {
-    niveauChoisi = niveau || null;
+    // Les versions précédentes enregistraient une classe précise : on la convertit.
+    niveauChoisi = ANCIENS_NIVEAUX[niveau] || niveau || null;
+    if (niveauChoisi && !profilNiveau()) niveauChoisi = null;
+    if (niveauChoisi && niveauChoisi !== niveau) ecrireNiveau(niveauChoisi);
+
     const ligne = $("#profil-niveau");
-    if (ligne) ligne.textContent = niveauChoisi ? `Classe : ${niveauChoisi}` : "Niveau non renseigné";
+    if (ligne) ligne.textContent = niveauChoisi ? libelleNiveau() : "Profil non renseigné";
     rendreThemes();
   }
 
   function ouvrirEcranNiveau() {
     const ecran = $("#ecran-niveau");
-    const groupes = $("#groupes-niveaux");
-    const valider = $("#valider-niveau");
-    let selection = niveauChoisi;
+    const conteneur = $("#groupes-niveaux");
 
-    groupes.textContent = "";
-    NIVEAUX.forEach((bloc) => {
-      const titre = document.createElement("p");
-      titre.className = "groupe-titre";
-      titre.textContent = bloc.groupe;
-      groupes.appendChild(titre);
-
-      const puces = document.createElement("div");
-      puces.className = "puces";
-      bloc.options.forEach((option) => {
-        const bouton = document.createElement("button");
-        bouton.type = "button";
-        bouton.className = "puce" + (option === selection ? " puce--active" : "");
-        bouton.setAttribute("role", "radio");
-        bouton.setAttribute("aria-checked", String(option === selection));
-        bouton.textContent = option;
-        bouton.addEventListener("click", () => {
-          selection = option;
-          $$(".puce", groupes).forEach((autre) => {
-            const actif = autre === bouton;
-            autre.classList.toggle("puce--active", actif);
-            autre.setAttribute("aria-checked", String(actif));
-          });
-          valider.disabled = false;
-        });
-        puces.appendChild(bouton);
+    conteneur.textContent = "";
+    NIVEAUX.forEach((profil) => {
+      const carte = document.createElement("button");
+      carte.type = "button";
+      carte.className = "carte-niveau" + (profil.id === niveauChoisi ? " carte-niveau--active" : "");
+      carte.innerHTML = `
+        <span class="carte-niveau-emoji" aria-hidden="true">${profil.emoji}</span>
+        <span class="carte-niveau-texte">
+          <span class="carte-niveau-nom">${profil.nom}</span>
+          <span class="carte-niveau-detail">${profil.detail}</span>
+        </span>
+      `;
+      // Un seul geste : choisir ferme l'écran.
+      carte.addEventListener("click", () => {
+        ecrireNiveau(profil.id);
+        appliquerNiveau(profil.id);
+        fermerEcranNiveau();
+        toast(`Profil enregistré : ${profil.nom}`);
       });
-      groupes.appendChild(puces);
+      conteneur.appendChild(carte);
     });
 
-    valider.disabled = !selection;
-    valider.onclick = () => {
-      if (!selection) return;
-      ecrireNiveau(selection);
-      appliquerNiveau(selection);
-      ecran.hidden = true;
-      document.body.classList.remove("corps--bloque");
-      toast(`Niveau enregistré : ${selection}`);
-    };
-
-    $("#passer-niveau").onclick = () => {
-      ecran.hidden = true;
-      document.body.classList.remove("corps--bloque");
-    };
-
+    $("#passer-niveau").onclick = fermerEcranNiveau;
     ecran.hidden = false;
     document.body.classList.add("corps--bloque");
+  }
+
+  function fermerEcranNiveau() {
+    $("#ecran-niveau").hidden = true;
+    document.body.classList.remove("corps--bloque");
   }
 
   /* ————— Carrousel dépliant des thèmes du niveau ————————————————— */
 
   let matiereDepliee = null;
 
-  function programmeDuNiveau() {
-    const cle = NIVEAU_VERS_PROGRAMME[niveauChoisi];
-    return cle ? CATALOGUE[cle] : null;
+  /**
+   * Fusionne les programmes d'un profil en piochant à tour de rôle dans chacun,
+   * pour que le collégien voie des thèmes de la 6ᵉ comme de la 3ᵉ.
+   */
+  function programmeDuNiveau(maximum = 12) {
+    const cles = PROGRAMMES_PAR_NIVEAU[niveauChoisi];
+    if (!cles) return null;
+
+    const tables = cles.map((cle) => CATALOGUE[cle]).filter(Boolean);
+    const matieres = [...new Set(tables.flatMap((table) => Object.keys(table)))];
+    const fusion = {};
+
+    matieres.forEach((matiere) => {
+      const listes = tables.map((table) => table[matiere] || []);
+      const themes = [];
+      for (let rang = 0; themes.length < maximum && listes.some((liste) => liste.length > rang); rang++) {
+        listes.forEach((liste) => {
+          if (liste[rang] && themes.length < maximum && !themes.includes(liste[rang])) themes.push(liste[rang]);
+        });
+      }
+      fusion[matiere] = themes;
+    });
+    return fusion;
   }
 
   /** Ouvre « Créer quiz » en mode sujet libre, pré-rempli avec le thème. */
   function lancerThemeEnQuiz(theme, matiere) {
     etatQuiz.sujet = theme;
     etatQuiz.matiereTheme = matiere;
-    etatQuiz.complement = `Programme de ${niveauChoisi} en ${MATIERES[matiere].nom}.`;
+    etatQuiz.complement = `Programme ${libelleNiveau().toLowerCase()} en ${MATIERES[matiere].nom}.`;
     afficherVue("quiz");
     choisirSourceQuiz("sujet");
     $("#quiz-sujet").value = theme;
@@ -323,7 +331,7 @@
     const themes = programme[matiereDepliee];
     deplie.innerHTML = `
       <p class="deplie-titre">${MATIERES[matiereDepliee].emoji} ${MATIERES[matiereDepliee].nom}
-        <span class="deplie-niveau">${niveauChoisi}</span></p>
+        <span class="deplie-niveau">${libelleNiveau()}</span></p>
       <ul class="liste-themes">
         ${themes.map((theme, i) => `
           <li>
@@ -354,20 +362,20 @@
     bloc.textContent = "";
 
     if (!programme) {
-      titre.textContent = "Thèmes de ta classe";
+      titre.textContent = "Thèmes de ton programme";
       const vide = document.createElement("div");
       vide.className = "themes-vide";
       vide.innerHTML = `
-        <p class="themes-vide-texte">Indique ta classe pour afficher les thèmes de ton programme,
+        <p class="themes-vide-texte">Indique ton profil pour afficher les thèmes de ton programme,
         matière par matière.</p>
-        <button class="bouton-principal" type="button" id="themes-choisir-niveau">Choisir ma classe</button>
+        <button class="bouton-principal" type="button" id="themes-choisir-niveau">Choisir mon profil</button>
       `;
       bloc.appendChild(vide);
       $("#themes-choisir-niveau").addEventListener("click", ouvrirEcranNiveau);
       return;
     }
 
-    titre.textContent = `Thèmes · ${niveauChoisi}`;
+    titre.textContent = `Thèmes · ${libelleNiveau()}`;
 
     const carrousel = document.createElement("div");
     carrousel.className = "carrousel";
@@ -637,7 +645,7 @@
     if (outil === "quiz") {
       etatQuiz.sujet = sujet;
       etatQuiz.matiereTheme = fiche.matiere;
-      etatQuiz.complement = `Fiche scannée${niveauChoisi ? " — programme de " + niveauChoisi : ""}.`;
+      etatQuiz.complement = `Fiche scannée${niveauChoisi ? " — profil " + libelleNiveau().toLowerCase() : ""}.`;
       afficherVue("quiz");
       choisirSourceQuiz("sujet");
       $("#quiz-sujet").value = sujet;
@@ -869,9 +877,16 @@
     });
 
     // Longueur (radio) et options (interrupteurs).
+    const majResumeFiche = () => {
+      const retenues = Object.entries(etatResume.options).filter(([, actif]) => actif).length;
+      $("#resume-fiche").textContent =
+        `${LONGUEURS[etatResume.longueur].libelle.toLowerCase()} · ${retenues} option${retenues > 1 ? "s" : ""}`;
+    };
+
     $$("#puces-longueur .puce").forEach((puce) => {
       puce.addEventListener("click", () => {
         etatResume.longueur = puce.dataset.longueur;
+        majResumeFiche();
         $$("#puces-longueur .puce").forEach((p2) => {
           const actif = p2 === puce;
           p2.classList.toggle("puce--active", actif);
@@ -886,8 +901,11 @@
         etatResume.options[cle] = !etatResume.options[cle];
         puce.classList.toggle("puce--active", etatResume.options[cle]);
         puce.setAttribute("aria-pressed", String(etatResume.options[cle]));
+        majResumeFiche();
       });
     });
+
+    majResumeFiche();
 
     form.addEventListener("submit", (evt) => {
       evt.preventDefault();
@@ -1059,7 +1077,7 @@
       <ul class="demande">
         <li><span class="demande-cle">Sujet</span><span class="demande-valeur">${echapper(sujet)}</span></li>
         <li><span class="demande-cle">Complément</span><span class="demande-valeur">${complement ? echapper(complement) : "—"}</span></li>
-        <li><span class="demande-cle">Niveau</span><span class="demande-valeur">${niveauChoisi || "non renseigné"}</span></li>
+        <li><span class="demande-cle">Niveau</span><span class="demande-valeur">${libelleNiveau() || "non renseigné"}</span></li>
         <li><span class="demande-cle">Format</span><span class="demande-valeur">${etatQuiz.taille === "infini" ? "Sans fin" : etatQuiz.taille + " questions"} · correction ${etatQuiz.mode === "immediate" ? "immédiate" : "à la fin"}</span></li>
       </ul>
       <h4 class="bilan-soustitre">En attendant, des chapitres disponibles</h4>
@@ -1308,9 +1326,16 @@
       filtreCours: (cours) => (QUIZ[cours.id] || []).length > 0,
     });
 
-    brancherPuces("#puces-quiz-taille .puce", "taille",
-      (valeur) => { etatQuiz.taille = valeur === "infini" ? "infini" : Number(valeur); });
-    brancherPuces("#puces-quiz-mode .puce", "mode", (valeur) => { etatQuiz.mode = valeur; });
+    const majResumeQuiz = () => {
+      $("#resume-quiz").textContent =
+        `${etatQuiz.taille === "infini" ? "sans fin" : etatQuiz.taille + " questions"} · correction ${etatQuiz.mode === "immediate" ? "immédiate" : "à la fin"}`;
+    };
+    brancherPuces("#puces-quiz-taille .puce", "taille", (valeur) => {
+      etatQuiz.taille = valeur === "infini" ? "infini" : Number(valeur);
+      majResumeQuiz();
+    });
+    brancherPuces("#puces-quiz-mode .puce", "mode", (valeur) => { etatQuiz.mode = valeur; majResumeQuiz(); });
+    majResumeQuiz();
 
     form.addEventListener("submit", (evt) => { evt.preventDefault(); lancerQuiz(); });
     $("#quiz-suivant").addEventListener("click", questionSuivante);

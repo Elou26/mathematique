@@ -71,17 +71,32 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 }
 .ecran-texte { margin: 8px 0 0; font-size: 14px; color: var(--gris-texte); }
 
-.groupes-niveaux { margin-top: 22px; }
-.groupe-titre {
-  margin: 18px 0 8px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  color: var(--marine);
+.groupes-niveaux {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.groupes-niveaux .puce { background: var(--blanc); }
-.groupes-niveaux .puce--active { background: var(--marine); color: var(--blanc); }
+
+.carte-niveau {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  background: var(--blanc);
+  border: 1.5px solid var(--bordure);
+  border-radius: 16px;
+  box-shadow: var(--ombre);
+  text-align: left;
+  transition: transform .15s ease, border-color .15s ease;
+}
+.carte-niveau:active { transform: scale(.985); border-color: var(--marine); }
+.carte-niveau--active { border-color: var(--marine); }
+.carte-niveau-emoji { font-size: 26px; flex: none; }
+.carte-niveau-texte { flex: 1; min-width: 0; }
+.carte-niveau-nom { display: block; font-size: 16px; font-weight: 700; color: var(--noir); }
+.carte-niveau-detail { display: block; margin-top: 2px; font-size: 12px; color: var(--gris-texte); }
 
 .ecran-pied { margin-top: 26px; }
 .ecran-pied .bouton-principal { margin-top: 0; }
@@ -1108,6 +1123,42 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
 .demande li { display: flex; gap: 10px; align-items: baseline; }
 .demande-cle { flex: none; width: 80px; font-size: 12px; font-weight: 700; color: var(--marine); }
 .demande-valeur { flex: 1; font-size: 12px; color: var(--noir); word-break: break-word; }
+
+/* ————— Repli des réglages ————————————————————————————————————— */
+.reglages {
+  margin-top: 16px;
+  padding: 0 12px;
+  background: var(--blanc);
+  border: 1px solid var(--bordure);
+  border-radius: 12px;
+}
+.reglages > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--noir);
+  cursor: pointer;
+  list-style: none;
+}
+.reglages > summary::-webkit-details-marker { display: none; }
+.reglages > summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-right: 2px solid var(--bleu-grise);
+  border-bottom: 2px solid var(--bleu-grise);
+  transform: rotate(45deg) translate(-2px, -2px);
+  transition: transform .2s ease;
+}
+.reglages[open] > summary::after { transform: rotate(-135deg) translate(-2px, -2px); }
+.reglages[open] > summary { border-bottom: 1px solid var(--bordure); }
+.reglages-resume { font-weight: 400; color: var(--gris-texte); }
+.reglages .etiquette--sous:first-of-type { margin-top: 12px; }
+.reglages > *:last-child { margin-bottom: 14px; }
 
 /* ————— Révision espacée ——————————————————————————————————————— */
 .liste-echeances { display: flex; flex-direction: column; gap: 10px; }

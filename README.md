@@ -23,18 +23,22 @@ python3 -m http.server 8000
 | `data.js` | Données : matières, cours, catalogue des thèmes, communautés, révision espacée, questions rédigées et cartes |
 | `generateurs.js` | Générateurs de questions : la banque des quiz ne s'épuise pas |
 
-## Écran de bienvenue (choix du niveau)
+## Écran de bienvenue (choix du profil)
 
-À la première visite, un écran plein écran demande la classe avant d'ouvrir l'application :
-collège (6ᵉ → 3ᵉ), lycée (Seconde, Première, Terminale) et études supérieures (Prépa, BTS/BUT,
-Licence 1 à 3, Master, Doctorat, Reprise d'études). La liste vit dans `NIVEAUX` (`data.js`).
+À la première visite, un écran plein écran propose **quatre profils** — Collégien, Lycéen,
+Étudiant, Autre (`NIVEAUX` dans `data.js`). Un seul geste : toucher une carte enregistre le
+profil et ferme l'écran, il n'y a pas de bouton « Continuer ».
 
-Le choix est mémorisé dans `localStorage` sous la clé `mathematique.niveau` : l'écran ne
-réapparaît plus ensuite. Les lectures et écritures sont protégées par `try/catch` — si le
-stockage est bloqué (navigation privée, iframe restreinte), le niveau reste valable pour la
-session et l'écran revient à la visite suivante. Le niveau s'affiche dans l'onglet *Profil*,
-se change avec le bouton « Changer de niveau », et accompagne la demande d'un quiz sur sujet
-libre.
+`PROGRAMMES_PAR_NIVEAU` relie chaque profil aux programmes du catalogue (collégien = 6ᵉ+5ᵉ+4ᵉ+3ᵉ,
+lycéen = 2de+1re+Tle, étudiant = prépa+licence+master+BTS, autre = reprise).
+`programmeDuNiveau()` les fusionne en piochant à tour de rôle dans chacun, pour que le carrousel
+mélange les années, et s'arrête à 12 thèmes par matière.
+
+Le choix est mémorisé dans `localStorage` sous la clé `mathematique.niveau`, protégé par
+`try/catch` — si le stockage est bloqué, le profil vaut pour la session. `ANCIENS_NIVEAUX`
+convertit les classes précises enregistrées par les versions précédentes (« Master » →
+`etudiant`), sans redemander à l'utilisateur. Le profil s'affiche dans l'onglet *Profil* et se
+change avec « Changer de niveau ».
 
 ## Carrousel dépliant des thèmes
 
@@ -153,6 +157,13 @@ paquet) ou *Je savais*. Le bilan compte les cartes sues du premier coup et propo
 uniquement celles qui ont été ratées.
 
 Les paquets sont dans `FLASHCARDS` (`data.js`).
+
+## Ergonomie des formulaires
+
+Les trois outils n'affichent que l'essentiel : la source et le chapitre. Tout le reste —
+longueur du résumé, contenu à inclure, nombre de questions, moment de la correction, ordre des
+cartes — vit dans un repli `<details class="reglages">` dont le résumé affiche l'état courant
+(« 5 questions · correction immédiate »). Aucune étape n'est numérotée.
 
 ## Rapprochement d'un sujet libre
 

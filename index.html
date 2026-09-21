@@ -22,12 +22,11 @@
       </svg>
     </span>
     <h1 class="ecran-titre" id="ecran-titre">Bienvenue sur Mathématique</h1>
-    <p class="ecran-texte">Tu es en quelle classe ? Tes cours, tes quiz et tes fiches seront calés sur ton niveau.</p>
+    <p class="ecran-texte">Où en es-tu dans tes études ? Tes thèmes et tes quiz seront calés sur ton profil.</p>
 
     <div class="groupes-niveaux" id="groupes-niveaux"></div>
 
     <div class="ecran-pied">
-      <button class="bouton-principal" type="button" id="valider-niveau" disabled>Continuer</button>
       <button class="bouton-texte" type="button" id="passer-niveau">Choisir plus tard</button>
     </div>
   </div>
@@ -264,7 +263,7 @@
     <p class="sous-texte">Choisis une source, l'IA en tire une fiche structurée : l'essentiel, les repères et les pièges.</p>
 
     <form id="form-resume" novalidate>
-      <p class="etiquette">1 · Source du contenu</p>
+      <p class="etiquette">Source du contenu</p>
       <div class="segments" role="tablist" aria-label="Source du contenu">
         <button class="segment segment--actif" type="button" role="tab" aria-selected="true" data-source="cours">Mes cours</button>
         <button class="segment" type="button" role="tab" aria-selected="false" data-source="texte">Coller un texte</button>
@@ -292,19 +291,22 @@
         <p class="nom-fichier" id="nom-fichier" hidden></p>
       </div>
 
-      <p class="etiquette">2 · Longueur</p>
-      <div class="puces" id="puces-longueur" role="radiogroup" aria-label="Longueur du résumé">
-        <button class="puce" type="button" role="radio" aria-checked="false" data-longueur="court">Court</button>
-        <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-longueur="standard">Standard</button>
-        <button class="puce" type="button" role="radio" aria-checked="false" data-longueur="detaille">Détaillé</button>
-      </div>
+      <details class="reglages">
+        <summary>Réglages <span class="reglages-resume" id="resume-fiche">fiche standard</span></summary>
+        <p class="etiquette etiquette--sous">Longueur</p>
+        <div class="puces" id="puces-longueur" role="radiogroup" aria-label="Longueur du résumé">
+          <button class="puce" type="button" role="radio" aria-checked="false" data-longueur="court">Court</button>
+          <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-longueur="standard">Standard</button>
+          <button class="puce" type="button" role="radio" aria-checked="false" data-longueur="detaille">Détaillé</button>
+        </div>
 
-      <p class="etiquette">3 · À inclure</p>
-      <div class="puces" id="puces-options">
+        <p class="etiquette etiquette--sous">À inclure</p>
+        <div class="puces" id="puces-options">
         <button class="puce puce--active" type="button" aria-pressed="true" data-option="formules">Formules &amp; repères</button>
         <button class="puce puce--active" type="button" aria-pressed="true" data-option="exemples">Exemples corrigés</button>
-        <button class="puce" type="button" aria-pressed="false" data-option="pieges">Pièges fréquents</button>
-      </div>
+          <button class="puce" type="button" aria-pressed="false" data-option="pieges">Pièges fréquents</button>
+        </div>
+      </details>
 
       <button class="bouton-principal" type="submit" id="bouton-generer">Générer le résumé</button>
       <p class="mention">Le résumé est généré à partir de la source choisie, puis relu par toi avant d'être enregistré.</p>
@@ -329,7 +331,7 @@
     <p class="sous-texte">Un QCM corrigé, à partir d'un de tes chapitres ou de n'importe quel sujet libre.</p>
 
     <form id="form-quiz" novalidate>
-      <p class="etiquette">1 · Sur quoi veux-tu t'entraîner ?</p>
+      <p class="etiquette">Sur quoi veux-tu t'entraîner ?</p>
       <div class="segments" role="tablist" aria-label="Origine du quiz">
         <button class="segment segment--actif" type="button" role="tab" aria-selected="true" data-quiz-source="cours">Mes cours</button>
         <button class="segment" type="button" role="tab" aria-selected="false" data-quiz-source="sujet">Sujet libre</button>
@@ -355,19 +357,22 @@
         <p class="compteur"><span id="compteur-complement">0</span> / 600 caractères</p>
       </div>
 
-      <p class="etiquette">2 · Nombre de questions</p>
-      <div class="puces" id="puces-quiz-taille" role="radiogroup" aria-label="Nombre de questions">
-        <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-taille="5">5 questions</button>
-        <button class="puce" type="button" role="radio" aria-checked="false" data-taille="10">10 questions</button>
-        <button class="puce" type="button" role="radio" aria-checked="false" data-taille="20">20 questions</button>
-        <button class="puce" type="button" role="radio" aria-checked="false" data-taille="infini">Sans fin ∞</button>
-      </div>
+      <details class="reglages">
+        <summary>Réglages <span class="reglages-resume" id="resume-quiz">5 questions · correction immédiate</span></summary>
+        <p class="etiquette etiquette--sous">Nombre de questions</p>
+        <div class="puces" id="puces-quiz-taille" role="radiogroup" aria-label="Nombre de questions">
+          <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-taille="5">5</button>
+          <button class="puce" type="button" role="radio" aria-checked="false" data-taille="10">10</button>
+          <button class="puce" type="button" role="radio" aria-checked="false" data-taille="20">20</button>
+          <button class="puce" type="button" role="radio" aria-checked="false" data-taille="infini">Sans fin ∞</button>
+        </div>
 
-      <p class="etiquette">3 · Correction</p>
-      <div class="puces" id="puces-quiz-mode" role="radiogroup" aria-label="Moment de la correction">
-        <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-mode="immediate">Immédiate</button>
-        <button class="puce" type="button" role="radio" aria-checked="false" data-mode="fin">À la fin</button>
-      </div>
+        <p class="etiquette etiquette--sous">Correction</p>
+        <div class="puces" id="puces-quiz-mode" role="radiogroup" aria-label="Moment de la correction">
+          <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-mode="immediate">Immédiate</button>
+          <button class="puce" type="button" role="radio" aria-checked="false" data-mode="fin">À la fin</button>
+        </div>
+      </details>
 
       <button class="bouton-principal" type="submit" id="bouton-quiz">Générer le quiz</button>
       <p class="mention" id="mention-quiz">Les questions sont générées à la volée : tu ne retombes pas deux fois sur la même.</p>
@@ -409,17 +414,19 @@
     <p class="sous-texte">Une question au recto, la réponse au verso : la mémoire se teste, elle ne se relit pas.</p>
 
     <form id="form-cartes" novalidate>
-      <p class="etiquette">1 · Matière</p>
+      <p class="etiquette">Matière</p>
       <div class="puces puces--filtres" id="filtres-cartes" role="group" aria-label="Filtrer par matière"></div>
 
-      <p class="etiquette">2 · Chapitre</p>
+      <p class="etiquette">Chapitre</p>
       <ul class="choix-cours" id="choix-cours-cartes"></ul>
 
-      <p class="etiquette">3 · Ordre des cartes</p>
-      <div class="puces" id="puces-cartes-ordre" role="radiogroup" aria-label="Ordre des cartes">
-        <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-ordre="melange">Mélangées</button>
-        <button class="puce" type="button" role="radio" aria-checked="false" data-ordre="cours">Ordre du cours</button>
-      </div>
+      <details class="reglages">
+        <summary>Réglages <span class="reglages-resume">cartes mélangées</span></summary>
+        <div class="puces" id="puces-cartes-ordre" role="radiogroup" aria-label="Ordre des cartes">
+          <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-ordre="melange">Mélangées</button>
+          <button class="puce" type="button" role="radio" aria-checked="false" data-ordre="cours">Ordre du cours</button>
+        </div>
+      </details>
 
       <button class="bouton-principal" type="submit" id="bouton-cartes">Lancer les cartes</button>
       <p class="mention">Les cartes marquées « à revoir » repassent en fin de paquet.</p>

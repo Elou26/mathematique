@@ -23,12 +23,30 @@ const NIVEAU_VERS_PROGRAMME = {
   "Reprise d'études": "reprise",
 };
 
-/* Niveaux proposés au premier lancement, du collège au doctorat. */
+/* Quatre profils seulement : inutile de demander la classe exacte. */
 const NIVEAUX = [
-  { groupe: "Collège", options: ["6ᵉ", "5ᵉ", "4ᵉ", "3ᵉ"] },
-  { groupe: "Lycée", options: ["Seconde", "Première", "Terminale"] },
-  { groupe: "Études supérieures", options: ["Prépa", "BTS / BUT", "Licence 1", "Licence 2", "Licence 3", "Master", "Doctorat", "Reprise d'études"] },
+  { id: "collegien", nom: "Collégien",  detail: "De la 6ᵉ à la 3ᵉ",                    emoji: "🎒" },
+  { id: "lyceen",    nom: "Lycéen",     detail: "De la Seconde à la Terminale",        emoji: "📗" },
+  { id: "etudiant",  nom: "Étudiant",   detail: "Prépa, BTS, licence, master",         emoji: "🎓" },
+  { id: "autre",     nom: "Autre",      detail: "Reprise d'études, remise à niveau",   emoji: "🧭" },
 ];
+
+/* Chaque profil regroupe plusieurs programmes du catalogue (voir CATALOGUE). */
+const PROGRAMMES_PAR_NIVEAU = {
+  collegien: ["6e", "5e", "4e", "3e"],
+  lyceen: ["2de", "1re", "Tle"],
+  etudiant: ["prepa", "licence", "master", "bts"],
+  autre: ["reprise"],
+};
+
+/* Les classes précises enregistrées par les versions précédentes restent valables. */
+const ANCIENS_NIVEAUX = {
+  "6ᵉ": "collegien", "5ᵉ": "collegien", "4ᵉ": "collegien", "3ᵉ": "collegien",
+  "Seconde": "lyceen", "Première": "lyceen", "Terminale": "lyceen",
+  "Prépa": "etudiant", "BTS / BUT": "etudiant", "Licence 1": "etudiant",
+  "Licence 2": "etudiant", "Licence 3": "etudiant", "Master": "etudiant", "Doctorat": "etudiant",
+  "Reprise d'études": "autre",
+};
 
 const COURS = [
   { id: "derivees",  matiere: "maths",    titre: "Dérivées et taux de variation",   chapitre: "Analyse",              niveau: "Terminale", premierJour: "2026-08-19", derniereRevision: "2026-09-19", progression: 72, motsCles: ["derivee", "derivees", "derivation", "nombre derive", "tangente", "taux de variation"] },
