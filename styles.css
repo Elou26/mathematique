@@ -37,6 +37,55 @@ body {
 
 button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
 
+/* ————— Écran de bienvenue (choix du niveau) ————————————————————— */
+.corps--bloque { overflow: hidden; }
+
+.ecran-niveau {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow-y: auto;
+  background: linear-gradient(180deg, var(--bleu-pastel) 0%, var(--gris-fond) 38%);
+  animation: apparition .25s ease both;
+}
+.ecran-niveau[hidden] { display: none; }
+
+.ecran-contenu {
+  width: 100%;
+  max-width: 440px;
+  padding: calc(36px + env(safe-area-inset-top)) 20px calc(28px + env(safe-area-inset-bottom));
+}
+
+.ecran-logo { display: block; width: 52px; height: 52px; margin-bottom: 16px; }
+.ecran-logo svg { display: block; width: 100%; height: 100%; }
+
+.ecran-titre {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--marine);
+}
+.ecran-texte { margin: 8px 0 0; font-size: 14px; color: var(--gris-texte); }
+
+.groupes-niveaux { margin-top: 22px; }
+.groupe-titre {
+  margin: 18px 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--marine);
+}
+.groupes-niveaux .puce { background: var(--blanc); }
+.groupes-niveaux .puce--active { background: var(--marine); color: var(--blanc); }
+
+.ecran-pied { margin-top: 26px; }
+.ecran-pied .bouton-principal { margin-top: 0; }
+
 /* ————— Header ————————————————————————————————————————————————— */
 .header {
   position: sticky;

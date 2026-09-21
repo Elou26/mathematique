@@ -9,6 +9,13 @@ const MATIERES = {
   philo:    { nom: "Philosophie",     court: "Philo",    emoji: "💭" },
 };
 
+/* Niveaux proposés au premier lancement, du collège au doctorat. */
+const NIVEAUX = [
+  { groupe: "Collège", options: ["6ᵉ", "5ᵉ", "4ᵉ", "3ᵉ"] },
+  { groupe: "Lycée", options: ["Seconde", "Première", "Terminale"] },
+  { groupe: "Études supérieures", options: ["Prépa", "BTS / BUT", "Licence 1", "Licence 2", "Licence 3", "Master", "Doctorat", "Reprise d'études"] },
+];
+
 const COURS = [
   { id: "derivees",  matiere: "maths",    titre: "Dérivées et taux de variation",   chapitre: "Analyse",              niveau: "Terminale", premierJour: "2026-08-19", derniereRevision: "2026-09-19", progression: 72, motsCles: ["derivee", "derivation", "tangente", "taux de variation", "variations", "fonction", "analyse"] },
   { id: "probas",    matiere: "maths",    titre: "Probabilités conditionnelles",    chapitre: "Probabilités",         niveau: "Terminale", premierJour: "2026-09-02", derniereRevision: "2026-09-17", progression: 45, motsCles: ["probabilite", "probabilites", "conditionnelle", "arbre pondere", "independance", "bayes"] },

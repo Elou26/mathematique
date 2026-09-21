@@ -205,6 +205,81 @@
     });
   }
 
+  /* ————— Niveau de l'utilisateur ————————————————————————————————— */
+
+  const CLE_NIVEAU = "mathematique.niveau";
+  let niveauChoisi = null;
+
+  /** Le stockage peut être indisponible (navigation privée, cookies bloqués). */
+  function lireNiveau() {
+    try { return localStorage.getItem(CLE_NIVEAU); } catch (erreur) { return null; }
+  }
+
+  function ecrireNiveau(niveau) {
+    try { localStorage.setItem(CLE_NIVEAU, niveau); } catch (erreur) { /* on garde la valeur en mémoire */ }
+  }
+
+  function appliquerNiveau(niveau) {
+    niveauChoisi = niveau || null;
+    const ligne = $("#profil-niveau");
+    if (ligne) ligne.textContent = niveauChoisi ? `Classe : ${niveauChoisi}` : "Niveau non renseigné";
+  }
+
+  function ouvrirEcranNiveau() {
+    const ecran = $("#ecran-niveau");
+    const groupes = $("#groupes-niveaux");
+    const valider = $("#valider-niveau");
+    let selection = niveauChoisi;
+
+    groupes.textContent = "";
+    NIVEAUX.forEach((bloc) => {
+      const titre = document.createElement("p");
+      titre.className = "groupe-titre";
+      titre.textContent = bloc.groupe;
+      groupes.appendChild(titre);
+
+      const puces = document.createElement("div");
+      puces.className = "puces";
+      bloc.options.forEach((option) => {
+        const bouton = document.createElement("button");
+        bouton.type = "button";
+        bouton.className = "puce" + (option === selection ? " puce--active" : "");
+        bouton.setAttribute("role", "radio");
+        bouton.setAttribute("aria-checked", String(option === selection));
+        bouton.textContent = option;
+        bouton.addEventListener("click", () => {
+          selection = option;
+          $$(".puce", groupes).forEach((autre) => {
+            const actif = autre === bouton;
+            autre.classList.toggle("puce--active", actif);
+            autre.setAttribute("aria-checked", String(actif));
+          });
+          valider.disabled = false;
+        });
+        puces.appendChild(bouton);
+      });
+      groupes.appendChild(puces);
+    });
+
+    valider.disabled = !selection;
+    valider.onclick = () => {
+      if (!selection) return;
+      ecrireNiveau(selection);
+      appliquerNiveau(selection);
+      ecran.hidden = true;
+      document.body.classList.remove("corps--bloque");
+      toast(`Niveau enregistré : ${selection}`);
+    };
+
+    $("#passer-niveau").onclick = () => {
+      ecran.hidden = true;
+      document.body.classList.remove("corps--bloque");
+    };
+
+    ecran.hidden = false;
+    document.body.classList.add("corps--bloque");
+  }
+
   /* ————— Matières et sélecteur de cours (partagé par les 3 outils) ——— */
 
   function libelleCours(cours) {
@@ -572,6 +647,7 @@
       <ul class="demande">
         <li><span class="demande-cle">Sujet</span><span class="demande-valeur">${sujet}</span></li>
         <li><span class="demande-cle">Complément</span><span class="demande-valeur">${complement || "—"}</span></li>
+        <li><span class="demande-cle">Niveau</span><span class="demande-valeur">${niveauChoisi || "non renseigné"}</span></li>
         <li><span class="demande-cle">Format</span><span class="demande-valeur">${etatQuiz.taille === 99 ? "Maximum" : etatQuiz.taille} questions · correction ${etatQuiz.mode === "immediate" ? "immédiate" : "à la fin"}</span></li>
       </ul>
       <h4 class="bilan-soustitre">En attendant, des chapitres disponibles</h4>
@@ -974,7 +1050,14 @@
 
     $("#bouton-affronter").addEventListener("click", () => toast("Invitation envoyée à un ami 🤺"));
 
+    // Bouton « Changer de niveau » du profil.
+    $("#changer-niveau").addEventListener("click", ouvrirEcranNiveau);
+
     afficherVue("accueil");
+
+    // Première visite : on demande la classe avant tout le reste.
+    appliquerNiveau(lireNiveau());
+    if (!niveauChoisi) ouvrirEcranNiveau();
   }
 
   document.addEventListener("DOMContentLoaded", init);

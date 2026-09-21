@@ -11,6 +11,28 @@
 </head>
 <body>
 
+<!-- ————— Écran de bienvenue : choix du niveau ————— -->
+<div class="ecran-niveau" id="ecran-niveau" hidden role="dialog" aria-modal="true" aria-labelledby="ecran-titre">
+  <div class="ecran-contenu">
+    <span class="ecran-logo" aria-hidden="true">
+      <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <rect width="40" height="40" rx="12" fill="#1B2A6B"/>
+        <path d="M8 27c4.5 0 5.5-14 10-14s5.5 14 10 14" fill="none" stroke="#CFE0F7" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="30.5" cy="12.5" r="2.6" fill="#7FA8E8"/>
+      </svg>
+    </span>
+    <h1 class="ecran-titre" id="ecran-titre">Bienvenue sur Mathématique</h1>
+    <p class="ecran-texte">Tu es en quelle classe ? Tes cours, tes quiz et tes fiches seront calés sur ton niveau.</p>
+
+    <div class="groupes-niveaux" id="groupes-niveaux"></div>
+
+    <div class="ecran-pied">
+      <button class="bouton-principal" type="button" id="valider-niveau" disabled>Continuer</button>
+      <button class="bouton-texte" type="button" id="passer-niveau">Choisir plus tard</button>
+    </div>
+  </div>
+</div>
+
 <!-- ————— Banque d'icônes (SVG, référencées via <use>) ————— -->
 <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
   <symbol id="i-cloche" viewBox="0 0 24 24">
@@ -375,7 +397,7 @@
       <div class="avatar" aria-hidden="true">EL</div>
       <div>
         <p class="profil-nom">Elouan</p>
-        <p class="profil-detail">Terminale · Série générale</p>
+        <p class="profil-detail" id="profil-niveau">Niveau non renseigné</p>
       </div>
     </div>
     <div class="stats">
@@ -383,6 +405,7 @@
       <div class="stat"><span class="stat-valeur" id="stat-serie">14</span><span class="stat-nom">jours d'affilée</span></div>
       <div class="stat"><span class="stat-valeur" id="stat-moyenne">0%</span><span class="stat-nom">progression</span></div>
     </div>
+    <button class="bouton-secondaire" type="button" id="changer-niveau">Changer de niveau</button>
   </section>
 </main>
 

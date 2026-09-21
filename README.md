@@ -22,6 +22,19 @@ python3 -m http.server 8000
 | `app.js` | Navigation, sélecteur de cours partagé, moteurs résumé / quiz / flashcards |
 | `data.js` | Données de démonstration : matières, cours, communautés, révision espacée, banques de questions et de cartes |
 
+## Écran de bienvenue (choix du niveau)
+
+À la première visite, un écran plein écran demande la classe avant d'ouvrir l'application :
+collège (6ᵉ → 3ᵉ), lycée (Seconde, Première, Terminale) et études supérieures (Prépa, BTS/BUT,
+Licence 1 à 3, Master, Doctorat, Reprise d'études). La liste vit dans `NIVEAUX` (`data.js`).
+
+Le choix est mémorisé dans `localStorage` sous la clé `mathematique.niveau` : l'écran ne
+réapparaît plus ensuite. Les lectures et écritures sont protégées par `try/catch` — si le
+stockage est bloqué (navigation privée, iframe restreinte), le niveau reste valable pour la
+session et l'écran revient à la visite suivante. Le niveau s'affiche dans l'onglet *Profil*,
+se change avec le bouton « Changer de niveau », et accompagne la demande d'un quiz sur sujet
+libre.
+
 ## Écran d'accueil
 
 - **Header** bleu pastel : logo + nom du site (16 px), cloche à droite → onglet *Révision espacée*.
