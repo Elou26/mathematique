@@ -145,7 +145,7 @@
 
   /* ————— Navigation entre vues ———————————————————————————————— */
 
-  const VUES = ["accueil", "cours", "communaute", "profil", "revision"];
+  const VUES = ["accueil", "cours", "communaute", "profil", "revision", "resume"];
 
   function afficherVue(nom) {
     if (!VUES.includes(nom)) nom = "accueil";
@@ -159,7 +159,8 @@
     });
 
     // La révision espacée n'a pas d'onglet dédié : on garde « Accueil » allumé.
-    const ongletActif = nom === "revision" ? "accueil" : nom;
+    // Les vues ouvertes depuis l'accueil (cloche, outils IA) gardent « Accueil » allumé.
+    const ongletActif = (nom === "revision" || nom === "resume") ? "accueil" : nom;
     $$(".barre-bas .onglet").forEach((onglet) => {
       const actif = onglet.dataset.onglet === ongletActif;
       onglet.classList.toggle("onglet--actif", actif);
@@ -203,6 +204,208 @@
     });
   }
 
+  /* ————— Page « Créer résumé » ————————————————————————————————— */
+
+  const etatResume = {
+    source: "cours",        // cours | texte | fichier
+    coursId: COURS[0].id,
+    longueur: "standard",
+    options: { formules: true, exemples: true, pieges: false },
+    fichier: null,
+  };
+
+  const LONGUEURS = {
+    court: { points: 2, libelle: "Fiche courte" },
+    standard: { points: 3, libelle: "Fiche standard" },
+    detaille: { points: 99, libelle: "Fiche détaillée" },
+  };
+
+  function rendreChoixCours(conteneur) {
+    if (!conteneur) return;
+    conteneur.textContent = "";
+    COURS.forEach((cours) => {
+      const li = document.createElement("li");
+      const bouton = document.createElement("button");
+      bouton.type = "button";
+      bouton.className = "choix" + (cours.id === etatResume.coursId ? " choix--actif" : "");
+      bouton.setAttribute("role", "radio");
+      bouton.setAttribute("aria-checked", String(cours.id === etatResume.coursId));
+      bouton.innerHTML = `
+        <span class="choix-texte">
+          <span class="choix-nom">${cours.titre}</span>
+          <span class="choix-detail">${cours.chapitre}</span>
+        </span>
+        <span class="choix-marque" aria-hidden="true"></span>
+      `;
+      bouton.addEventListener("click", () => {
+        etatResume.coursId = cours.id;
+        rendreChoixCours(conteneur);
+      });
+      li.appendChild(bouton);
+      conteneur.appendChild(li);
+    });
+    conteneur.setAttribute("role", "radiogroup");
+  }
+
+  /** Source actuellement sélectionnée : titre affiché + contenu de la fiche. */
+  function sourceChoisie() {
+    if (etatResume.source === "cours") {
+      const cours = COURS.find((c) => c.id === etatResume.coursId) || COURS[0];
+      return { titre: cours.titre, sousTitre: cours.chapitre, contenu: RESUMES[cours.id] || RESUME_GENERIQUE };
+    }
+    if (etatResume.source === "fichier") {
+      return {
+        titre: etatResume.fichier ? etatResume.fichier.replace(/\.[^.]+$/, "") : "Document importé",
+        sousTitre: "À partir d'un fichier importé",
+        contenu: RESUME_GENERIQUE,
+      };
+    }
+    return { titre: "Texte collé", sousTitre: "À partir de tes notes", contenu: RESUME_GENERIQUE };
+  }
+
+  /** Vérifie que la source est exploitable ; renvoie un message d'erreur ou null. */
+  function erreurSource() {
+    if (etatResume.source === "texte") {
+      const texte = $("#texte-source").value.trim();
+      if (texte.length < 200) return `Il manque ${200 - texte.length} caractères pour générer une fiche.`;
+    }
+    if (etatResume.source === "fichier" && !etatResume.fichier) {
+      return "Choisis d'abord un fichier à résumer.";
+    }
+    return null;
+  }
+
+  function sectionFiche(titre, elements, classe) {
+    if (!elements || !elements.length) return "";
+    const items = elements.map((e) => `<li>${e}</li>`).join("");
+    return `<section class="fiche-section ${classe}"><h4 class="fiche-soustitre">${titre}</h4><ul>${items}</ul></section>`;
+  }
+
+  function rendreFiche() {
+    const fiche = $("#fiche-resume");
+    const { titre, sousTitre, contenu } = sourceChoisie();
+    const max = LONGUEURS[etatResume.longueur].points;
+    const { formules, exemples, pieges } = etatResume.options;
+
+    fiche.innerHTML = `
+      <header class="fiche-entete">
+        <p class="fiche-etiquette">${LONGUEURS[etatResume.longueur].libelle}</p>
+        <h3 class="fiche-titre">${titre}</h3>
+        <p class="fiche-soustexte">${sousTitre}</p>
+      </header>
+      <p class="fiche-accroche">${contenu.accroche}</p>
+      ${sectionFiche("L'essentiel", contenu.points.slice(0, max), "fiche-section--points")}
+      ${formules ? sectionFiche("Formules clés", contenu.formules, "fiche-section--formules") : ""}
+      ${exemples ? sectionFiche("Exemples corrigés", contenu.exemples, "fiche-section--exemples") : ""}
+      ${pieges ? sectionFiche("Pièges fréquents", contenu.pieges, "fiche-section--pieges") : ""}
+      <div class="fiche-actions">
+        <button class="bouton-principal" type="button" data-action="enregistrer">Enregistrer dans mes cours</button>
+        <button class="bouton-secondaire" type="button" data-action="flashcards">Générer des flashcards</button>
+        <button class="bouton-secondaire" type="button" data-action="refaire">Régénérer</button>
+      </div>
+    `;
+
+    $$("[data-action]", fiche).forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        const action = bouton.dataset.action;
+        if (action === "enregistrer") toast("Résumé enregistré dans tes cours");
+        else if (action === "flashcards") toast("FlashCards — bientôt disponible");
+        else genererResume();
+      });
+    });
+
+    fiche.hidden = false;
+    fiche.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  let minuteurGeneration;
+  function genererResume() {
+    const erreur = erreurSource();
+    if (erreur) { toast(erreur); return; }
+
+    const chargement = $("#chargement-resume");
+    const bouton = $("#bouton-generer");
+    $("#fiche-resume").hidden = true;
+    chargement.hidden = false;
+    bouton.disabled = true;
+    bouton.textContent = "Génération en cours…";
+
+    // Simulation de l'appel au service de génération (à remplacer par l'API).
+    clearTimeout(minuteurGeneration);
+    minuteurGeneration = setTimeout(() => {
+      chargement.hidden = true;
+      bouton.disabled = false;
+      bouton.textContent = "Regénérer le résumé";
+      rendreFiche();
+    }, 1200);
+  }
+
+  function initResume() {
+    const form = $("#form-resume");
+    if (!form) return;
+
+    rendreChoixCours($("#choix-cours"));
+
+    // Bascule entre les trois sources.
+    $$(".segment", form).forEach((segment) => {
+      segment.addEventListener("click", () => {
+        etatResume.source = segment.dataset.source;
+        $$(".segment", form).forEach((s2) => {
+          const actif = s2 === segment;
+          s2.classList.toggle("segment--actif", actif);
+          s2.setAttribute("aria-selected", String(actif));
+        });
+        $$("[data-panneau]", form).forEach((panneau) => {
+          const actif = panneau.dataset.panneau === etatResume.source;
+          panneau.classList.toggle("source--masque", !actif);
+          panneau.hidden = !actif;
+        });
+      });
+    });
+
+    // Compteur du texte collé.
+    const zone = $("#texte-source");
+    zone.addEventListener("input", () => {
+      $("#compteur-texte").textContent = zone.value.trim().length;
+    });
+
+    // Fichier importé (lecture du seul nom : rien n'est envoyé).
+    const champFichier = $("#fichier-source");
+    champFichier.addEventListener("change", () => {
+      const fichier = champFichier.files && champFichier.files[0];
+      etatResume.fichier = fichier ? fichier.name : null;
+      const ligneNom = $("#nom-fichier");
+      ligneNom.textContent = fichier ? `Fichier prêt : ${fichier.name}` : "";
+      ligneNom.hidden = !fichier;
+    });
+
+    // Longueur (radio) et options (interrupteurs).
+    $$("#puces-longueur .puce").forEach((puce) => {
+      puce.addEventListener("click", () => {
+        etatResume.longueur = puce.dataset.longueur;
+        $$("#puces-longueur .puce").forEach((p2) => {
+          const actif = p2 === puce;
+          p2.classList.toggle("puce--active", actif);
+          p2.setAttribute("aria-checked", String(actif));
+        });
+      });
+    });
+
+    $$("#puces-options .puce").forEach((puce) => {
+      puce.addEventListener("click", () => {
+        const cle = puce.dataset.option;
+        etatResume.options[cle] = !etatResume.options[cle];
+        puce.classList.toggle("puce--active", etatResume.options[cle]);
+        puce.setAttribute("aria-pressed", String(etatResume.options[cle]));
+      });
+    });
+
+    form.addEventListener("submit", (evt) => {
+      evt.preventDefault();
+      genererResume();
+    });
+  }
+
   /* ————— Toast ————————————————————————————————————————————————— */
 
   let minuteurToast;
@@ -218,7 +421,6 @@
   /* ————— Démarrage ————————————————————————————————————————————— */
 
   function init() {
-    rendreCours($("#liste-cours"), COURS.slice(0, 3));
     rendreCours($("#liste-tous-cours"), COURS);
     rendreCommunautes($("#liste-communautes"));
     rendreCommunautes($("#liste-communautes-page"));
@@ -240,10 +442,15 @@
     });
 
     // Outils IA.
-    const LIBELLES = { resume: "Créer résumé", quiz: "Créer quiz", flashcards: "FlashCards" };
+    const LIBELLES = { quiz: "Créer quiz", flashcards: "FlashCards" };
     $$("[data-outil]").forEach((el) => {
-      el.addEventListener("click", () => toast(`${LIBELLES[el.dataset.outil]} — bientôt disponible`));
+      el.addEventListener("click", () => {
+        if (el.dataset.outil === "resume") afficherVue("resume");
+        else toast(`${LIBELLES[el.dataset.outil]} — bientôt disponible`);
+      });
     });
+
+    initResume();
 
     $("#bouton-affronter").addEventListener("click", () => toast("Invitation envoyée à un ami 🤺"));
 

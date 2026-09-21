@@ -97,9 +97,6 @@
   <!-- Vue : Accueil -->
   <section class="vue vue--active" id="vue-accueil">
 
-    <h2 class="titre-categorie">Mes révisions</h2>
-    <div class="liste-cours" id="liste-cours"><!-- injecté par app.js --></div>
-
     <h2 class="titre-categorie">Outils IA</h2>
     <div class="outils">
       <button class="outil" type="button" data-outil="resume">
@@ -140,6 +137,70 @@
         </button>
       </div>
     </div>
+  </section>
+
+  <!-- Vue : Créer résumé (outil IA) -->
+  <section class="vue" id="vue-resume" hidden>
+    <button class="retour" type="button" data-onglet="accueil">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      Accueil
+    </button>
+
+    <h2 class="titre-categorie titre-categorie--grand">Créer un résumé</h2>
+    <p class="sous-texte">Choisis une source, l'IA en tire une fiche structurée avec les formules clés.</p>
+
+    <form id="form-resume" novalidate>
+      <p class="etiquette">1 · Source du contenu</p>
+      <div class="segments" role="tablist" aria-label="Source du contenu">
+        <button class="segment segment--actif" type="button" role="tab" aria-selected="true" data-source="cours">Mes cours</button>
+        <button class="segment" type="button" role="tab" aria-selected="false" data-source="texte">Coller un texte</button>
+        <button class="segment" type="button" role="tab" aria-selected="false" data-source="fichier">Importer</button>
+      </div>
+
+      <div class="source" data-panneau="cours">
+        <ul class="choix-cours" id="choix-cours"></ul>
+      </div>
+
+      <div class="source source--masque" data-panneau="texte" hidden>
+        <textarea id="texte-source" class="zone-texte" rows="6"
+                  placeholder="Colle ici ton cours, un énoncé ou tes notes…"></textarea>
+        <p class="compteur"><span id="compteur-texte">0</span> caractères · 200 minimum</p>
+      </div>
+
+      <div class="source source--masque" data-panneau="fichier" hidden>
+        <label class="depot">
+          <svg aria-hidden="true"><use href="#i-fichier"></use></svg>
+          <span class="depot-titre">Importer un fichier</span>
+          <span class="depot-detail">PDF, photo du cahier ou capture d'écran · 20 Mo max</span>
+          <input type="file" id="fichier-source" accept=".pdf,image/*" hidden>
+        </label>
+        <p class="nom-fichier" id="nom-fichier" hidden></p>
+      </div>
+
+      <p class="etiquette">2 · Longueur</p>
+      <div class="puces" id="puces-longueur" role="radiogroup" aria-label="Longueur du résumé">
+        <button class="puce" type="button" role="radio" aria-checked="false" data-longueur="court">Court</button>
+        <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-longueur="standard">Standard</button>
+        <button class="puce" type="button" role="radio" aria-checked="false" data-longueur="detaille">Détaillé</button>
+      </div>
+
+      <p class="etiquette">3 · À inclure</p>
+      <div class="puces" id="puces-options">
+        <button class="puce puce--active" type="button" aria-pressed="true" data-option="formules">Formules clés</button>
+        <button class="puce puce--active" type="button" aria-pressed="true" data-option="exemples">Exemples corrigés</button>
+        <button class="puce" type="button" aria-pressed="false" data-option="pieges">Pièges fréquents</button>
+      </div>
+
+      <button class="bouton-principal" type="submit" id="bouton-generer">Générer le résumé</button>
+      <p class="mention">Le résumé est généré à partir de la source choisie, puis relu par toi avant d'être enregistré.</p>
+    </form>
+
+    <div class="chargement" id="chargement-resume" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <p class="chargement-texte">Lecture du cours et rédaction de la fiche…</p>
+    </div>
+
+    <article class="fiche" id="fiche-resume" hidden aria-live="polite"></article>
   </section>
 
   <!-- Vue : Révision espacée (cible de la cloche) -->

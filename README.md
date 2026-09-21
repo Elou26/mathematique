@@ -22,11 +22,23 @@ python3 -m http.server 8000
 ## Écran d'accueil
 
 - **Header** bleu pastel : logo + nom du site (16 px), cloche à droite → onglet *Révision espacée*.
-- **Mes révisions** (14 px, gras) : cartes blanches avec titre + jours de révision (12 px gras),
-  date de dernière révision (12 px), barre de progression bleu marine, bouton
-  « Réviser maintenant » (fond bleu marine, texte blanc 14 px, angles arrondis).
 - **Outils IA** (14 px, gras) : 3 tuiles cliquables — Créer résumé, Créer quiz, FlashCards.
 - **Communauté et Défis** (16 px, gras) : sélecteur arrondi scindé en deux ; *Communauté*
   affiche les communautés les plus rejointes, *Défis* affiche le bouton « Affronter un ami ».
 - **Barre du bas** bleu marine : accueil, cours, communauté, profil ; icône bleu gris pastel,
   blanche + trait blanc sous l'onglet actif.
+
+## Page « Créer résumé »
+
+Ouverte depuis la tuile *Créer résumé* des Outils IA (`#vue-resume`).
+
+1. **Source** : un cours suivi, un texte collé (200 caractères minimum) ou un fichier importé
+   (PDF / photo — seul le nom du fichier est lu, rien n'est envoyé).
+2. **Longueur** : court / standard / détaillé — pilote le nombre de points retenus.
+3. **À inclure** : formules clés, exemples corrigés, pièges fréquents.
+
+La génération est aujourd'hui **simulée côté client** (`genererResume()` dans `app.js`, un
+`setTimeout` de 1,2 s puis une fiche construite depuis `RESUMES` dans `data.js`). Brancher un
+vrai service revient à remplacer ce `setTimeout` par l'appel réseau et à passer la réponse à
+`rendreFiche()`. Les actions de la fiche (*Enregistrer*, *Générer des flashcards*) affichent
+pour l'instant une confirmation.
