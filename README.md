@@ -120,14 +120,17 @@ une. Le profil compte les fiches créées, les matières suivies et la progressi
 ## Feuille « Option de création de fiche »
 
 La carte d'accueil ouvre une feuille qui monte depuis le bas (poignée, fond assombri, fermeture
-au clic sur le fond, sur « Annuler » ou avec Échap) avec quatre tuiles en 2×2, chacune sa teinte :
+au clic sur le fond, sur « Annuler » ou avec Échap) avec ses tuiles, chacune sa teinte :
 
 | Tuile | Icône | Destination |
 | --- | --- | --- |
-| Avec ta fiche | scan, violet | La page de scan (photo) |
-| Avec tes cours | livre, vert | Fiche de résumé, source « Mes fiches » |
-| Générer par l'IA | baguette, bleu | L'atelier de demande (voir ci-dessous) |
+| Avec ta fiche | scan, violet | La page de scan (photo), puis Quiz / Résumé / FlashCards |
 | Rédiger | crayon, orange | Fiche de résumé, source « Coller un texte », zone au focus |
+
+Deux façons de créer, pas plus : la photo d'une fiche, ou son propre texte. L'atelier
+« Générer par l'IA » n'est plus une option de création ; il reste accessible depuis le panneau
+« Sujet libre » de la page Quiz (« Aide-moi à formuler ma demande »), qui sert aussi à lancer
+un quiz sur n'importe quel sujet.
 
 ## Page « Générer par l'IA »
 

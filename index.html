@@ -153,7 +153,7 @@
       <span class="carte-scan-icone" aria-hidden="true"><svg><use href="#i-camera"></use></svg></span>
       <span class="carte-scan-texte">
         <span class="carte-scan-titre">Nouvelle fiche</span>
-        <span class="carte-scan-detail">Depuis une photo, tes cours, l'IA ou à la main.</span>
+        <span class="carte-scan-detail">Prends ta fiche en photo, ou écris ton texte à la main.</span>
       </span>
       <span class="carte-scan-puces" aria-hidden="true">
         <svg><use href="#i-fichier"></use></svg>
@@ -224,19 +224,22 @@
              placeholder="Ex. : Dérivées et taux de variation">
       <div class="puces puces--filtres" id="scan-suggestions" role="group" aria-label="Thèmes de ton programme"></div>
 
-      <p class="etiquette">Qu'est-ce que j'en fais ?</p>
+      <p class="etiquette">Qu'est-ce que tu veux en faire ?</p>
       <div class="outils">
-        <button class="outil" type="button" data-scan-outil="resume">
-          <svg class="outil-icone" aria-hidden="true"><use href="#i-fichier"></use></svg>
-          <span class="outil-nom">Résumé</span>
-        </button>
         <button class="outil" type="button" data-scan-outil="quiz">
           <svg class="outil-icone" aria-hidden="true"><use href="#i-cahier"></use></svg>
           <span class="outil-nom">Quiz</span>
+          <span class="outil-detail">QCM corrigé</span>
+        </button>
+        <button class="outil" type="button" data-scan-outil="resume">
+          <svg class="outil-icone" aria-hidden="true"><use href="#i-fichier"></use></svg>
+          <span class="outil-nom">Résumé</span>
+          <span class="outil-detail">L'essentiel</span>
         </button>
         <button class="outil" type="button" data-scan-outil="flashcards">
           <svg class="outil-icone" aria-hidden="true"><use href="#i-cartes"></use></svg>
           <span class="outil-nom">FlashCards</span>
+          <span class="outil-detail">Recto-verso</span>
         </button>
       </div>
 
@@ -401,6 +404,7 @@
         <textarea class="zone-texte" id="quiz-complement" rows="4" maxlength="600"
                   placeholder="Niveau, points du programme à cibler, notions à éviter, consignes particulières…"></textarea>
         <p class="compteur"><span id="compteur-complement">0</span> / 600 caractères</p>
+        <button class="bouton-texte" type="button" id="ouvrir-atelier">Aide-moi à formuler ma demande</button>
       </div>
 
       <details class="reglages">
@@ -561,18 +565,6 @@
       <span class="option-icone option-icone--violet" aria-hidden="true"><svg><use href="#i-scan"></use></svg></span>
       <span class="option-nom">Avec ta fiche</span>
       <span class="option-detail">Prends en photo ta fiche de révision</span>
-    </button>
-
-    <button class="option-creation" type="button" data-creation="cours">
-      <span class="option-icone option-icone--vert" aria-hidden="true"><svg><use href="#i-cours"></use></svg></span>
-      <span class="option-nom">Avec tes cours</span>
-      <span class="option-detail">Pars d'une fiche déjà créée</span>
-    </button>
-
-    <button class="option-creation" type="button" data-creation="ia">
-      <span class="option-icone option-icone--bleu" aria-hidden="true"><svg><use href="#i-magie"></use></svg></span>
-      <span class="option-nom">Générer par l'IA</span>
-      <span class="option-detail">Décris ton sujet, obtiens ton quiz</span>
     </button>
 
     <button class="option-creation" type="button" data-creation="texte">

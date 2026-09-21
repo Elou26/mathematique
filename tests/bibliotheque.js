@@ -49,10 +49,14 @@ function verifier(nom, condition, vu) {
   verifier('la feuille porte la matière', (await page.innerText('#feuille-titre')) === 'Créer une fiche · Histoire-Géo',
     await page.innerText('#feuille-titre'));
 
-  await page.click('[data-creation="ia"]');
+  const tuiles = await page.$$eval('[data-creation]', (n) => n.map((b) => b.dataset.creation));
+  verifier('la feuille ne garde que la fiche et la rédaction',
+    tuiles.join(',') === 'scan,texte', tuiles.join(','));
+
+  await page.click('[data-creation="scan"]');
   await page.waitForTimeout(300);
-  const amorce = await page.inputValue('#ia-demande');
-  verifier('la demande IA est amorcée sur la matière', amorce.startsWith("Quiz d'Histoire-Géo"), JSON.stringify(amorce));
+  verifier('le scan hérite de la matière', /Histoire-Géo/.test(await page.innerText('#scan-sous-texte')),
+    await page.innerText('#scan-sous-texte'));
 
   // 3. La file de révision et le profil sont vides tant qu'aucune fiche n'existe.
   await page.click('.cloche');

@@ -782,22 +782,8 @@
       return;
     }
 
-    if (option === "ia") {
-      afficherVue("ia");
-      if (matiere) {
-        const amorce = `Quiz ${deLaMatiere(MATIERES[matiere].nom)}`
-          + (niveauChoisi ? `, niveau ${libelleNiveau().toLowerCase()}` : "") + ", sur ";
-        const champ = $("#ia-demande");
-        champ.value = amorce;
-        rafraichirDemande();
-        champ.setSelectionRange(amorce.length, amorce.length);
-      }
-      $("#ia-demande").focus();
-      return;
-    }
-
-    // « Avec tes cours » et « Rédiger » ouvrent la fiche de résumé, sur la bonne source.
-    const source = option === "cours" ? "cours" : "texte";
+    // « Rédiger » ouvre la fiche de résumé sur le texte collé.
+    const source = "texte";
     etatResume.source = source;
     if (matiere) etatResume.matiere = matiere;
     afficherVue("resume");
@@ -813,7 +799,7 @@
       panneau.classList.toggle("source--masque", !actif);
       panneau.hidden = !actif;
     });
-    if (source === "texte") $("#texte-source").focus();
+    $("#texte-source").focus();
   }
 
   /* ————— Feuille « Nommer ta fiche » ——————————————————————————
@@ -2277,6 +2263,17 @@
       etatQuiz.sujet = champSujet.value;
       etatQuiz.matiereTheme = null;
       etatQuiz.ficheId = null;
+    });
+
+    $("#ouvrir-atelier").addEventListener("click", () => {
+      afficherVue("ia");
+      const champ = $("#ia-demande");
+      const sujet = etatQuiz.sujet.trim();
+      if (sujet && !champ.value.trim()) {
+        champ.value = sujet;
+        rafraichirDemande();
+      }
+      champ.focus();
     });
 
     const champComplement = $("#quiz-complement");

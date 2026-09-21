@@ -708,6 +708,7 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .outil:active { transform: scale(.97); border-color: var(--marine); }
 .outil-icone { width: 26px; height: 26px; color: var(--marine); }
 .outil-nom { font-size: 14px; line-height: 1.2; }
+.outil-detail { font-size: 12px; line-height: 1.2; color: var(--gris-texte); }
 
 /* ————— Communauté et Défis ————————————————————————————————————— */
 .bloc-social {

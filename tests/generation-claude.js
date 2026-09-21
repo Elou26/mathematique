@@ -37,8 +37,9 @@ window.claude = {
     await p.goto('http://localhost:8321/', { waitUntil: 'networkidle' });
     await p.waitForTimeout(300);
     await p.click('text=Lycéen'); await p.waitForTimeout(300);
-    await p.click('#ouvrir-creation'); await p.waitForTimeout(250);
-    await p.click('[data-creation="ia"]'); await p.waitForTimeout(400);
+    await p.evaluate(() => { document.querySelectorAll('.vue').forEach((v) => { v.hidden = v.id !== 'vue-quiz'; }); });
+    await p.click('[data-quiz-source="sujet"]'); await p.waitForTimeout(150);
+    await p.click('#ouvrir-atelier'); await p.waitForTimeout(400);
     const moteur = await p.$eval('#ia-moteur', e => e.hidden ? '(masqué)' : e.textContent.trim());
     await p.fill('#ia-demande', '6 questions sur les dérivées, niveau terminale, surtout le calcul');
     await p.waitForTimeout(150);
