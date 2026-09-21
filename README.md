@@ -82,8 +82,29 @@ au clic sur le fond, sur « Annuler » ou avec Échap) avec quatre tuiles en 2×
 | --- | --- | --- |
 | Avec ta fiche | scan, violet | La page de scan (photo) |
 | Avec tes cours | livre, vert | Fiche de résumé, source « Mes cours » |
-| Générer par l'IA | baguette, bleu | Quiz, mode « Sujet libre », champ au focus |
+| Générer par l'IA | baguette, bleu | L'atelier de demande (voir ci-dessous) |
 | Rédiger | crayon, orange | Fiche de résumé, source « Coller un texte », zone au focus |
+
+## Page « Générer par l'IA »
+
+Une zone de texte pour décrire ce qu'on veut réviser, et une jauge qui note la précision de la
+demande sur quatre critères (`analyserDemande()` dans `app.js`) :
+
+| Critère | Comment il est détecté |
+| --- | --- |
+| Le chapitre ou la notion | un thème du catalogue ou un chapitre suivi est nommé, ou au moins trois mots significatifs |
+| Ton niveau | un mot de niveau (collège, terminale, licence…) apparaît |
+| Le nombre de questions | un nombre accompagné de « question », « QCM » ou « quiz » |
+| Ce que tu veux travailler | un mot d'angle (surtout, uniquement, en évitant, calcul, dates…) ou une demande de 140 caractères |
+
+La jauge passe de l'orange au bleu marine puis au vert, et le bouton **Générer le quiz** reste
+désactivé sous deux critères : une demande vague donnerait un quiz à côté de la plaque. Des
+puces ajoutent un bout de phrase en un geste (« + niveau lycéen », « + 10 questions »…), et un
+exemple de demande précise se recopie d'un bouton.
+
+La demande part ensuite vers le moteur de quiz. Comme le chapitre y est noyé dans une phrase,
+`chercherBanque()` est appelée avec une couverture minimale de 0 : l'expression-clé doit figurer
+en entier dans la demande, mais elle n'a plus à en représenter la moitié des mots.
 
 ## Page « Scanner ma fiche »
 

@@ -126,7 +126,7 @@
 
   /* ————— Navigation entre vues ———————————————————————————————— */
 
-  const VUES = ["accueil", "cours", "profil", "revision", "scan", "resume", "quiz", "flashcards"];
+  const VUES = ["accueil", "cours", "profil", "revision", "scan", "ia", "resume", "quiz", "flashcards"];
 
   function afficherVue(nom) {
     if (!VUES.includes(nom)) nom = "accueil";
@@ -141,7 +141,7 @@
 
     // La révision espacée n'a pas d'onglet dédié : on garde « Accueil » allumé.
     // Les vues ouvertes depuis l'accueil (cloche, outils IA) gardent « Accueil » allumé.
-    const OUVERTES_DEPUIS_ACCUEIL = ["revision", "scan", "resume", "quiz", "flashcards"];
+    const OUVERTES_DEPUIS_ACCUEIL = ["revision", "scan", "ia", "resume", "quiz", "flashcards"];
     const ongletActif = OUVERTES_DEPUIS_ACCUEIL.includes(nom) ? "accueil" : nom;
     $$(".barre-bas .onglet").forEach((onglet) => {
       const actif = onglet.dataset.onglet === ongletActif;
@@ -186,6 +186,7 @@
     const ligne = $("#profil-niveau");
     if (ligne) ligne.textContent = niveauChoisi ? libelleNiveau() : "Profil non renseigné";
     rendreThemes();
+    if ($("#ia-ajouts")) rendreAjoutsIA();
   }
 
   function ouvrirEcranNiveau() {
@@ -487,13 +488,8 @@
     if (option === "scan") { afficherVue("scan"); return; }
 
     if (option === "ia") {
-      afficherVue("quiz");
-      choisirSourceQuiz("sujet");
-      $("#form-quiz").hidden = false;
-      $("#jeu-quiz").hidden = true;
-      $("#bilan-quiz").hidden = true;
-      $("#indispo-quiz").hidden = true;
-      $("#quiz-sujet").focus();
+      afficherVue("ia");
+      $("#ia-demande").focus();
       return;
     }
 
@@ -932,6 +928,136 @@
     });
   }
 
+  /* ————— Page « Générer par l'IA » ————————————————————————————— */
+
+  const MOTS_NIVEAU = /\b(college|collegien|6e|5e|4e|3e|sixieme|cinquieme|quatrieme|troisieme|lycee|lyceen|seconde|premiere|terminale|bac|prepa|licence|master|doctorat|bts|but|etudiant|superieur)\b/;
+  const MOTS_ANGLE = /\b(surtout|uniquement|seulement|plutot|insiste|insistant|focalise|concentre|evite|sans|exercice|exercices|calcul|calculs|definition|definitions|date|dates|demonstration|methode|piege|pieges|cours|corrige|application)\b/;
+
+  /** Thèmes du catalogue et chapitres suivis, découpés une fois pour toutes. */
+  let sujetsConnus = null;
+  function chargerSujetsConnus() {
+    if (sujetsConnus) return sujetsConnus;
+    const libelles = [];
+    Object.values(CATALOGUE).forEach((programme) => {
+      Object.values(programme).forEach((themes) => libelles.push(...themes));
+    });
+    COURS.forEach((cours) => libelles.push(cours.titre, ...(cours.motsCles || [])));
+    sujetsConnus = libelles.map(motsUtiles).filter((mots) => mots.length);
+    return sujetsConnus;
+  }
+
+  /** Ce qui manque à une demande pour qu'elle donne un quiz fiable. */
+  function analyserDemande(texte) {
+    const normalise = normaliser(texte);
+    const mots = motsUtiles(texte);
+    // Nommer un chapitre connu suffit, même en peu de mots.
+    const chapitreNomme = chargerSujetsConnus().some((attendus) => attendus.every((mot) => mots.includes(mot)));
+    return {
+      sujet: chapitreNomme || mots.length >= 3,
+      niveau: MOTS_NIVEAU.test(normalise),
+      format: /\b\d{1,2}\b/.test(normalise) && /(question|qcm|quiz)/.test(normalise),
+      angle: MOTS_ANGLE.test(normalise) || texte.trim().length >= 140,
+    };
+  }
+
+  const NOTES_PRECISION = [
+    "Demande trop vague",
+    "Encore vague",
+    "Correcte",
+    "Précise",
+    "Très précise",
+  ];
+
+  function rafraichirDemande() {
+    const texte = $("#ia-demande").value;
+    const criteres = analyserDemande(texte);
+    const score = Object.values(criteres).filter(Boolean).length;
+
+    $("#ia-compteur").textContent = texte.length;
+    $("#ia-score").textContent = `${score} / 4`;
+    $("#ia-note").textContent = NOTES_PRECISION[score];
+    $("#ia-jauge").style.width = `${(score / 4) * 100}%`;
+    $(".precision").dataset.niveau = score >= 3 ? "haute" : score >= 2 ? "moyenne" : "basse";
+
+    $$("#ia-criteres li").forEach((ligne) => {
+      ligne.classList.toggle("critere--rempli", Boolean(criteres[ligne.dataset.critere]));
+    });
+
+    // En dessous de deux critères, générer donnerait un quiz à côté de la plaque.
+    $("#bouton-ia").disabled = score < 2 || texte.trim().length < 15;
+    return { criteres, score };
+  }
+
+  /** Ajoute un bout de phrase à la demande, sans doublon. */
+  function ajouterALaDemande(fragment) {
+    const champ = $("#ia-demande");
+    const actuel = champ.value.trim();
+    if (normaliser(actuel).includes(normaliser(fragment))) return;
+    champ.value = actuel ? `${actuel.replace(/[.\s]+$/, "")}, ${fragment}.` : `${fragment.charAt(0).toUpperCase()}${fragment.slice(1)}.`;
+    champ.focus();
+    rafraichirDemande();
+  }
+
+  function rendreAjoutsIA() {
+    const conteneur = $("#ia-ajouts");
+    conteneur.textContent = "";
+    const propositions = [
+      niveauChoisi ? `niveau ${libelleNiveau().toLowerCase()}` : "niveau lycéen",
+      "10 questions",
+      "avec un corrigé détaillé",
+      "surtout des exercices de calcul",
+      "en évitant les questions de cours",
+    ];
+    propositions.forEach((fragment) => {
+      const puce = document.createElement("button");
+      puce.type = "button";
+      puce.className = "puce";
+      puce.textContent = `+ ${fragment}`;
+      puce.addEventListener("click", () => ajouterALaDemande(fragment));
+      conteneur.appendChild(puce);
+    });
+  }
+
+  /** La demande part vers le moteur de quiz, telle qu'elle a été écrite. */
+  function lancerDemandeIA() {
+    const demande = $("#ia-demande").value.trim();
+    const { score } = rafraichirDemande();
+    if (score < 2 || demande.length < 15) {
+      toast("Précise ta demande : au moins le chapitre et un second critère.");
+      return;
+    }
+
+    etatQuiz.sujet = demande;
+    etatQuiz.complement = "Demande rédigée dans l'atelier IA.";
+    etatQuiz.matiereTheme = null;
+    // Une demande rédigée noie le chapitre dans une phrase : on n'exige plus
+    // qu'il pèse la moitié des mots, seulement qu'il y figure en entier.
+    etatQuiz.couvertureSujet = 0;
+
+    afficherVue("quiz");
+    choisirSourceQuiz("sujet");
+    $("#quiz-sujet").value = demande.slice(0, 80);
+    $("#quiz-complement").value = demande;
+    $("#compteur-complement").textContent = demande.length;
+    lancerQuiz();
+  }
+
+  function initIA() {
+    const form = $("#form-ia");
+    if (!form) return;
+
+    $("#ia-demande").addEventListener("input", rafraichirDemande);
+    $("#ia-utiliser-exemple").addEventListener("click", () => {
+      $("#ia-demande").value = $("#ia-exemple").textContent.replace(/\s+/g, " ").trim();
+      rafraichirDemande();
+      $("#ia-demande").focus();
+    });
+
+    form.addEventListener("submit", (evt) => { evt.preventDefault(); lancerDemandeIA(); });
+    rendreAjoutsIA();
+    rafraichirDemande();
+  }
+
   /* ————— Page « Créer quiz » ——————————————————————————————————— */
 
   const etatQuiz = {
@@ -940,6 +1066,7 @@
     coursId: COURS[0].id,
     sujet: "",
     matiereTheme: null,     // matière imposée quand le sujet vient du carrousel
+    couvertureSujet: undefined,
     complement: "",
     taille: 5,
     mode: "immediate",
@@ -1040,10 +1167,10 @@
    * assez ? Le seuil de moitié évite qu'un mot isolé emporte la décision :
    * « Circuits en série et en dérivation » ne doit pas lancer un QCM de dérivées.
    */
-  function expressionCouverte(expression, mots) {
+  function expressionCouverte(expression, mots, couvertureMinimale = 0.5) {
     const attendus = motsUtiles(expression);
     if (!attendus.length || !attendus.every((mot) => mots.includes(mot))) return false;
-    return attendus.length / mots.length >= 0.5;
+    return attendus.length / mots.length >= couvertureMinimale;
   }
 
   /**
@@ -1054,7 +1181,7 @@
    * vivants ». Sinon c'est au service de génération de produire les questions.
    * `matiereAttendue` verrouille la matière quand le sujet vient du carrousel.
    */
-  function chercherBanque(sujet, matiereAttendue) {
+  function chercherBanque(sujet, matiereAttendue, couvertureMinimale = 0.5) {
     const recherche = normaliser(sujet);
     if (recherche.length < 3) return null;
     const mots = motsUtiles(sujet);
@@ -1070,7 +1197,7 @@
 
         expressions.forEach((expression) => {
           if (normaliser(expression) === recherche) score = Math.max(score, 10);
-          else if (expressionCouverte(expression, mots)) score = Math.max(score, 8);
+          else if (expressionCouverte(expression, mots, couvertureMinimale)) score = Math.max(score, 8);
         });
 
         if (score && (!meilleur || score > meilleur.score)) meilleur = { cours, score };
@@ -1258,11 +1385,14 @@
       const sujet = etatQuiz.sujet.trim();
       if (sujet.length < 3) { toast("Indique d'abord le sujet du quiz."); return; }
 
-      const banque = chercherBanque(sujet, etatQuiz.matiereTheme);
+      const couverture = etatQuiz.couvertureSujet === undefined ? 0.5 : etatQuiz.couvertureSujet;
+      const banque = chercherBanque(sujet, etatQuiz.matiereTheme, couverture);
+      etatQuiz.couvertureSujet = undefined;
       if (!banque) { panneauSujetIndisponible(sujet); return; }
 
       coursId = banque.id;
-      contexte = `${sujet} — questions du chapitre « ${banque.titre} »`;
+      const resume = sujet.length > 48 ? `${sujet.slice(0, 45)}…` : sujet;
+      contexte = `${resume} — questions du chapitre « ${banque.titre} »`;
     }
 
     const sansFin = etatQuiz.taille === "infini";
@@ -1528,6 +1658,7 @@
     });
 
     initCreation();
+    initIA();
     initScan();
     initResume();
     initQuiz();

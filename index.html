@@ -312,6 +312,52 @@
     <article class="fiche" id="fiche-resume" hidden aria-live="polite"></article>
   </section>
 
+  <!-- Vue : Générer par l'IA — la demande écrite -->
+  <section class="vue" id="vue-ia" hidden>
+    <button class="retour" type="button" data-onglet="accueil">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      Accueil
+    </button>
+
+    <h2 class="titre-categorie titre-categorie--grand">Générer par l'IA</h2>
+    <p class="sous-texte">Décris ce que tu veux réviser. Plus ta demande est précise, plus le quiz
+      tombe juste : chapitre, niveau, nombre de questions, et ce que tu veux travailler.</p>
+
+    <form id="form-ia" novalidate>
+      <label class="champ-libelle" for="ia-demande">Ta demande</label>
+      <textarea class="zone-texte" id="ia-demande" rows="5" maxlength="600"
+                placeholder="Ex. : 10 questions sur les dérivées, niveau terminale, surtout le calcul de tangentes et les tableaux de variation."></textarea>
+      <p class="compteur"><span id="ia-compteur">0</span> / 600 caractères</p>
+
+      <div class="precision">
+        <div class="precision-entete">
+          <span class="precision-note" id="ia-note">Demande trop vague</span>
+          <span class="precision-score" id="ia-score">0 / 4</span>
+        </div>
+        <div class="precision-barre"><span class="precision-jauge" id="ia-jauge"></span></div>
+        <ul class="precision-criteres" id="ia-criteres">
+          <li data-critere="sujet"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Le chapitre ou la notion</li>
+          <li data-critere="niveau"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Ton niveau</li>
+          <li data-critere="format"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Le nombre de questions</li>
+          <li data-critere="angle"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Ce que tu veux travailler</li>
+        </ul>
+      </div>
+
+      <p class="etiquette etiquette--sous">À ajouter en un geste</p>
+      <div class="puces" id="ia-ajouts"></div>
+
+      <details class="reglages">
+        <summary>Un exemple de demande précise</summary>
+        <p class="ia-exemple" id="ia-exemple">12 questions sur la guerre froide, niveau lycéen, en insistant
+          sur la chronologie entre 1947 et 1962, avec un corrigé détaillé pour chaque réponse.</p>
+        <button class="bouton-secondaire" type="button" id="ia-utiliser-exemple">Utiliser cet exemple</button>
+      </details>
+
+      <button class="bouton-principal" type="submit" id="bouton-ia" disabled>Générer le quiz</button>
+      <p class="mention">Une demande vague donne un quiz à côté de la plaque : vise au moins deux critères.</p>
+    </form>
+  </section>
+
   <!-- Vue : Créer quiz (outil IA) -->
   <section class="vue" id="vue-quiz" hidden>
     <button class="retour" type="button" data-onglet="accueil">
