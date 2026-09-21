@@ -657,49 +657,13 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   padding: 12px;
 }
 
-.bascule {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  padding: 4px;
-  border-radius: 999px;
-  background: var(--gris-fond);
-}
-
-.bascule-curseur {
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  width: calc(50% - 4px);
-  height: calc(100% - 8px);
-  border-radius: 999px;
-  background: var(--marine);
-  transition: transform .22s cubic-bezier(.3, .8, .4, 1);
-}
-.bascule[data-actif="communaute"] .bascule-curseur { transform: translateX(100%); }
-
-.bascule-option {
-  position: relative;
-  z-index: 1;
-  padding: 9px 4px;
-  border-radius: 999px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--gris-texte);
-  transition: color .2s ease;
-}
-.bascule-option--active { color: var(--blanc); }
-
-.panneau { padding-top: 12px; }
-.panneau--masque { display: none; }
-
 .panneau-legende {
   margin: 0 0 8px;
   font-size: 12px;
   color: var(--gris-texte);
 }
 
-.liste-communautes, .liste-defis {
+.liste-defis {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1336,7 +1300,7 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
   bottom: 0;
   z-index: 30;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   background: var(--marine);
   padding-bottom: env(safe-area-inset-bottom);
 }

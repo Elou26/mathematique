@@ -27,12 +27,6 @@
     return n <= 1 ? `${n} jour de révision` : `${n} jours de révision`;
   }
 
-  function nombreMembres(n) {
-    if (n < 1000) return `${n} membres`;
-    const milliers = Math.floor(n / 100) / 10;   // 3970 → 3,9 k (jamais arrondi au-dessus)
-    return `${String(milliers).replace(".", ",")} k membres`;
-  }
-
   /* ————— Cartes « Mes révisions » ————————————————————————————— */
 
   function carteCours(cours) {
@@ -71,7 +65,7 @@
     liste.forEach((cours) => conteneur.appendChild(carteCours(cours)));
   }
 
-  /* ————— Listes communauté / défis ———————————————————————————— */
+  /* ————— Liste des défis ——————————————————————————————————————— */
 
   function ligne({ pastille, nom, detail, onClick }) {
     const li = document.createElement("li");
@@ -89,19 +83,6 @@
     bouton.addEventListener("click", onClick);
     li.appendChild(bouton);
     return li;
-  }
-
-  function rendreCommunautes(conteneur) {
-    if (!conteneur) return;
-    conteneur.textContent = "";
-    COMMUNAUTES.forEach((c) => {
-      conteneur.appendChild(ligne({
-        pastille: c.emoji,
-        nom: c.nom,
-        detail: nombreMembres(c.membres),
-        onClick: () => toast(`Communauté rejointe : ${c.nom}`),
-      }));
-    });
   }
 
   function rendreDefis(conteneur) {
@@ -145,7 +126,7 @@
 
   /* ————— Navigation entre vues ———————————————————————————————— */
 
-  const VUES = ["accueil", "cours", "communaute", "profil", "revision", "scan", "resume", "quiz", "flashcards"];
+  const VUES = ["accueil", "cours", "profil", "revision", "scan", "resume", "quiz", "flashcards"];
 
   function afficherVue(nom) {
     if (!VUES.includes(nom)) nom = "accueil";
@@ -177,34 +158,6 @@
     }
 
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  /* ————— Bascule Défis / Communauté ———————————————————————————— */
-
-  function initBascule() {
-    const bascule = $(".bascule");
-    if (!bascule) return;
-    bascule.dataset.actif = "communaute";
-
-    $$(".bascule-option", bascule).forEach((option) => {
-      option.addEventListener("click", () => {
-        const cible = option.dataset.bascule;
-        bascule.dataset.actif = cible;
-
-        $$(".bascule-option", bascule).forEach((o) => {
-          const actif = o === option;
-          o.classList.toggle("bascule-option--active", actif);
-          o.setAttribute("aria-selected", String(actif));
-        });
-
-        [["defis", "#panneau-defis"], ["communaute", "#panneau-communaute"]].forEach(([nom, sel]) => {
-          const panneau = $(sel);
-          const actif = nom === cible;
-          panneau.classList.toggle("panneau--masque", !actif);
-          panneau.hidden = !actif;
-        });
-      });
-    });
   }
 
   /* ————— Niveau de l'utilisateur ————————————————————————————————— */
@@ -1558,11 +1511,8 @@
 
   function init() {
     rendreCours($("#liste-tous-cours"), COURS);
-    rendreCommunautes($("#liste-communautes"));
-    rendreCommunautes($("#liste-communautes-page"));
     rendreDefis($("#liste-defis"));
     rendreEcheances($("#liste-echeances"));
-    initBascule();
 
     // Statistiques du profil, calculées depuis les données.
     const moyenne = Math.round(COURS.reduce((s, c) => s + c.progression, 0) / COURS.length);

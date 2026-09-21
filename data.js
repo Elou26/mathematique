@@ -59,13 +59,6 @@ const COURS = [
   { id: "conscience", matiere: "philo",   titre: "La conscience",                   chapitre: "Le sujet",             niveau: "Terminale", premierJour: "2026-09-01", derniereRevision: "2026-09-13", progression: 41, motsCles: ["conscience", "cogito", "inconscient", "descartes", "freud", "sartre", "mauvaise foi"] },
 ];
 
-const COMMUNAUTES = [
-  { id: "bac-2027", nom: "Objectif Bac 2027", membres: 12480, emoji: "🎓" },
-  { id: "prepa-mpsi", nom: "Prépa MPSI — entraide", membres: 8340, emoji: "📐" },
-  { id: "annales", nom: "Annales corrigées", membres: 6120, emoji: "📝" },
-  { id: "matin", nom: "Révision du matin", membres: 3970, emoji: "☀️" },
-];
-
 const DEFIS = [
   { id: "duel-derivees", nom: "Duel express — Dérivées", detail: "10 questions · 5 min", xp: 150 },
   { id: "marathon", nom: "Marathon de calcul mental", detail: "30 questions · 10 min", xp: 300 },

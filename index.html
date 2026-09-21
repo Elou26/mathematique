@@ -67,12 +67,6 @@
     <path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H14a2.5 2.5 0 0 0-2 1v13a2.5 2.5 0 0 1 2-1h4.5a1.5 1.5 0 0 0 1.5-1.5v-10Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
   </symbol>
 
-  <symbol id="i-communaute" viewBox="0 0 24 24">
-    <circle cx="9" cy="9" r="3.1" fill="none" stroke="currentColor" stroke-width="1.7"/>
-    <path d="M3.5 19.2c0-3 2.5-4.7 5.5-4.7s5.5 1.7 5.5 4.7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-    <path d="M16 6.3a3 3 0 0 1 0 5.6M17.3 14.8c2 .5 3.2 2 3.2 4.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-  </symbol>
-
   <symbol id="i-profil" viewBox="0 0 24 24">
     <circle cx="12" cy="8.5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.7"/>
     <path d="M4.8 20c0-3.6 3.2-5.8 7.2-5.8s7.2 2.2 7.2 5.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
@@ -168,29 +162,14 @@
       </span>
     </button>
 
-    <h2 class="titre-categorie titre-categorie--grand">Communauté et Défis</h2>
+    <h2 class="titre-categorie titre-categorie--grand">Défis</h2>
     <div class="bloc-social">
-      <div class="bascule" role="tablist" aria-label="Défis ou communauté">
-        <button class="bascule-option" type="button" role="tab" id="tab-defis"
-                aria-selected="false" aria-controls="panneau-defis" data-bascule="defis">Défis</button>
-        <button class="bascule-option bascule-option--active" type="button" role="tab" id="tab-communaute"
-                aria-selected="true" aria-controls="panneau-communaute" data-bascule="communaute">Communauté</button>
-        <span class="bascule-curseur" aria-hidden="true"></span>
-      </div>
-
-      <div class="panneau" id="panneau-communaute" role="tabpanel" aria-labelledby="tab-communaute">
-        <p class="panneau-legende">Les communautés les plus rejointes</p>
-        <ul class="liste-communautes" id="liste-communautes"></ul>
-      </div>
-
-      <div class="panneau panneau--masque" id="panneau-defis" role="tabpanel" aria-labelledby="tab-defis" hidden>
-        <p class="panneau-legende">Défis de la semaine</p>
-        <ul class="liste-defis" id="liste-defis"></ul>
-        <button class="bouton-affronter" type="button" id="bouton-affronter">
-          <svg aria-hidden="true"><use href="#i-epee"></use></svg>
-          Affronter un ami
-        </button>
-      </div>
+      <p class="panneau-legende">Défis de la semaine</p>
+      <ul class="liste-defis" id="liste-defis"></ul>
+      <button class="bouton-affronter" type="button" id="bouton-affronter">
+        <svg aria-hidden="true"><use href="#i-epee"></use></svg>
+        Affronter un ami
+      </button>
     </div>
   </section>
 
@@ -496,13 +475,6 @@
     <div class="liste-cours" id="liste-tous-cours"></div>
   </section>
 
-  <!-- Vue : Communauté -->
-  <section class="vue" id="vue-communaute" hidden>
-    <h2 class="titre-categorie titre-categorie--grand">Communauté</h2>
-    <p class="sous-texte">Rejoins un groupe pour poser tes questions et suivre les classements.</p>
-    <ul class="liste-communautes" id="liste-communautes-page"></ul>
-  </section>
-
   <!-- Vue : Profil -->
   <section class="vue" id="vue-profil" hidden>
     <h2 class="titre-categorie titre-categorie--grand">Profil</h2>
@@ -567,11 +539,6 @@
   <button class="onglet" type="button" data-onglet="cours">
     <svg class="onglet-icone" aria-hidden="true"><use href="#i-cours"></use></svg>
     <span class="onglet-nom">Cours</span>
-    <span class="onglet-trait" aria-hidden="true"></span>
-  </button>
-  <button class="onglet" type="button" data-onglet="communaute">
-    <svg class="onglet-icone" aria-hidden="true"><use href="#i-communaute"></use></svg>
-    <span class="onglet-nom">Communauté</span>
     <span class="onglet-trait" aria-hidden="true"></span>
   </button>
   <button class="onglet" type="button" data-onglet="profil">

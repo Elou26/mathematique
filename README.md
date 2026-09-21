@@ -17,10 +17,9 @@ python3 -m http.server 8000
 
 | Fichier | Rôle |
 | --- | --- |
-| `index.html` | Structure des 5 vues (accueil, cours, communauté, profil, révision espacée) |
 | `styles.css` | Charte graphique : bleu marine `#1B2A6B`, bleu pastel `#CFE0F7`, fond gris clair `#F4F5F7` |
 | `app.js` | Navigation, sélecteur de cours partagé, moteurs résumé / quiz / flashcards |
-| `data.js` | Données : matières, cours, catalogue des thèmes, communautés, révision espacée, questions rédigées et cartes |
+| `data.js` | Données : matières, cours, catalogue des thèmes, révision espacée, défis, questions rédigées et cartes |
 | `generateurs.js` | Générateurs de questions : la banque des quiz ne s'épuise pas |
 
 ## Écran de bienvenue (choix du profil)
@@ -70,9 +69,8 @@ bienvenue ; changer de niveau reconstruit le carrousel.
 - **Header** bleu pastel : logo + nom du site (16 px), cloche à droite → onglet *Révision espacée*.
 - **Créer une fiche** : une carte bleu marine ouvre la feuille d'options (voir ci-dessous).
 - ~~Outils IA~~ (14 px, gras) : 3 tuiles cliquables — Créer résumé, Créer quiz, FlashCards.
-- **Communauté et Défis** (16 px, gras) : sélecteur arrondi scindé en deux ; *Communauté*
-  affiche les communautés les plus rejointes, *Défis* affiche le bouton « Affronter un ami ».
-- **Barre du bas** bleu marine : accueil, cours, communauté, profil ; icône bleu gris pastel,
+- **Défis** (16 px, gras) : les défis de la semaine et le bouton « Affronter un ami ».
+- **Barre du bas** bleu marine : accueil, cours, profil ; icône bleu gris pastel,
   blanche + trait blanc sous l'onglet actif.
 
 ## Feuille « Option de création de fiche »
