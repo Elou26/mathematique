@@ -730,6 +730,74 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
 .bouton-verdict--su { background: #E7F6EC; border-color: #9CD3B0; color: #17632F; }
 .bouton-verdict:active { transform: scale(.98); }
 
+/* Champs libres du quiz (sujet + complément) */
+.etiquette--sous {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gris-texte);
+}
+
+.champ-libelle {
+  display: block;
+  margin: 12px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--noir);
+}
+.champ-option {
+  margin-left: 4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--gris-fond);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gris-texte);
+}
+
+.champ-texte {
+  width: 100%;
+  padding: 12px;
+  background: var(--blanc);
+  border: 1px solid var(--bordure);
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--noir);
+}
+.champ-texte::placeholder, .zone-texte::placeholder { color: #9AA1B2; }
+.champ-texte:focus { outline: 2px solid var(--marine); outline-offset: -1px; }
+
+.jeu-contexte {
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--bleu-pastel);
+  color: var(--marine);
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+.jeu-contexte[hidden] { display: none; }
+
+.bilan--info { text-align: left; }
+.bilan--info .bilan-message { margin-top: 0; }
+.bilan--info .bilan-pourcentage { margin-top: 8px; }
+
+.demande {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 12px;
+  background: var(--gris-fond);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.demande li { display: flex; gap: 10px; align-items: baseline; }
+.demande-cle { flex: none; width: 80px; font-size: 12px; font-weight: 700; color: var(--marine); }
+.demande-valeur { flex: 1; font-size: 12px; color: var(--noir); word-break: break-word; }
+
 /* ————— Révision espacée ——————————————————————————————————————— */
 .liste-echeances { display: flex; flex-direction: column; gap: 10px; }
 

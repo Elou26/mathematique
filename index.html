@@ -212,30 +212,50 @@
     </button>
 
     <h2 class="titre-categorie titre-categorie--grand">Créer un quiz</h2>
-    <p class="sous-texte">Un QCM corrigé, généré à partir d'un chapitre de n'importe quelle matière.</p>
+    <p class="sous-texte">Un QCM corrigé, à partir d'un de tes chapitres ou de n'importe quel sujet libre.</p>
 
     <form id="form-quiz" novalidate>
-      <p class="etiquette">1 · Matière</p>
-      <div class="puces puces--filtres" id="filtres-quiz" role="group" aria-label="Filtrer par matière"></div>
+      <p class="etiquette">1 · Sur quoi veux-tu t'entraîner ?</p>
+      <div class="segments" role="tablist" aria-label="Origine du quiz">
+        <button class="segment segment--actif" type="button" role="tab" aria-selected="true" data-quiz-source="cours">Mes cours</button>
+        <button class="segment" type="button" role="tab" aria-selected="false" data-quiz-source="sujet">Sujet libre</button>
+      </div>
 
-      <p class="etiquette">2 · Chapitre</p>
-      <ul class="choix-cours" id="choix-cours-quiz"></ul>
+      <div class="source" data-panneau-quiz="cours">
+        <p class="etiquette etiquette--sous">Matière</p>
+        <div class="puces puces--filtres" id="filtres-quiz" role="group" aria-label="Filtrer par matière"></div>
+        <p class="etiquette etiquette--sous">Chapitre</p>
+        <ul class="choix-cours" id="choix-cours-quiz"></ul>
+      </div>
 
-      <p class="etiquette">3 · Nombre de questions</p>
+      <div class="source source--masque" data-panneau-quiz="sujet" hidden>
+        <label class="champ-libelle" for="quiz-sujet">Sujet du quiz</label>
+        <input class="champ-texte" id="quiz-sujet" type="text" maxlength="80" autocomplete="off"
+               placeholder="Ex. : la Première Guerre mondiale, les fractions, le present perfect…">
+
+        <label class="champ-libelle" for="quiz-complement">
+          Complément d'information <span class="champ-option">facultatif</span>
+        </label>
+        <textarea class="zone-texte" id="quiz-complement" rows="4" maxlength="600"
+                  placeholder="Niveau, points du programme à cibler, notions à éviter, consignes particulières…"></textarea>
+        <p class="compteur"><span id="compteur-complement">0</span> / 600 caractères</p>
+      </div>
+
+      <p class="etiquette">2 · Nombre de questions</p>
       <div class="puces" id="puces-quiz-taille" role="radiogroup" aria-label="Nombre de questions">
         <button class="puce" type="button" role="radio" aria-checked="false" data-taille="3">3 questions</button>
         <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-taille="5">5 questions</button>
         <button class="puce" type="button" role="radio" aria-checked="false" data-taille="99">Tout le chapitre</button>
       </div>
 
-      <p class="etiquette">4 · Correction</p>
+      <p class="etiquette">3 · Correction</p>
       <div class="puces" id="puces-quiz-mode" role="radiogroup" aria-label="Moment de la correction">
         <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-mode="immediate">Immédiate</button>
         <button class="puce" type="button" role="radio" aria-checked="false" data-mode="fin">À la fin</button>
       </div>
 
       <button class="bouton-principal" type="submit" id="bouton-quiz">Générer le quiz</button>
-      <p class="mention">Les questions sont tirées du chapitre choisi, puis mélangées à chaque partie.</p>
+      <p class="mention" id="mention-quiz">Les questions sont tirées du chapitre choisi, puis mélangées à chaque partie.</p>
     </form>
 
     <div class="chargement" id="chargement-quiz" hidden>
@@ -244,6 +264,7 @@
     </div>
 
     <div class="jeu" id="jeu-quiz" hidden>
+      <p class="jeu-contexte" id="quiz-contexte" hidden></p>
       <div class="jeu-entete">
         <span class="jeu-position" id="quiz-position">Question 1 / 5</span>
         <span class="jeu-score" id="quiz-score">0 point</span>
@@ -259,6 +280,7 @@
     </div>
 
     <div class="bilan" id="bilan-quiz" hidden aria-live="polite"></div>
+    <div class="bilan bilan--info" id="indispo-quiz" hidden aria-live="polite"></div>
   </section>
 
   <!-- Vue : FlashCards (outil IA) -->

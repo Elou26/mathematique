@@ -10,14 +10,14 @@ const MATIERES = {
 };
 
 const COURS = [
-  { id: "derivees",  matiere: "maths",    titre: "Dérivées et taux de variation",   chapitre: "Analyse",              niveau: "Terminale", premierJour: "2026-08-19", derniereRevision: "2026-09-19", progression: 72 },
-  { id: "probas",    matiere: "maths",    titre: "Probabilités conditionnelles",    chapitre: "Probabilités",         niveau: "Terminale", premierJour: "2026-09-02", derniereRevision: "2026-09-17", progression: 45 },
-  { id: "suites",    matiere: "maths",    titre: "Suites arithmético-géométriques", chapitre: "Suites",               niveau: "Terminale", premierJour: "2026-09-08", derniereRevision: "2026-09-20", progression: 28 },
-  { id: "vecteurs",  matiere: "maths",    titre: "Géométrie dans l'espace",         chapitre: "Géométrie",            niveau: "Terminale", premierJour: "2026-07-30", derniereRevision: "2026-09-12", progression: 91 },
-  { id: "ondes",     matiere: "physique", titre: "Ondes et interférences",          chapitre: "Ondes",                niveau: "Terminale", premierJour: "2026-08-25", derniereRevision: "2026-09-18", progression: 54 },
-  { id: "genetique", matiere: "svt",      titre: "Brassage génétique et méiose",    chapitre: "Génétique",            niveau: "Terminale", premierJour: "2026-09-05", derniereRevision: "2026-09-16", progression: 38 },
-  { id: "guerrefroide", matiere: "histoire", titre: "La guerre froide (1947-1991)", chapitre: "Le monde bipolaire",   niveau: "Terminale", premierJour: "2026-08-12", derniereRevision: "2026-09-14", progression: 66 },
-  { id: "conscience", matiere: "philo",   titre: "La conscience",                   chapitre: "Le sujet",             niveau: "Terminale", premierJour: "2026-09-01", derniereRevision: "2026-09-13", progression: 41 },
+  { id: "derivees",  matiere: "maths",    titre: "Dérivées et taux de variation",   chapitre: "Analyse",              niveau: "Terminale", premierJour: "2026-08-19", derniereRevision: "2026-09-19", progression: 72, motsCles: ["derivee", "derivation", "tangente", "taux de variation", "variations", "fonction", "analyse"] },
+  { id: "probas",    matiere: "maths",    titre: "Probabilités conditionnelles",    chapitre: "Probabilités",         niveau: "Terminale", premierJour: "2026-09-02", derniereRevision: "2026-09-17", progression: 45, motsCles: ["probabilite", "probabilites", "conditionnelle", "arbre pondere", "independance", "bayes"] },
+  { id: "suites",    matiere: "maths",    titre: "Suites arithmético-géométriques", chapitre: "Suites",               niveau: "Terminale", premierJour: "2026-09-08", derniereRevision: "2026-09-20", progression: 28, motsCles: ["suite", "suites", "arithmetique", "geometrique", "recurrence", "convergence", "limite"] },
+  { id: "vecteurs",  matiere: "maths",    titre: "Géométrie dans l'espace",         chapitre: "Géométrie",            niveau: "Terminale", premierJour: "2026-07-30", derniereRevision: "2026-09-12", progression: 91, motsCles: ["vecteur", "vecteurs", "espace", "produit scalaire", "plan", "droite", "geometrie"] },
+  { id: "ondes",     matiere: "physique", titre: "Ondes et interférences",          chapitre: "Ondes",                niveau: "Terminale", premierJour: "2026-08-25", derniereRevision: "2026-09-18", progression: 54, motsCles: ["onde", "ondes", "interference", "interferences", "diffraction", "doppler", "longueur d onde", "frequence"] },
+  { id: "genetique", matiere: "svt",      titre: "Brassage génétique et méiose",    chapitre: "Génétique",            niveau: "Terminale", premierJour: "2026-09-05", derniereRevision: "2026-09-16", progression: 38, motsCles: ["genetique", "meiose", "mitose", "brassage", "crossing over", "adn", "gene", "allele", "heredite"] },
+  { id: "guerrefroide", matiere: "histoire", titre: "La guerre froide (1947-1991)", chapitre: "Le monde bipolaire",   niveau: "Terminale", premierJour: "2026-08-12", derniereRevision: "2026-09-14", progression: 66, motsCles: ["guerre froide", "urss", "berlin", "mur de berlin", "cuba", "otan", "bloc", "truman", "marshall", "bipolaire"] },
+  { id: "conscience", matiere: "philo",   titre: "La conscience",                   chapitre: "Le sujet",             niveau: "Terminale", premierJour: "2026-09-01", derniereRevision: "2026-09-13", progression: 41, motsCles: ["conscience", "cogito", "descartes", "freud", "inconscient", "sujet", "sartre", "hegel", "philosophie"] },
 ];
 
 const COMMUNAUTES = [

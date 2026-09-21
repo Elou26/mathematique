@@ -48,7 +48,17 @@ pour l'instant une confirmation.
 
 ## Page « Créer quiz »
 
-Filtre par matière → chapitre → nombre de questions (3, 5 ou tout le chapitre) → correction
+Deux origines au choix :
+
+- **Mes cours** — filtre par matière puis chapitre.
+- **Sujet libre** — un champ *Sujet du quiz* (obligatoire, 80 caractères) et une zone
+  *Complément d'information* facultative (600 caractères) pour préciser le niveau, les notions à
+  cibler ou les consignes. `chercherBanque()` rapproche le sujet saisi des banques locales via
+  les `motsCles` de chaque cours ; sans correspondance, un panneau récapitule la demande
+  (sujet, complément, format) telle qu'elle partira au service de génération, et propose des
+  chapitres disponibles.
+
+Ensuite : nombre de questions (3, 5 ou tout le chapitre) → correction
 immédiate ou à la fin. Les questions **et** l'ordre des réponses sont mélangés à chaque partie
 (`preparerQuestions()`), avec explication pour chaque item. Le bilan affiche le score, le
 pourcentage et la liste des questions ratées avec la bonne réponse et son corrigé.

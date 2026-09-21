@@ -495,7 +495,15 @@
 
   /* ————— Page « Créer quiz » ——————————————————————————————————— */
 
-  const etatQuiz = { matiere: "toutes", coursId: COURS[0].id, taille: 5, mode: "immediate" };
+  const etatQuiz = {
+    source: "cours",        // cours | sujet
+    matiere: "toutes",
+    coursId: COURS[0].id,
+    sujet: "",
+    complement: "",
+    taille: 5,
+    mode: "immediate",
+  };
   let partieQuiz = null;
 
   /** Tire les questions du chapitre, mélange l'ordre des questions et des réponses. */
@@ -506,6 +514,86 @@
       explication: question.explication,
       choix: melanger(question.choix.map((texte, i) => ({ texte, correct: i === question.bonne }))),
     }));
+  }
+
+  /** Minuscules sans accents ni ponctuation, pour comparer un sujet saisi librement. */
+  function normaliser(texte) {
+    return texte
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  /**
+   * Cherche le chapitre le plus proche du sujet saisi.
+   * Tant que le service de génération n'est pas branché, c'est lui qui
+   * fournit les questions ; renvoie null si rien ne correspond.
+   */
+  function chercherBanque(sujet) {
+    const recherche = normaliser(sujet);
+    if (recherche.length < 3) return null;
+    const mots = recherche.split(" ").filter((mot) => mot.length > 2);
+
+    let meilleur = null;
+    COURS.filter((cours) => (QUIZ[cours.id] || []).length).forEach((cours) => {
+      const cibles = [cours.titre, cours.chapitre, MATIERES[cours.matiere].nom, ...(cours.motsCles || [])]
+        .map(normaliser);
+
+      let score = 0;
+      cibles.forEach((cible) => {
+        if (cible === recherche) score += 10;
+        else if (cible.includes(recherche) || recherche.includes(cible)) score += 5;
+        else if (mots.some((mot) => cible.includes(mot))) score += 2;
+      });
+
+      if (score > 0 && (!meilleur || score > meilleur.score)) meilleur = { cours, score };
+    });
+
+    return meilleur ? meilleur.cours : null;
+  }
+
+  function panneauSujetIndisponible(sujet) {
+    const complement = etatQuiz.complement.trim();
+    const proches = [];
+    COURS.filter((cours) => (QUIZ[cours.id] || []).length).forEach((cours) => {
+      if (proches.length < 3 && !proches.some((autre) => autre.matiere === cours.matiere)) proches.push(cours);
+    });
+
+    $("#form-quiz").hidden = true;
+    const panneau = $("#indispo-quiz");
+    panneau.innerHTML = `
+      <p class="bilan-message"><strong>« ${sujet} »</strong> ne correspond à aucune banque de questions déjà
+      présente dans l'application.</p>
+      <p class="bilan-pourcentage">Ta demande est prête pour le générateur : elle partira au service d'IA dès
+      qu'il sera branché.</p>
+      <ul class="demande">
+        <li><span class="demande-cle">Sujet</span><span class="demande-valeur">${sujet}</span></li>
+        <li><span class="demande-cle">Complément</span><span class="demande-valeur">${complement || "—"}</span></li>
+        <li><span class="demande-cle">Format</span><span class="demande-valeur">${etatQuiz.taille === 99 ? "Maximum" : etatQuiz.taille} questions · correction ${etatQuiz.mode === "immediate" ? "immédiate" : "à la fin"}</span></li>
+      </ul>
+      <h4 class="bilan-soustitre">En attendant, des chapitres disponibles</h4>
+      <ul class="bilan-erreurs">
+        ${proches.map((cours) => `
+          <li><span class="bilan-question">${cours.titre}</span>
+              <span class="bilan-explication">${libelleCours(cours)}</span></li>`).join("")}
+      </ul>
+      <div class="bilan-actions">
+        <button class="bouton-principal" type="button" data-indispo="cours">Choisir un chapitre</button>
+        <button class="bouton-secondaire" type="button" data-indispo="sujet">Modifier le sujet</button>
+      </div>
+    `;
+    panneau.hidden = false;
+
+    $$("[data-indispo]", panneau).forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        panneau.hidden = true;
+        $("#form-quiz").hidden = false;
+        choisirSourceQuiz(bouton.dataset.indispo);
+      });
+    });
   }
 
   function afficherQuestion() {
@@ -617,13 +705,32 @@
 
   let minuteurQuiz;
   function lancerQuiz() {
-    const questions = preparerQuestions(etatQuiz.coursId, etatQuiz.taille);
+    let coursId = etatQuiz.coursId;
+    let contexte = "";
+
+    if (etatQuiz.source === "sujet") {
+      const sujet = etatQuiz.sujet.trim();
+      if (sujet.length < 3) { toast("Indique d'abord le sujet du quiz."); return; }
+
+      const banque = chercherBanque(sujet);
+      if (!banque) { panneauSujetIndisponible(sujet); return; }
+
+      coursId = banque.id;
+      contexte = `Sujet libre : ${sujet}`;
+    }
+
+    const questions = preparerQuestions(coursId, etatQuiz.taille);
     if (!questions.length) { toast("Aucune question disponible pour ce chapitre."); return; }
+
+    const ligneContexte = $("#quiz-contexte");
+    ligneContexte.textContent = contexte;
+    ligneContexte.hidden = !contexte;
 
     const form = $("#form-quiz");
     const chargement = $("#chargement-quiz");
     form.hidden = true;
     $("#bilan-quiz").hidden = true;
+    $("#indispo-quiz").hidden = true;
     $("#jeu-quiz").hidden = true;
     chargement.hidden = false;
 
@@ -631,15 +738,47 @@
     clearTimeout(minuteurQuiz);
     minuteurQuiz = setTimeout(() => {
       chargement.hidden = true;
-      partieQuiz = { questions, index: 0, score: 0, mode: etatQuiz.mode };
+      partieQuiz = { questions, index: 0, score: 0, mode: etatQuiz.mode, coursId };
       $("#jeu-quiz").hidden = false;
       afficherQuestion();
     }, 900);
   }
 
+  /** Bascule le formulaire quiz entre « Mes cours » et « Sujet libre ». */
+  function choisirSourceQuiz(source) {
+    etatQuiz.source = source;
+    $$("[data-quiz-source]").forEach((segment) => {
+      const actif = segment.dataset.quizSource === source;
+      segment.classList.toggle("segment--actif", actif);
+      segment.setAttribute("aria-selected", String(actif));
+    });
+    $$("[data-panneau-quiz]").forEach((panneau) => {
+      const actif = panneau.dataset.panneauQuiz === source;
+      panneau.classList.toggle("source--masque", !actif);
+      panneau.hidden = !actif;
+    });
+    $("#bouton-quiz").textContent = source === "sujet" ? "Générer le quiz sur ce sujet" : "Générer le quiz";
+    $("#mention-quiz").textContent = source === "sujet"
+      ? "Décris le sujet de ton choix : le complément affine le niveau et les notions visées."
+      : "Les questions sont tirées du chapitre choisi, puis mélangées à chaque partie.";
+  }
+
   function initQuiz() {
     const form = $("#form-quiz");
     if (!form) return;
+
+    $$("[data-quiz-source]").forEach((segment) => {
+      segment.addEventListener("click", () => choisirSourceQuiz(segment.dataset.quizSource));
+    });
+
+    const champSujet = $("#quiz-sujet");
+    champSujet.addEventListener("input", () => { etatQuiz.sujet = champSujet.value; });
+
+    const champComplement = $("#quiz-complement");
+    champComplement.addEventListener("input", () => {
+      etatQuiz.complement = champComplement.value;
+      $("#compteur-complement").textContent = champComplement.value.length;
+    });
 
     initSelecteurCours({
       liste: "#choix-cours-quiz",
@@ -656,6 +795,7 @@
     $("#quiz-quitter").addEventListener("click", () => {
       $("#jeu-quiz").hidden = true;
       $("#bilan-quiz").hidden = true;
+      $("#indispo-quiz").hidden = true;
       form.hidden = false;
     });
   }
