@@ -173,20 +173,31 @@
     </div>
   </section>
 
-  <!-- Vue : Scanner une fiche — point d'entrée des trois outils -->
+  <!-- Vue : Photographier un cours — leçon, devoir ou contrôle -->
   <section class="vue" id="vue-scan" hidden>
     <button class="retour" type="button" data-onglet="accueil">
       <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
       Accueil
     </button>
 
-    <h2 class="titre-categorie titre-categorie--grand" id="scan-titre-page">Scanner ma fiche</h2>
-    <p class="sous-texte" id="scan-sous-texte">Pose ta fiche à plat, cadre-la, et choisis ensuite ce que tu veux en faire.</p>
+    <h2 class="titre-categorie titre-categorie--grand" id="scan-titre-page">Photographier mon cours</h2>
+    <p class="sous-texte" id="scan-sous-texte">Prends en photo ta leçon, ton devoir ou ton contrôle :
+      la fiche de révision et les flashcards en sont tirées.</p>
+    <p class="ia-moteur" id="scan-moteur" hidden></p>
 
-    <!-- Étape 1 et 2 : cadrage puis lecture -->
+    <!-- Étape 1 : ce qu'on photographie -->
+    <p class="etiquette">C'est quoi ?</p>
+    <div class="puces" id="scan-types" role="radiogroup" aria-label="Type de document">
+      <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-type="lecon">📘 Une leçon</button>
+      <button class="puce" type="button" role="radio" aria-checked="false" data-type="devoir">✏️ Un devoir</button>
+      <button class="puce" type="button" role="radio" aria-checked="false" data-type="controle">📝 Un contrôle</button>
+    </div>
+    <p class="mention" id="scan-type-aide">Le cours, la leçon du cahier ou la fiche du manuel.</p>
+
+    <!-- Étape 2 : cadrage -->
     <div class="scanner" id="scanner">
       <div class="scanner-cadre">
-        <img class="scanner-apercu" id="scan-apercu" alt="Aperçu de la fiche scannée" hidden>
+        <img class="scanner-apercu" id="scan-apercu" alt="Aperçu de la page photographiée" hidden>
         <span class="scanner-coin scanner-coin--hg" aria-hidden="true"></span>
         <span class="scanner-coin scanner-coin--hd" aria-hidden="true"></span>
         <span class="scanner-coin scanner-coin--bg" aria-hidden="true"></span>
@@ -194,15 +205,17 @@
         <span class="scanner-balayage" id="scan-balayage" hidden aria-hidden="true"></span>
         <p class="scanner-aide" id="scan-aide">
           <svg aria-hidden="true"><use href="#i-scan"></use></svg>
-          Cadre ta fiche dans ce rectangle
+          Cadre ta page dans ce rectangle
         </p>
       </div>
     </div>
 
+    <div class="scan-pages" id="scan-pages" hidden aria-label="Pages ajoutées"></div>
+
     <ul class="scan-etapes" id="scan-etapes" hidden>
-      <li data-etape="cadrage"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Cadrage de la fiche</li>
-      <li data-etape="lecture"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Lecture de la page</li>
-      <li data-etape="notions"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Repérage du titre et des notions</li>
+      <li data-etape="cadrage"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Pages cadrées</li>
+      <li data-etape="lecture"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Lecture du document</li>
+      <li data-etape="notions"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Fiche et flashcards écrites</li>
     </ul>
 
     <div class="scan-capture" id="scan-capture">
@@ -212,38 +225,57 @@
       </label>
       <label class="bouton-secondaire bouton-fichier">
         Choisir une image
-        <input type="file" id="scan-galerie" accept="image/*" hidden>
+        <input type="file" id="scan-galerie" accept="image/*" multiple hidden>
       </label>
-      <p class="mention">La photo reste sur ton téléphone : rien n'est envoyé tant que le service de lecture n'est pas branché.</p>
+      <p class="mention" id="scan-mention">La photo reste sur ton téléphone tant que tu ne lances pas la lecture.</p>
     </div>
 
-    <!-- Étape 3 : ce qu'on fait de la fiche -->
+    <!-- Étape 3 : lecture du document -->
+    <div class="scan-lecture" id="scan-lecture" hidden>
+      <button class="bouton-principal" type="button" id="scan-analyser">Lire et créer ma fiche</button>
+      <label class="bouton-secondaire bouton-fichier">
+        Ajouter une page
+        <input type="file" id="scan-page-plus" accept="image/*" multiple hidden>
+      </label>
+      <button class="bouton-texte" type="button" id="scan-recommencer">Recommencer</button>
+    </div>
+
+    <div class="chargement" id="chargement-scan" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <p class="chargement-texte" id="scan-progres">Claude lit tes pages…</p>
+    </div>
+    <button class="bouton-texte" type="button" id="scan-stop" hidden>Arrêter</button>
+    <p class="ia-message" id="scan-message" hidden aria-live="polite"></p>
+
+    <!-- Étape 4 : ce qui a été lu, et ce qu'on en fait -->
     <div class="scan-resultat" id="scan-resultat" hidden>
-      <label class="champ-libelle" for="scan-sujet">Quel thème est sur cette fiche ?</label>
+      <article class="fiche fiche--lue" id="scan-fiche-lue" hidden></article>
+
+      <label class="champ-libelle" for="scan-sujet">Thème de la fiche</label>
       <input class="champ-texte" id="scan-sujet" type="text" maxlength="80" autocomplete="off"
              placeholder="Ex. : Dérivées et taux de variation">
       <div class="puces puces--filtres" id="scan-suggestions" role="group" aria-label="Thèmes de ton programme"></div>
 
       <p class="etiquette">Qu'est-ce que tu veux en faire ?</p>
       <div class="outils">
+        <button class="outil" type="button" data-scan-outil="flashcards">
+          <svg class="outil-icone" aria-hidden="true"><use href="#i-cartes"></use></svg>
+          <span class="outil-nom">FlashCards</span>
+          <span class="outil-detail" id="outil-cartes-detail">Recto-verso</span>
+        </button>
+        <button class="outil" type="button" data-scan-outil="resume">
+          <svg class="outil-icone" aria-hidden="true"><use href="#i-fichier"></use></svg>
+          <span class="outil-nom">Fiche</span>
+          <span class="outil-detail">L'essentiel</span>
+        </button>
         <button class="outil" type="button" data-scan-outil="quiz">
           <svg class="outil-icone" aria-hidden="true"><use href="#i-cahier"></use></svg>
           <span class="outil-nom">Quiz</span>
           <span class="outil-detail">QCM corrigé</span>
         </button>
-        <button class="outil" type="button" data-scan-outil="resume">
-          <svg class="outil-icone" aria-hidden="true"><use href="#i-fichier"></use></svg>
-          <span class="outil-nom">Résumé</span>
-          <span class="outil-detail">L'essentiel</span>
-        </button>
-        <button class="outil" type="button" data-scan-outil="flashcards">
-          <svg class="outil-icone" aria-hidden="true"><use href="#i-cartes"></use></svg>
-          <span class="outil-nom">FlashCards</span>
-          <span class="outil-detail">Recto-verso</span>
-        </button>
       </div>
 
-      <button class="bouton-texte" type="button" id="scan-refaire">Scanner une autre fiche</button>
+      <button class="bouton-texte" type="button" id="scan-refaire">Photographier autre chose</button>
     </div>
   </section>
 

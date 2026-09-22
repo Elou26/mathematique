@@ -59,7 +59,7 @@
   }
 
   /** Ajoute une fiche, ou remonte celle qui porte déjà ce titre dans la matière. */
-  function ajouterFiche({ matiere, titre, source, banqueId }) {
+  function ajouterFiche({ matiere, titre, source, banqueId, contenu, cartes }) {
     const propre = (titre || "").trim().slice(0, 80);
     if (propre.length < 3) return null;
 
@@ -67,6 +67,8 @@
     const deja = fiches.find((f) => f.matiere === cle && normaliser(f.titre) === normaliser(propre));
     if (deja) {
       if (banqueId && !deja.banqueId) deja.banqueId = banqueId;
+      if (contenu) deja.contenu = contenu;        // une relecture remplace l'ancienne
+      if (cartes && cartes.length) deja.cartes = cartes;
       majBibliotheque();
       return deja;
     }
@@ -78,6 +80,8 @@
       titre: propre,
       source: SOURCES_FICHE[source] ? source : "libre",
       banqueId: banqueId || null,
+      contenu: contenu || null,       // le résumé lu sur la photo
+      cartes: cartes && cartes.length ? cartes : null,
       creee: maintenant,
       derniereRevision: maintenant,
       progression: 0,
@@ -131,7 +135,8 @@
 
   function detailFiche(fiche) {
     const matiere = MATIERES[fiche.matiere];
-    return `${matiere ? matiere.nom : "Fiche"} · ${SOURCES_FICHE[fiche.source] || "Sujet libre"}`;
+    const cartes = fiche.cartes && fiche.cartes.length ? ` · ${fiche.cartes.length} cartes` : "";
+    return `${matiere ? matiere.nom : "Fiche"} · ${SOURCES_FICHE[fiche.source] || "Sujet libre"}${cartes}`;
   }
 
   /* ————— Vue « Mes fiches » : une catégorie par matière ————————— */
@@ -229,7 +234,18 @@
     });
   }
 
-  /** Réviser une fiche : quiz sur son titre, écrit par Claude ou repris d'une banque. */
+  /** Rend son texte à un contenu stocké échappé, pour l'envoyer à Claude. */
+  function texteBrut(texte) {
+    return String(texte || "")
+      .replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+      .replace(/&amp;/g, "&");
+  }
+
+  /**
+   * Réviser une fiche : quiz sur son contenu quand le document a été lu,
+   * sinon sur son titre. Claude écrit, les banques locales dépannent.
+   */
   function reviserFiche(fiche) {
     etatQuiz.source = "sujet";
     etatQuiz.sujet = fiche.titre;
@@ -237,6 +253,17 @@
     etatQuiz.ficheId = fiche.id;
     etatQuiz.complement = `Fiche « ${fiche.titre} » en ${MATIERES[fiche.matiere].nom}`
       + (niveauChoisi ? `, profil ${libelleNiveau().toLowerCase()}.` : ".");
+
+    // Le document a été lu : les questions portent sur son contenu réel.
+    if (fiche.contenu && fiche.contenu.lu) {
+      const reperes = []
+        .concat(fiche.contenu.points || [], fiche.contenu.formules || [])
+        .map(texteBrut)
+        .slice(0, 8);
+      if (reperes.length) {
+        etatQuiz.complement += "\n\nInterroge-moi sur le contenu de cette fiche :\n- " + reperes.join("\n- ");
+      }
+    }
 
     afficherVue("quiz");
     choisirSourceQuiz("sujet");
@@ -399,7 +426,7 @@
       else onglet.removeAttribute("aria-current");
     });
 
-    if (nom === "scan" && !fiche.image) reinitialiserScan();
+    if (nom === "scan" && !fiche.pages.length) reinitialiserScan();
 
     if (nom === "revision") {
       const pastille = $("#cloche-compteur");
@@ -919,18 +946,101 @@
     });
   }
 
-  /* ————— Page « Scanner ma fiche » ————————————————————————————— */
+  /* ————— Page « Photographier mon cours » ————————————————————————
+     Une leçon, un devoir ou un contrôle en photo. Claude lit les pages
+     (c'est lui l'OCR) et en tire une fiche de révision et un paquet de
+     flashcards. Sans lui, on garde le chemin manuel : on confirme le
+     thème et on travaille sur les banques locales.
+     ———————————————————————————————————————————————————————————— */
 
-  const fiche = { image: null, nom: "", sujet: "", matiere: null };
+  const TYPES_DOCUMENT = {
+    lecon: {
+      nom: "leçon",
+      aide: "Le cours, la leçon du cahier ou la fiche du manuel.",
+      consigne: "C'est une leçon : garde la structure du cours, les définitions, les formules et les repères.",
+    },
+    devoir: {
+      nom: "devoir",
+      aide: "Un exercice, un DM, une feuille d'entraînement — corrigée ou non.",
+      consigne: "C'est un devoir : retiens les méthodes de résolution, les étapes attendues et les erreurs à éviter ; "
+        + "les flashcards portent sur la méthode et sur les notions mobilisées.",
+    },
+    controle: {
+      nom: "contrôle",
+      aide: "Un contrôle rendu, un DS, un bac blanc — avec ou sans corrigé.",
+      consigne: "C'est un contrôle : cible ce qui est tombé et ce qui a été raté ; "
+        + "les flashcards reprennent les questions du contrôle et leur réponse attendue.",
+    },
+  };
 
-  /**
-   * Point d'accroche unique pour la lecture du texte de la fiche.
-   * Tant qu'aucun service d'OCR n'est branché, on ne fabrique pas de faux
-   * texte : on demande confirmation du thème, en proposant les thèmes du
-   * programme de la classe.
-   */
-  function lireLaFiche(/* image */) {
-    return Promise.resolve({ texte: "", titre: "" });
+  const CONSIGNE_LECTURE = [
+    "Tu es professeur et tu aides un élève francophone à réviser.",
+    "",
+    "Les images jointes sont les pages d'un même document : <<<TYPE>>>.",
+    "<<<CONSIGNE_TYPE>>>",
+    "Profil de l'élève : <<<PROFIL>>>.",
+    "",
+    "Lis ces pages (texte imprimé comme manuscrit) et réponds uniquement avec un objet JSON de cette forme :",
+    '{"lisible": true, "titre": "Titre de chapitre, court", "matiere": "<<<MATIERES>>>",',
+    ' "resume": {"accroche": "une phrase qui situe le chapitre",',
+    '            "points": ["3 à 6 points essentiels"],',
+    '            "formules": ["formules, dates ou repères clés, 0 à 6"],',
+    '            "exemples": ["exemples corrigés tirés du document, 0 à 3"],',
+    '            "pieges": ["erreurs classiques, 0 à 4"]},',
+    ' "flashcards": [{"recto": "question courte", "verso": "réponse courte"}]}',
+    "",
+    "Règles :",
+    "- reste fidèle au document : n'invente rien qui ne s'y trouve pas ;",
+    "- 6 à 12 flashcards, recto = une question, verso = la réponse en une ligne ;",
+    "- texte brut uniquement, pas de HTML ni de Markdown ;",
+    '- si les pages sont illisibles ou ne contiennent pas de cours, réponds {"lisible": false, "raison": "…"} ;',
+    "- tout est en français, calé sur le niveau de l'élève ;",
+    "- aucun texte en dehors du JSON.",
+  ].join("\n");
+
+  const fiche = { pages: [], apercus: [], type: "lecon", nom: "", sujet: "", matiere: null, lecture: null };
+  let controleurScan = null;
+
+  /** Coupe et échappe : ce que Claude renvoie est affiché, jamais interprété. */
+  function nettoyer(texte, max = 240) {
+    return echapper(String(texte == null ? "" : texte).replace(/\s+/g, " ").trim().slice(0, max));
+  }
+
+  function listeNettoyee(valeur, maximum, max = 240) {
+    if (!Array.isArray(valeur)) return [];
+    return valeur.map((e) => nettoyer(e, max)).filter((e) => e.length > 1).slice(0, maximum);
+  }
+
+  /** Vérifie la lecture renvoyée par Claude ; null si elle n'est pas exploitable. */
+  function validerLecture(donnees) {
+    if (!donnees || typeof donnees !== "object") return null;
+    if (donnees.lisible === false) return { illisible: true, raison: nettoyer(donnees.raison, 160) };
+
+    const titre = nettoyer(donnees.titre, 80);
+    const brut = donnees.resume && typeof donnees.resume === "object" ? donnees.resume : {};
+    const points = listeNettoyee(brut.points, 8);
+    const cartes = (Array.isArray(donnees.flashcards) ? donnees.flashcards : [])
+      .filter((c) => c && typeof c === "object")
+      .map((c) => ({ recto: nettoyer(c.recto, 200), verso: nettoyer(c.verso, 300) }))
+      .filter((c) => c.recto.length > 2 && c.verso.length > 0)
+      .slice(0, 20);
+
+    if (titre.length < 3 || !points.length || cartes.length < 3) return null;
+
+    return {
+      titre,
+      matiere: MATIERES[donnees.matiere] ? donnees.matiere : null,
+      contenu: {
+        lu: true,
+        accroche: nettoyer(brut.accroche, 300) || `Fiche tirée de ${TYPES_DOCUMENT[fiche.type].nom}.`,
+        points,
+        formules: listeNettoyee(brut.formules, 6),
+        exemples: listeNettoyee(brut.exemples, 3, 400),
+        pieges: listeNettoyee(brut.pieges, 4),
+        libelleFormules: "Formules & repères",
+      },
+      cartes,
+    };
   }
 
   function etapesScan(actives) {
@@ -977,63 +1087,262 @@
     });
   }
 
+  /** Vignettes des pages ajoutées, avec retrait au clic. */
+  function rendrePagesScan() {
+    const bande = $("#scan-pages");
+    if (!bande) return;
+    bande.textContent = "";
+    bande.hidden = fiche.apercus.length < 1;
+
+    fiche.apercus.forEach((url, rang) => {
+      const vignette = document.createElement("button");
+      vignette.type = "button";
+      vignette.className = "scan-page";
+      vignette.setAttribute("aria-label", `Retirer la page ${rang + 1}`);
+      vignette.innerHTML = `<img src="${url}" alt=""><span class="scan-page-numero">${rang + 1}</span>`;
+      vignette.addEventListener("click", () => retirerPage(rang));
+      bande.appendChild(vignette);
+    });
+
+    const apercu = $("#scan-apercu");
+    if (fiche.apercus.length) {
+      apercu.src = fiche.apercus[fiche.apercus.length - 1];
+      apercu.hidden = false;
+      $("#scanner").classList.add("scanner--capture");
+      $("#scan-aide").hidden = true;
+    } else {
+      apercu.hidden = true;
+      apercu.removeAttribute("src");
+      $("#scanner").classList.remove("scanner--capture");
+      $("#scan-aide").hidden = false;
+    }
+
+    const prete = fiche.pages.length > 0;
+    $("#scan-capture").hidden = prete;
+    $("#scan-lecture").hidden = !prete;
+    $("#scan-analyser").textContent = peutLirePhotos()
+      ? `Lire ${fiche.pages.length > 1 ? "mes " + fiche.pages.length + " pages" : "ma page"} et créer ma fiche`
+      : "Continuer sans lecture";
+    etapesScan(prete ? ["cadrage"] : []);
+  }
+
+  function retirerPage(rang) {
+    URL.revokeObjectURL(fiche.apercus[rang]);
+    fiche.pages.splice(rang, 1);
+    fiche.apercus.splice(rang, 1);
+    rendrePagesScan();
+  }
+
+  function ajouterPages(fichiers) {
+    const images = Array.from(fichiers || []).filter((f) => f && f.type.startsWith("image/"));
+    if (!images.length) { toast("Choisis une photo de ta page."); return; }
+
+    const maximum = maxPagesScan();
+    images.forEach((image) => {
+      if (fiche.pages.length >= maximum) return;
+      fiche.pages.push(image);
+      fiche.apercus.push(URL.createObjectURL(image));
+      if (!fiche.nom) fiche.nom = image.name || "page.jpg";
+    });
+    if (fiche.pages.length >= maximum) toast(`${maximum} pages au maximum par document.`);
+
+    messageScan("");
+    $("#scan-resultat").hidden = true;
+    $("#scan-fiche-lue").hidden = true;
+    rendrePagesScan();
+  }
+
   function reinitialiserScan() {
-    if (fiche.image) URL.revokeObjectURL(fiche.image);
-    fiche.image = null;
+    fiche.apercus.forEach((url) => URL.revokeObjectURL(url));
+    fiche.pages = [];
+    fiche.apercus = [];
     fiche.nom = "";
     fiche.sujet = "";
     fiche.matiere = null;
+    fiche.lecture = null;
 
-    $("#scanner").classList.remove("scanner--capture");
-    $("#scan-apercu").hidden = true;
-    $("#scan-apercu").removeAttribute("src");
-    $("#scan-aide").hidden = false;
     $("#scan-balayage").hidden = true;
-    $("#scan-capture").hidden = false;
     $("#scan-resultat").hidden = true;
+    $("#scan-fiche-lue").hidden = true;
     $("#scan-sujet").value = "";
-    $("#scan-sous-texte").textContent = "Pose ta fiche à plat, cadre-la, et choisis ensuite ce que tu veux en faire.";
-    etapesScan([]);
+    $("#chargement-scan").hidden = true;
+    $("#scan-stop").hidden = true;
+    messageScan("");
+    $("#scan-sous-texte").textContent = "Prends en photo ta leçon, ton devoir ou ton contrôle : "
+      + "la fiche de révision et les flashcards en sont tirées.";
+    rendrePagesScan();
+    afficherMoteurScan();
   }
 
-  let minuteurScan;
-  function analyserFiche(fichier) {
-    if (!fichier || !fichier.type.startsWith("image/")) {
-      toast("Choisis une photo de ta fiche.");
+  function messageScan(texte, ton) {
+    const ligne = $("#scan-message");
+    if (!ligne) return;
+    ligne.textContent = texte || "";
+    ligne.className = `ia-message${ton ? " ia-message--" + ton : ""}`;
+    ligne.hidden = !texte;
+  }
+
+  function afficherMoteurScan() {
+    const ligne = $("#scan-moteur");
+    if (!ligne || !claudeResolu) return;
+    ligne.textContent = peutLirePhotos()
+      ? "✳︎ Claude lit tes pages et en tire la fiche et les cartes."
+      : "La lecture des photos n'est pas disponible ici : indique le thème à la main, la photo ne quitte pas ton téléphone.";
+    ligne.classList.toggle("ia-moteur--actif", peutLirePhotos());
+    ligne.hidden = false;
+  }
+
+  /** Lance la lecture des pages par Claude. */
+  async function lirePages() {
+    const type = TYPES_DOCUMENT[fiche.type];
+    const invite = CONSIGNE_LECTURE
+      .replace("<<<TYPE>>>", type.nom)
+      .replace("<<<CONSIGNE_TYPE>>>", type.consigne)
+      .replace("<<<PROFIL>>>", niveauChoisi ? libelleNiveau().toLowerCase() : "non précisé")
+      .replace("<<<MATIERES>>>", Object.keys(MATIERES).join("|"));
+
+    controleurScan = new AbortController();
+    $("#scan-lecture").hidden = true;
+    $("#chargement-scan").hidden = false;
+    $("#scan-stop").hidden = false;
+    $("#scan-balayage").hidden = false;
+    $("#scan-progres").textContent = "Claude lit tes pages…";
+    messageScan("");
+    etapesScan(["cadrage", "lecture"]);
+
+    let aCommence = false;
+    const rappel = setTimeout(() => {
+      if (!aCommence) {
+        $("#scan-progres").textContent = "Toujours en attente… Si une demande d'autorisation s'est ouverte, accepte-la.";
+      }
+    }, 20000);
+
+    try {
+      const donnees = await sampleClaude.json(invite, {
+        images: fiche.pages,
+        modelTier: "default",
+        cache: false,
+        signal: controleurScan.signal,
+        onText: ({ text }) => {
+          aCommence = true;
+          $("#scan-progres").textContent = `Claude rédige ta fiche… (${text.length} caractères)`;
+        },
+      });
+
+      const lecture = validerLecture(donnees);
+      if (!lecture) throw { code: "invalid_json", message: "forme inattendue" };
+      if (lecture.illisible) {
+        messageScan(lecture.raison
+          ? `Pages non exploitées : ${lecture.raison}`
+          : "Ces pages n'ont pas pu être lues. Reprends la photo à plat, bien éclairée.", "erreur");
+        etapesScan(["cadrage"]);
+        return;
+      }
+
+      fiche.lecture = lecture;
+      if (lecture.matiere) fiche.matiere = lecture.matiere;
+      fiche.sujet = lecture.titre;
+      etapesScan(["cadrage", "lecture", "notions"]);
+      afficherLecture(lecture);
+      return;                          // le bloc de capture reste fermé
+    } catch (erreur) {
+      const code = erreur && erreur.code ? erreur.code : "upstream_error";
+      etapesScan(["cadrage"]);
+      if (code === "cancelled") { messageScan("Lecture arrêtée."); return; }
+      if (code === "images_unavailable") {
+        limitesClaude = null;
+        afficherMoteurScan();
+        messageScan("Les photos ne peuvent pas être envoyées depuis cette page : indique le thème à la main.", "erreur");
+        ouvrirEtapeManuelle();
+        return;
+      }
+      messageScan(MESSAGES_IA[code] || MESSAGES_IA.upstream_error, REPLIS_LOCAUX.has(code) ? null : "erreur");
+      if (REPLIS_LOCAUX.has(code) && code !== "rate_limited") { sampleClaude = null; afficherMoteurIA(); afficherMoteurScan(); }
+      ouvrirEtapeManuelle();
+    } finally {
+      clearTimeout(rappel);
+      controleurScan = null;
+      $("#chargement-scan").hidden = true;
+      $("#scan-stop").hidden = true;
+      $("#scan-balayage").hidden = true;
+      $("#scan-lecture").hidden = fiche.pages.length === 0 || Boolean(fiche.lecture);
+    }
+  }
+
+  /** Le document a été lu : on montre ce qui en a été tiré. */
+  function afficherLecture(lecture) {
+    const apercu = $("#scan-fiche-lue");
+    apercu.innerHTML = `
+      <header class="fiche-entete">
+        <p class="fiche-etiquette">${TYPES_DOCUMENT[fiche.type].nom} lue par Claude · ${fiche.pages.length} page${fiche.pages.length > 1 ? "s" : ""}</p>
+        <h3 class="fiche-titre">${lecture.titre}</h3>
+        <p class="fiche-soustexte">${lecture.matiere ? MATIERES[lecture.matiere].nom + " · " : ""}${lecture.cartes.length} flashcards prêtes</p>
+      </header>
+      <p class="fiche-accroche">${lecture.contenu.accroche}</p>
+      ${sectionFiche("L'essentiel", lecture.contenu.points.slice(0, 3), "fiche-section--points")}
+    `;
+    apercu.hidden = false;
+
+    $("#scan-sujet").value = lecture.titre;
+    $("#outil-cartes-detail").textContent = `${lecture.cartes.length} cartes`;
+    $("#scan-sous-texte").textContent = "Document lu. Vérifie le titre, puis choisis ce que tu veux en faire.";
+    rendreSuggestionsScan(null);
+    $("#scan-resultat").hidden = false;
+    $("#scan-resultat").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  /** Repli : pas de lecture, on demande le thème à la main. */
+  function ouvrirEtapeManuelle() {
+    fiche.lecture = null;
+    $("#scan-fiche-lue").hidden = true;
+    $("#outil-cartes-detail").textContent = "Recto-verso";
+    $("#scan-sous-texte").textContent = "Indique le thème de ce document, puis choisis quoi en faire.";
+    rendreSuggestionsScan(fiche.matiere);
+    $("#scan-resultat").hidden = false;
+    $("#scan-resultat").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function lancerLecture() {
+    if (!fiche.pages.length) { toast("Prends d'abord ta page en photo."); return; }
+
+    if (!claudeResolu && attenteClaude) {
+      $("#scan-progres").textContent = "Connexion à Claude…";
+      $("#chargement-scan").hidden = false;
+      attenteClaude.then(() => { $("#chargement-scan").hidden = true; lancerLecture(); });
       return;
     }
+    if (!peutLirePhotos()) { ouvrirEtapeManuelle(); return; }
+    lirePages();
+  }
 
-    if (fiche.image) URL.revokeObjectURL(fiche.image);
-    fiche.image = URL.createObjectURL(fichier);
-    fiche.nom = fichier.name || "fiche.jpg";
+  function initScan() {
+    const capture = $("#scan-photo");
+    if (!capture) return;
 
-    const apercu = $("#scan-apercu");
-    apercu.src = fiche.image;
-    apercu.hidden = false;
-    $("#scanner").classList.add("scanner--capture");
-    $("#scan-aide").hidden = true;
-    $("#scan-capture").hidden = true;
-    $("#scan-balayage").hidden = false;
-    $("#scan-sous-texte").textContent = "Lecture de la fiche…";
-    etapesScan(["cadrage"]);
+    [capture, $("#scan-galerie"), $("#scan-page-plus")].forEach((champ) => {
+      champ.addEventListener("change", () => {
+        ajouterPages(champ.files);
+        champ.value = "";               // pour pouvoir reprendre la même photo
+      });
+    });
 
-    clearTimeout(minuteurScan);
-    minuteurScan = setTimeout(() => etapesScan(["cadrage", "lecture"]), 700);
+    brancherPuces("#scan-types .puce", "type", (valeur) => {
+      fiche.type = TYPES_DOCUMENT[valeur] ? valeur : "lecon";
+      $("#scan-type-aide").textContent = TYPES_DOCUMENT[fiche.type].aide;
+    });
 
-    lireLaFiche(fichier).then((lecture) => {
-      setTimeout(() => {
-        etapesScan(["cadrage", "lecture", "notions"]);
-        $("#scan-balayage").hidden = true;
-        $("#scan-sous-texte").textContent = "Fiche capturée. Confirme son thème, puis choisis quoi en faire.";
+    $("#scan-analyser").addEventListener("click", lancerLecture);
+    $("#scan-stop").addEventListener("click", () => { if (controleurScan) controleurScan.abort(); });
+    $("#scan-recommencer").addEventListener("click", reinitialiserScan);
+    $("#scan-refaire").addEventListener("click", reinitialiserScan);
 
-        if (lecture.titre) {
-          fiche.sujet = lecture.titre;
-          $("#scan-sujet").value = lecture.titre;
-        }
-        rendreSuggestionsScan(null);
-        $("#scan-resultat").hidden = false;
-        $("#scan-resultat").scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }, 1400);
+    $("#scan-sujet").addEventListener("input", (evt) => {
+      fiche.sujet = evt.target.value;
+      $$("#scan-suggestions .puce").forEach((puce) => puce.classList.remove("puce--active"));
+    });
+
+    $$("[data-scan-outil]").forEach((tuile) => {
+      tuile.addEventListener("click", () => exploiterFiche(tuile.dataset.scanOutil));
     });
   }
 
@@ -1057,17 +1366,24 @@
     });
   }
 
-  /** La fiche scannée est nommée : on la range, puis on ouvre l'outil demandé. */
+  /** La fiche est nommée : on la range avec ce qui a été lu, puis on ouvre l'outil. */
   function rangerFicheScannee(nom, matiere, outil) {
     const sujet = nom;
+    const lecture = fiche.lecture;
     const banque = chercherBanque(nom, matiere === "autre" ? null : matiere);
     const enregistree = ajouterFiche({
       matiere,
       titre: nom,
       source: "scan",
       banqueId: banque ? banque.id : null,
+      contenu: lecture ? lecture.contenu : null,
+      cartes: lecture ? lecture.cartes : null,
     });
-    if (enregistree) toast(`Fiche « ${enregistree.titre} » rangée en ${MATIERES[matiere].nom}`);
+    if (enregistree) {
+      toast(lecture
+        ? `Fiche « ${enregistree.titre} » et ${lecture.cartes.length} cartes rangées en ${MATIERES[matiere].nom}`
+        : `Fiche « ${enregistree.titre} » rangée en ${MATIERES[matiere].nom}`);
+    }
 
     if (outil === "quiz") {
       if (enregistree) { reviserFiche(enregistree); return; }
@@ -1086,11 +1402,11 @@
 
     if (outil === "flashcards") {
       afficherVue("flashcards");
-      if (enregistree && banqueDeLaFiche(enregistree)) {
+      if (enregistree && cartesDeLaFiche(enregistree).length) {
         etatCartes.ficheId = enregistree.id;
         lancerCartes(null);
       } else {
-        toast("Pas encore de cartes toutes prêtes pour cette fiche : lance plutôt un quiz.");
+        toast("Pas de cartes pour cette fiche : lance plutôt un quiz.");
         $("#form-cartes").hidden = false;
         $("#jeu-cartes").hidden = true;
         $("#bilan-cartes").hidden = true;
@@ -1125,30 +1441,6 @@
     genererResume();
   }
 
-  function initScan() {
-    const capture = $("#scan-photo");
-    if (!capture) return;
-
-    [capture, $("#scan-galerie")].forEach((champ) => {
-      champ.addEventListener("change", () => {
-        analyserFiche(champ.files && champ.files[0]);
-        champ.value = "";               // pour pouvoir reprendre la même photo
-      });
-    });
-
-    $("#scan-sujet").addEventListener("input", (evt) => {
-      fiche.sujet = evt.target.value;
-      fiche.matiere = null;             // un thème retapé n'est plus lié à une matière
-      $$("#scan-suggestions .puce").forEach((puce) => puce.classList.remove("puce--active"));
-    });
-
-    $$("[data-scan-outil]").forEach((tuile) => {
-      tuile.addEventListener("click", () => exploiterFiche(tuile.dataset.scanOutil));
-    });
-
-    $("#scan-refaire").addEventListener("click", reinitialiserScan);
-  }
-
   /* ————— Page « Créer résumé » ————————————————————————————————— */
 
   const etatResume = {
@@ -1174,7 +1466,7 @@
       return {
         titre: fiche.titre,
         sousTitre: detailFiche(fiche),
-        contenu: RESUMES[fiche.banqueId] || RESUME_GENERIQUE,
+        contenu: fiche.contenu || RESUMES[fiche.banqueId] || RESUME_GENERIQUE,
         matiere: fiche.matiere,
         ficheId: fiche.id,
       };
@@ -1218,6 +1510,16 @@
     if (!elements || !elements.length) return "";
     const items = elements.map((e) => `<li>${e}</li>`).join("");
     return `<section class="fiche-section ${classe}"><h4 class="fiche-soustitre">${titre}</h4><ul>${items}</ul></section>`;
+  }
+
+  /** Les cartes d'une fiche : celles lues sur le document, sinon une banque. */
+  function cartesDeLaFiche(fiche) {
+    if (!fiche) return [];
+    if (fiche.cartes && fiche.cartes.length) {
+      return fiche.cartes.map((carte) => ({ recto: carte.recto, verso: carte.verso }));
+    }
+    const banqueId = banqueDeLaFiche(fiche);
+    return banqueId ? (FLASHCARDS[banqueId] || []).slice() : [];
   }
 
   /** Le chapitre de secours associé à une fiche, s'il en existe un. */
@@ -1301,7 +1603,7 @@
             return;
           }
           // Flashcards : seulement si un paquet existe pour ce sujet.
-          if (!banqueDeLaFiche(gardee)) {
+          if (!cartesDeLaFiche(gardee).length) {
             toast("Pas encore de cartes pour ce sujet : lance plutôt un quiz.");
             return;
           }
@@ -1320,6 +1622,15 @@
   function genererResume() {
     const erreur = erreurSource();
     if (erreur) { toast(erreur); return; }
+
+    // Fiche déjà lue sur la photo : il n'y a rien à générer, on l'affiche.
+    const source = sourceChoisie();
+    if (source && source.contenu && source.contenu.lu) {
+      $("#chargement-resume").hidden = true;
+      $("#bouton-generer").textContent = "Regénérer le résumé";
+      rendreFiche();
+      return;
+    }
 
     const chargement = $("#chargement-resume");
     const bouton = $("#bouton-generer");
@@ -1430,6 +1741,17 @@
   let sampleClaude = null;
   let claudeResolu = false;
   let attenteClaude = null;
+  let limitesClaude = null;       // { images: { maxCount, mediaTypes } } quand les photos passent
+
+  /** La vue publiée peut-elle envoyer des photos à Claude ? */
+  function peutLirePhotos() {
+    return Boolean(sampleClaude && limitesClaude && limitesClaude.images);
+  }
+
+  function maxPagesScan() {
+    const max = limitesClaude && limitesClaude.images ? limitesClaude.images.maxCount : 4;
+    return Math.max(1, Math.min(max || 4, 8));
+  }
 
   function preparerClaude() {
     attenteClaude = resoudreClaude();
@@ -1440,11 +1762,21 @@
     try {
       if (typeof claude === "undefined" || !claude || typeof claude.use !== "function") return;
       sampleClaude = await claude.use("sample");
+      if (sampleClaude && typeof sampleClaude.limits === "function") {
+        limitesClaude = await sampleClaude.limits().catch(() => null);
+      }
     } catch (erreur) {
       sampleClaude = null;
     } finally {
       claudeResolu = true;
       afficherMoteurIA();
+      if ($("#scan-moteur")) { afficherMoteurScan(); rendrePagesScan(); }
+      const accepte = limitesClaude && limitesClaude.images && limitesClaude.images.mediaTypes;
+      if (accepte && accepte.length) {
+        ["#scan-photo", "#scan-galerie", "#scan-page-plus"].forEach((sel) => {
+          if ($(sel)) $(sel).accept = accepte.join(",");
+        });
+      }
     }
   }
 
@@ -2392,9 +2724,8 @@
       toast(fiches.length ? "Choisis une fiche." : "Ta bibliothèque est vide : crée d'abord une fiche.");
       return;
     }
-    const banqueId = banqueDeLaFiche(fiche);
-    const source = FLASHCARDS[banqueId] || [];
-    let cartes = source.map((carte, i) => ({ ...carte, id: `${banqueId}-${i}`, repassee: false }));
+    const source = cartesDeLaFiche(fiche);
+    let cartes = source.map((carte, i) => ({ ...carte, id: `${fiche.id}-${i}`, repassee: false }));
     if (seulement) cartes = cartes.filter((c) => seulement.has(c.id));
     if (!cartes.length) { toast("Pas encore de cartes pour cette fiche : lance plutôt un quiz."); return; }
     if (etatCartes.ordre === "melange") cartes = melanger(cartes);

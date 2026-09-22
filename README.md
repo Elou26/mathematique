@@ -89,7 +89,7 @@ le scan pré-sélectionne les thèmes de la matière).
 Le carrousel de l'accueil suit la même règle : la matière dépliée propose, sous ses thèmes, un
 bouton « Créer une fiche en *matière* ».
 
-Une fiche entre dans la bibliothèque par trois chemins : une fiche scannée envoyée vers un
+Une fiche entre dans la bibliothèque par trois chemins : un document photographié envoyé vers un
 outil, un résumé « Enregistré dans mes fiches », ou le bilan d'un quiz sur sujet libre
 (« Garder ce sujet dans mes fiches »). Les quiz lancés depuis une fiche mettent à jour sa date
 de révision et son meilleur score.
@@ -124,7 +124,7 @@ au clic sur le fond, sur « Annuler » ou avec Échap) avec ses tuiles, chacune 
 
 | Tuile | Icône | Destination |
 | --- | --- | --- |
-| Avec ta fiche | scan, violet | La page de scan (photo), puis Quiz / Résumé / FlashCards |
+| Avec ta fiche | scan, violet | La photo du cours, lue par Claude, puis Quiz / Fiche / FlashCards |
 | Rédiger | crayon, orange | Fiche de résumé, source « Coller un texte », zone au focus |
 
 Deux façons de créer, pas plus : la photo d'une fiche, ou son propre texte. L'atelier
@@ -186,24 +186,38 @@ moitié des mots.
 `node tests/bibliotheque.js` vérifie qu'aucun cours n'est livré d'avance, que chaque catégorie
 propose la création d'une fiche, et que la fiche créée irrigue les outils, la file et le profil.
 
-## Page « Scanner ma fiche »
+## Page « Photographier mon cours »
 
-C'est le point d'entrée des trois outils : on scanne d'abord, on choisit ensuite quoi en faire.
+C'est le point d'entrée des trois outils : on photographie d'abord, on choisit ensuite quoi en
+faire. **C'est Claude qui lit les pages** — il n'y a pas d'OCR embarqué.
 
-1. **Cadrage** — un viseur à quatre coins, puis « Prendre une photo » (`<input type="file"
+1. **Type de document** — leçon, devoir ou contrôle (`TYPES_DOCUMENT` dans `app.js`). Le choix
+   change la consigne envoyée avec les images : une leçon garde la structure du cours, un devoir
+   retient les méthodes et les erreurs à éviter, un contrôle cible ce qui est tombé.
+2. **Cadrage** — un viseur à quatre coins, puis « Prendre une photo » (`<input type="file"
    accept="image/*" capture="environment">`, qui ouvre l'appareil photo sur mobile) ou
-   « Choisir une image ». Pas de `getUserMedia` : le champ natif fonctionne partout, y compris
-   dans une iframe sans permission caméra.
-2. **Lecture** — l'aperçu se réduit, une ligne de balayage passe sur la fiche et trois étapes
-   se cochent.
-3. **Exploitation** — on confirme le thème de la fiche (champ libre, plus des raccourcis à deux
-   niveaux : matière du programme puis ses huit thèmes), puis on choisit **Résumé**, **Quiz** ou
-   **FlashCards**. Le thème rejoint la bibliothèque dans la matière correspondante, puis le quiz
-   démarre, la fiche de résumé se génère ou le paquet de cartes se lance.
+   « Choisir une image ». Plusieurs pages : elles s'ajoutent en vignettes (un clic retire la
+   page), dans la limite de `limits().images.maxCount`.
+3. **Lecture** — `lirePages()` envoie les pages à `sample.json(invite, { images })`. Claude
+   renvoie un JSON : titre de chapitre, matière, résumé (accroche, points, formules, exemples,
+   pièges) et 6 à 12 flashcards. `validerLecture()` vérifie la forme, échappe tout le texte
+   (`nettoyer()`) et refuse une réponse incomplète ; `{"lisible": false}` affiche la raison au
+   lieu d'inventer une fiche.
+4. **Exploitation** — la fiche lue s'affiche (titre, matière, premiers points, nombre de cartes),
+   le titre remplit le champ du thème, puis **FlashCards**, **Fiche** ou **Quiz**. Après le
+   nommage en chapitre, la fiche est rangée avec son `contenu` et ses `cartes` : les flashcards
+   sortent du document photographié, le résumé affiche ce qui a été lu (sans regénérer), et un
+   quiz lancé sur cette fiche part de ses points essentiels.
 
-**L'OCR n'est pas branchée.** `lireLaFiche()` dans `app.js` est le point d'accroche unique : il
-renvoie aujourd'hui `{ texte: "", titre: "" }`, d'où l'étape de confirmation du thème. Aucun
-faux texte n'est fabriqué à partir de la photo, et l'image ne quitte pas l'appareil.
+**Ce que le repli fait.** Quand `claude.use("sample")` répond `null` ou que
+`sample.limits()` n'annonce pas `images` (site servi tel quel, capacité refusée), le bandeau le
+dit, le bouton devient « Continuer sans lecture » et on retombe sur le chemin manuel :
+confirmation du thème, puis banques locales. La photo ne quitte l'appareil que si la lecture est
+lancée, et elle n'est jamais enregistrée.
+
+`node tests/lecture-photo.js` couvre les quatre cas avec un faux runtime : lecture réussie
+(images transmises, fiche et cartes rangées), document illisible (aucune fiche inventée),
+capacité sans images (chemin manuel) et absence de Claude.
 
 ## Page « Créer résumé »
 
@@ -265,12 +279,13 @@ ils servent de repli hors ligne quand Claude n'est pas joignable.
 
 ## Page « FlashCards »
 
-Filtre par matière → chapitre → ordre (mélangé ou ordre du cours). La carte se retourne au
+Filtre par matière → fiche → ordre (mélangé ou ordre du cours). La carte se retourne au
 toucher (rotation 3D CSS), puis deux verdicts : *À revoir* (la carte repasse une fois en fin de
 paquet) ou *Je savais*. Le bilan compte les cartes sues du premier coup et propose de rejouer
 uniquement celles qui ont été ratées.
 
-Les paquets sont dans `FLASHCARDS` (`data.js`).
+`cartesDeLaFiche()` sert d'abord les cartes lues sur le document photographié (`fiche.cartes`),
+et retombe sur les paquets de secours de `FLASHCARDS` (`data.js`) quand la fiche n'en a pas.
 
 ## Ergonomie des formulaires
 
