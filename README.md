@@ -24,6 +24,7 @@ python3 -m http.server 8000
 | `app.js` | Navigation, bibliothèque de fiches, sélecteur partagé, moteurs résumé / quiz / flashcards |
 | `data.js` | Données : matières, catalogue des thèmes, paliers de révision, défis, banques de secours (questions rédigées et cartes) |
 | `generateurs.js` | Générateurs de questions : la banque des quiz ne s'épuise pas |
+| `ocr.js` | Lecture de secours sur l'appareil (Tesseract.js) + mise en fiche par règles |
 
 ## Écran de bienvenue (choix du profil)
 
@@ -209,21 +210,49 @@ faire. **C'est Claude qui lit les pages** — il n'y a pas d'OCR embarqué.
    sortent du document photographié, le résumé affiche ce qui a été lu (sans regénérer), et un
    quiz lancé sur cette fiche part de ses points essentiels.
 
-**Ce que le repli fait.** `raisonLecture()` distingue deux empêchements et le dit en toutes
-lettres, dans le bandeau du haut **et** juste au-dessus du bouton :
+### Sans compte Claude : la lecture se fait sur l'appareil (`ocr.js`)
+
+`raisonLecture()` distingue deux empêchements et le dit en toutes lettres, dans le bandeau du
+haut **et** juste au-dessus du bouton :
 
 - `claude.use("sample")` répond `null` — le plus souvent un lecteur **non connecté** à claude.ai,
-  puisque la lecture tourne sur son compte : le message invite à se connecter et à rouvrir le lien ;
+  puisque la lecture de Claude tourne sur son compte ;
 - `sample.limits()` n'annonce pas `images` — Claude répond, mais cette vue ne peut pas lui envoyer
   de photos.
 
-Dans les deux cas le bouton devient « Continuer sans lecture » et on retombe sur le chemin
-manuel : confirmation du thème, puis banques locales. La photo ne quitte l'appareil que si la
-lecture est lancée, et elle n'est jamais enregistrée.
+Dans les deux cas, le bouton devient **« Lire ma page sur mon appareil »** : `ocr.js` charge
+Tesseract.js depuis un CDN (jsDelivr, cdnjs en second), télécharge le modèle français une fois
+(~10 Mo, puis en cache navigateur) et lit les pages **dans la page, sans compte, sans serveur et
+sans rien à payer**. `« Continuer sans lecture »` reste offert juste en dessous.
+
+Tesseract ne rend que du **texte brut** : la mise en fiche est faite par des règles
+(`OCR.structurer()`), pas par une IA —
+
+| Règle | Ce qu'elle produit |
+| --- | --- |
+| Ligne reprise deux fois en tête de page | le titre du chapitre |
+| Comptage de mots par matière (`MOTS_MATIERES`) | la matière, si elle se détache (≥ 3 occurrences) |
+| `Définition/Propriété/Théorème/Règle/Formule/Méthode` | une carte « Propriété — <chapitre> ? » |
+| `terme : définition` | une carte « terme ? » |
+| `X = …` | une carte « Que vaut X ? » et une ligne de formules |
+| `1789 : …` | une carte « Que se passe-t-il en 1789 ? » |
+| `Exemple :` | la section *Exemples* de la fiche, jamais une carte |
+| Les 5 plus longues phrases, sans redites ni titre recopié | *L'essentiel* |
+
+La fiche produite **dit d'où elle vient** (« leçon lue sur ton appareil »), son accroche invite à
+la relire, et un repli « Voir le texte lu » montre le texte brut pour vérifier. La photo ne quitte
+jamais l'appareil dans ce mode, et elle n'est jamais enregistrée.
+
+Les chemins de CDN et de modèle sont regroupés dans `OCR.SOURCES` : si un CDN change de structure,
+c'est le seul endroit à corriger. Quand rien ne se charge (blocage réseau, CSP), le message le dit
+et renvoie au chemin manuel.
 
 `node tests/lecture-photo.js` couvre les quatre cas avec un faux runtime : lecture réussie
 (images transmises, fiche et cartes rangées), document illisible (aucune fiche inventée),
-capacité sans images (chemin manuel) et absence de Claude.
+capacité sans images (repli sur l'appareil) et absence de Claude.
+`node tests/lecture-appareil.js` couvre la lecture sur l'appareil avec un faux Tesseract : fiche et
+cartes tirées d'un vrai texte de cours, photo muette annoncée sans rien inventer, moteur
+injoignable annoncé franchement.
 
 ## Page « Créer résumé »
 

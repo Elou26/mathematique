@@ -148,12 +148,14 @@ function verifier(nom, condition, vu) {
     verifier('le repli manuel est annoncé', /ne peut pas lui envoyer de photos/.test(await page.innerText('#scan-moteur')),
       await page.innerText('#scan-moteur'));
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
-    verifier('le bouton propose de continuer', /Continuer sans lecture/.test(await page.innerText('#scan-analyser')),
+    verifier('le bouton propose la lecture sur l\'appareil',
+      /Lire ma page sur mon appareil/.test(await page.innerText('#scan-analyser')),
       await page.innerText('#scan-analyser'));
+    verifier('le passage manuel reste offert', await page.isVisible('#scan-manuel'), 'bouton absent');
     verifier('la raison est rappelée au-dessus du bouton',
       /ne peut pas lui envoyer de photos/.test(await page.innerText('#scan-raison')),
       await page.innerText('#scan-raison'));
-    await page.click('#scan-analyser'); await page.waitForTimeout(500);
+    await page.click('#scan-manuel'); await page.waitForTimeout(500);
     verifier('le thème est demandé à la main', await page.isVisible('#scan-sujet'), 'champ absent');
     verifier('aucune fiche lue affichée', !(await page.isVisible('#scan-fiche-lue')), 'aperçu visible');
     await ctx.close();

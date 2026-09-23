@@ -234,6 +234,7 @@
     <div class="scan-lecture" id="scan-lecture" hidden>
       <p class="ia-message ia-message--erreur" id="scan-raison" hidden></p>
       <button class="bouton-principal" type="button" id="scan-analyser">Lire et créer ma fiche</button>
+      <button class="bouton-texte" type="button" id="scan-manuel" hidden>Continuer sans lecture</button>
       <label class="bouton-secondaire bouton-fichier">
         Ajouter une page
         <input type="file" id="scan-page-plus" accept="image/*" multiple hidden>
@@ -657,6 +658,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="data.js"></script>
+<script src="ocr.js"></script>
 <script src="generateurs.js"></script>
 <script src="app.js"></script>
 </body>

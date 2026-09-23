@@ -736,6 +736,18 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .scan-lecture[hidden] { display: none; }
 
 .fiche--lue { margin-bottom: 16px; }
+.texte-lu {
+  max-height: 190px;
+  margin: 8px 0 0;
+  padding: 10px;
+  overflow-y: auto;
+  background: var(--gris-fond);
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--gris-texte);
+  white-space: pre-wrap;
+}
 
 /* ————— Outils IA ——————————————————————————————————————————————— */
 .outils {

@@ -1012,7 +1012,7 @@
   }
 
   /** Vérifie la lecture renvoyée par Claude ; null si elle n'est pas exploitable. */
-  function validerLecture(donnees) {
+  function validerLecture(donnees, { minCartes = 3 } = {}) {
     if (!donnees || typeof donnees !== "object") return null;
     if (donnees.lisible === false) return { illisible: true, raison: nettoyer(donnees.raison, 160) };
 
@@ -1025,7 +1025,7 @@
       .filter((c) => c.recto.length > 2 && c.verso.length > 0)
       .slice(0, 20);
 
-    if (titre.length < 3 || !points.length || cartes.length < 3) return null;
+    if (titre.length < 3 || !points.length || cartes.length < minCartes) return null;
 
     return {
       titre,
@@ -1120,9 +1120,11 @@
     const prete = fiche.pages.length > 0;
     $("#scan-capture").hidden = prete;
     $("#scan-lecture").hidden = !prete;
+    const pages = fiche.pages.length > 1 ? `mes ${fiche.pages.length} pages` : "ma page";
     $("#scan-analyser").textContent = peutLirePhotos()
-      ? `Lire ${fiche.pages.length > 1 ? "mes " + fiche.pages.length + " pages" : "ma page"} et créer ma fiche`
-      : "Continuer sans lecture";
+      ? `Lire ${pages} et créer ma fiche`
+      : `Lire ${pages} sur mon appareil`;
+    $("#scan-manuel").hidden = peutLirePhotos() || !prete;
     etapesScan(prete ? ["cadrage"] : []);
   }
 
@@ -1186,17 +1188,18 @@
   function raisonLecture() {
     if (!claudeResolu) return { etat: "attente", texte: "Connexion à Claude…" };
     if (peutLirePhotos()) return { etat: "prete", texte: "✳︎ Claude lit tes pages et en tire la fiche et les cartes." };
+    const secours = "Ton appareil peut lire la page lui-même, gratuitement et sans compte "
+      + "(~10 Mo à télécharger la première fois) : le texte est repris tel quel, la fiche est plus brute.";
     if (!sampleClaude) {
       return {
         etat: "sans-claude",
-        texte: "Claude n'est pas joignable sur cette page. La lecture se fait sur ton compte : "
-          + "connecte-toi à claude.ai, puis rouvre ce lien. En attendant, indique le thème à la main.",
+        texte: "Claude n'est pas joignable sur cette page — sa lecture se fait sur ton compte, "
+          + "connecte-toi à claude.ai puis rouvre ce lien pour en profiter. " + secours,
       };
     }
     return {
       etat: "sans-images",
-      texte: "Claude répond ici, mais cette vue ne peut pas lui envoyer de photos. "
-        + "Indique le thème à la main : la photo ne quitte pas ton téléphone.",
+      texte: "Claude répond ici, mais cette vue ne peut pas lui envoyer de photos. " + secours,
     };
   }
 
@@ -1298,19 +1301,28 @@
   /** Le document a été lu : on montre ce qui en a été tiré. */
   function afficherLecture(lecture) {
     const apercu = $("#scan-fiche-lue");
+    const parAppareil = lecture.contenu && lecture.contenu.moteur === "ocr";
+    const pages = `${fiche.pages.length} page${fiche.pages.length > 1 ? "s" : ""}`;
     apercu.innerHTML = `
       <header class="fiche-entete">
-        <p class="fiche-etiquette">${TYPES_DOCUMENT[fiche.type].nom} lue par Claude · ${fiche.pages.length} page${fiche.pages.length > 1 ? "s" : ""}</p>
+        <p class="fiche-etiquette">${TYPES_DOCUMENT[fiche.type].nom} ${parAppareil ? "lue sur ton appareil" : "lue par Claude"} · ${pages}</p>
         <h3 class="fiche-titre">${lecture.titre}</h3>
         <p class="fiche-soustexte">${lecture.matiere ? MATIERES[lecture.matiere].nom + " · " : ""}${lecture.cartes.length} flashcards prêtes</p>
       </header>
       <p class="fiche-accroche">${lecture.contenu.accroche}</p>
       ${sectionFiche("L'essentiel", lecture.contenu.points.slice(0, 3), "fiche-section--points")}
+      ${parAppareil && lecture.texte ? `
+        <details class="reglages">
+          <summary>Voir le texte lu</summary>
+          <p class="texte-lu">${echapper(String(lecture.texte).slice(0, 4000))}</p>
+        </details>` : ""}
     `;
     apercu.hidden = false;
 
     $("#scan-sujet").value = lecture.titre;
-    $("#outil-cartes-detail").textContent = `${lecture.cartes.length} cartes`;
+    $("#outil-cartes-detail").textContent = lecture.cartes.length
+      ? `${lecture.cartes.length} cartes`
+      : "aucune carte";
     $("#scan-sous-texte").textContent = "Document lu. Vérifie le titre, puis choisis ce que tu veux en faire.";
     rendreSuggestionsScan(null);
     $("#scan-resultat").hidden = false;
@@ -1328,6 +1340,94 @@
     $("#scan-resultat").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
+  /**
+   * Lecture de secours, sur l'appareil : Tesseract lit, des règles mettent
+   * en fiche (voir ocr.js). Aucun compte, rien à payer, résultat plus brut —
+   * et on le dit au lecteur plutôt que de le laisser croire à une IA.
+   */
+  async function lireSurAppareil() {
+    if (typeof OCR === "undefined") { ouvrirEtapeManuelle(); return; }
+
+    controleurScan = new AbortController();
+    $("#scan-lecture").hidden = true;
+    $("#chargement-scan").hidden = false;
+    $("#scan-stop").hidden = false;
+    $("#scan-balayage").hidden = false;
+    $("#scan-progres").textContent = "Préparation du moteur de lecture…";
+    messageScan("");
+    etapesScan(["cadrage", "lecture"]);
+
+    const pourcent = (part) => `${Math.round(Math.min(Math.max(part, 0), 1) * 100)} %`;
+
+    try {
+      const lecture = await OCR.lire(fiche.pages, {
+        signal: controleurScan.signal,
+        surProgres: ({ etape, part }) => {
+          if (etape === "chargement") {
+            $("#scan-progres").textContent = `Téléchargement du moteur de lecture… ${pourcent(part)}`;
+          } else if (etape === "page") {
+            const rang = Math.round(part * fiche.pages.length) + 1;
+            $("#scan-progres").textContent = fiche.pages.length > 1
+              ? `Lecture de la page ${Math.min(rang, fiche.pages.length)} sur ${fiche.pages.length}…`
+              : "Lecture de ta page…";
+          } else {
+            $("#scan-progres").textContent = `Lecture du texte… ${pourcent(part)}`;
+          }
+        },
+      });
+
+      const brute = OCR.structurer(lecture.texte, fiche.type);
+      // Sur l'appareil, une seule carte vaut mieux que rien : on n'exige pas les trois.
+      const propre = validerLecture({
+        lisible: true,
+        titre: brute.titre,
+        matiere: brute.matiere,
+        resume: brute.contenu,
+        flashcards: brute.cartes,
+      }, { minCartes: 0 });
+
+      if (!propre) {
+        messageScan("J'ai lu du texte, mais pas de quoi en tirer une fiche fiable. "
+          + "Reprends la photo bien à plat, ou indique le thème à la main.", "erreur");
+        etapesScan(["cadrage"]);
+        ouvrirEtapeManuelle();
+        return;
+      }
+
+      propre.contenu.moteur = "ocr";
+      propre.contenu.accroche = brute.contenu.accroche;
+      propre.contenu.libelleFormules = brute.contenu.libelleFormules;
+      propre.texte = lecture.texte;
+
+      fiche.lecture = propre;
+      if (propre.matiere) fiche.matiere = propre.matiere;
+      fiche.sujet = propre.titre;
+      etapesScan(["cadrage", "lecture", "notions"]);
+      afficherLecture(propre);
+      return;
+    } catch (erreur) {
+      const code = erreur && erreur.code ? erreur.code : "echec";
+      etapesScan(["cadrage"]);
+      if (code === "cancelled") { messageScan("Lecture arrêtée."); }
+      else if (code === "moteur_absent") {
+        messageScan("Le moteur de lecture n'a pas pu être chargé sur cette page "
+          + "(connexion ou blocage du navigateur). Indique le thème à la main.", "erreur");
+      } else if (code === "illisible") {
+        messageScan("Presque rien n'a été lu sur cette photo. Reprends-la à plat, bien éclairée, "
+          + "ou indique le thème à la main.", "erreur");
+      } else {
+        messageScan("La lecture a échoué sur cet appareil. Indique le thème à la main.", "erreur");
+      }
+      if (code !== "cancelled") ouvrirEtapeManuelle();
+    } finally {
+      controleurScan = null;
+      $("#chargement-scan").hidden = true;
+      $("#scan-stop").hidden = true;
+      $("#scan-balayage").hidden = true;
+      $("#scan-lecture").hidden = fiche.pages.length === 0 || Boolean(fiche.lecture);
+    }
+  }
+
   function lancerLecture() {
     if (!fiche.pages.length) { toast("Prends d'abord ta page en photo."); return; }
 
@@ -1337,7 +1437,7 @@
       attenteClaude.then(() => { $("#chargement-scan").hidden = true; lancerLecture(); });
       return;
     }
-    if (!peutLirePhotos()) { ouvrirEtapeManuelle(); return; }
+    if (!peutLirePhotos()) { lireSurAppareil(); return; }
     lirePages();
   }
 
@@ -1359,6 +1459,7 @@
 
     $("#scan-analyser").addEventListener("click", lancerLecture);
     $("#scan-stop").addEventListener("click", () => { if (controleurScan) controleurScan.abort(); });
+    $("#scan-manuel").addEventListener("click", ouvrirEtapeManuelle);
     $("#scan-recommencer").addEventListener("click", reinitialiserScan);
     $("#scan-refaire").addEventListener("click", reinitialiserScan);
 
