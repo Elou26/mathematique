@@ -14,21 +14,53 @@
 const OCR = (function () {
   "use strict";
 
-  /* Versions et chemins : tout est regroupé ici pour pouvoir les corriger
-     d'un seul endroit si un CDN change de structure. */
+  /* Le moteur est servi depuis la même origine que l'app (dossier `moteur/`,
+     voir moteur/LISEZMOI.md) : la page publiée n'a pas le droit d'aller
+     chercher ses fichiers sur un domaine tiers. Les CDN restent en second,
+     pour le cas où l'app serait servie sans ce dossier. */
   const SOURCES = {
     scripts: [
+      "moteur/tesseract.min.js",
       "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js",
       "https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js",
     ],
-    worker: "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js",
-    coeur: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/",
+    worker: "moteur/worker.min.js",
+    coeur: "moteur/",
+    // Modèle français « fast » : 600 Ko compressés, largement assez sur de
+    // l'imprimé. `langPath` n'a pas de barre finale, le worker l'ajoute.
     langues: [
-      "https://cdn.jsdelivr.net/npm/@tesseract.js-data/fra@1.0.0/4.0.0_best_int/",
-      "https://cdn.jsdelivr.net/npm/@tesseract.js-data/fra@1.0.0/4.0.0/",
-      "https://tessdata.projectnaptha.com/4.0.0/",
+      "moteur",
+      "https://cdn.jsdelivr.net/npm/@tesseract.js-data/fra@1.0.0/4.0.0",
+      "https://tessdata.projectnaptha.com/4.0.0",
     ],
   };
+
+  /* Un téléchargement bloqué ne rend jamais la main : toute attente est bornée,
+     et une attente qui progresse repousse sa propre limite. */
+  const DELAI_SCRIPT = 20000;     // chargement du script depuis le CDN
+  const DELAI_SONDE = 5000;       // test d'un chemin de modèle
+  const DELAI_SILENCE = 30000;    // sans le moindre signe de vie du moteur
+
+  function veille(delai) {
+    let minuteur = null;
+    let rejeter = null;
+    const promesse = new Promise((_, rej) => { rejeter = rej; });
+    const armer = () => {
+      clearTimeout(minuteur);
+      minuteur = setTimeout(() => rejeter({ code: "bloque" }), delai);
+    };
+    armer();
+    return { promesse, toucher: armer, arreter: () => clearTimeout(minuteur) };
+  }
+
+  /** Borne une promesse dans le temps sans laisser de minuteur derrière soi. */
+  function avecDelai(promesse, delai, code) {
+    let minuteur = null;
+    const limite = new Promise((_, rejeter) => {
+      minuteur = setTimeout(() => rejeter({ code }), delai);
+    });
+    return Promise.race([promesse, limite]).finally(() => clearTimeout(minuteur));
+  }
 
   let chargement = null;      // promesse de chargement du script
   let cheminLangue = null;    // premier chemin de modèle qui répond
@@ -53,7 +85,7 @@ const OCR = (function () {
 
     chargement = SOURCES.scripts
       .reduce(
-        (suite, url) => suite.catch(() => ajouterScript(url)),
+        (suite, url) => suite.catch(() => avecDelai(ajouterScript(url), DELAI_SCRIPT, "bloque")),
         Promise.reject(new Error("début"))
       )
       .then(() => typeof Tesseract !== "undefined")
@@ -66,10 +98,15 @@ const OCR = (function () {
   async function trouverLangue() {
     if (cheminLangue) return cheminLangue;
     for (const base of SOURCES.langues) {
+      const abandon = new AbortController();
+      const minuteur = setTimeout(() => abandon.abort(), DELAI_SONDE);
       try {
-        const reponse = await fetch(`${base}fra.traineddata.gz`, { method: "HEAD", mode: "cors" });
+        const reponse = await fetch(`${base.replace(/\/$/, "")}/fra.traineddata.gz`, {
+          method: "HEAD", mode: "cors", signal: abandon.signal,
+        });
         if (reponse.ok) { cheminLangue = base; return base; }
-      } catch (erreur) { /* on essaie le suivant */ }
+      } catch (erreur) { /* bloqué ou trop lent : on essaie le suivant */
+      } finally { clearTimeout(minuteur); }
     }
     cheminLangue = SOURCES.langues[0];   // dernier recours : Tesseract dira s'il échoue
     return cheminLangue;
@@ -90,20 +127,35 @@ const OCR = (function () {
     avancer("chargement", 0);
 
     const langPath = await trouverLangue();
+
+    // Tant que le moteur progresse, on le laisse faire ; s'il se tait trop
+    // longtemps (worker refusé, téléchargement gelé), on rend la main.
+    const sentinelle = veille(DELAI_SILENCE);
+    const suivre = (info) => {
+      if (!info) return;
+      sentinelle.toucher();
+      if (typeof info.progress !== "number") return;
+      if (info.status === "recognizing text") avancer("lecture", info.progress);
+      else avancer("chargement", info.progress);
+    };
+
     let ouvrier;
     try {
-      ouvrier = await Tesseract.createWorker("fra", 1, {
-        workerPath: SOURCES.worker,
-        corePath: SOURCES.coeur,
-        langPath,
-        logger: (info) => {
-          if (!info || typeof info.progress !== "number") return;
-          if (info.status === "recognizing text") avancer("lecture", info.progress);
-          else avancer("chargement", info.progress);
-        },
-      });
+      ouvrier = await Promise.race([
+        Tesseract.createWorker("fra", 1, {
+          workerPath: SOURCES.worker,
+          corePath: SOURCES.coeur,
+          langPath,
+          // Le worker est servi par le site : inutile de passer par un blob,
+          // que la politique de sécurité de la page peut refuser.
+          workerBlobURL: false,
+          logger: suivre,
+        }),
+        sentinelle.promesse,
+      ]);
     } catch (erreur) {
-      throw { code: "moteur_absent" };
+      sentinelle.arreter();
+      throw erreur && erreur.code === "bloque" ? erreur : { code: "moteur_absent" };
     }
 
     const textes = [];
@@ -111,10 +163,12 @@ const OCR = (function () {
       for (let rang = 0; rang < pages.length; rang++) {
         if (signal && signal.aborted) throw { code: "cancelled" };
         avancer("page", rang / pages.length);
-        const resultat = await ouvrier.recognize(pages[rang]);
+        sentinelle.toucher();
+        const resultat = await Promise.race([ouvrier.recognize(pages[rang]), sentinelle.promesse]);
         textes.push(((resultat && resultat.data && resultat.data.text) || "").trim());
       }
     } finally {
+      sentinelle.arreter();
       try { await ouvrier.terminate(); } catch (erreur) { /* déjà fermé */ }
     }
 
@@ -201,12 +255,22 @@ const OCR = (function () {
       && !INTITULES.test(ligne));
     if (!candidates.length) return (debut[0] || "").slice(0, 70);
 
+    /* Un titre de chapitre : court, sans virgule, capitalisé, haut de page,
+       et souvent repris dans l'en-tête. Une phrase du cours coche l'inverse. */
     const plat = sansAccents(lignes.join(" | "));
     let meilleure = candidates[0];
-    let meilleurScore = -1;
+    let meilleurScore = -Infinity;
+
     candidates.forEach((ligne) => {
-      const reprises = plat.split(sansAccents(ligne)).length - 1;
-      const score = reprises * 10 + Math.min(ligne.length, 50) / 10;
+      const rang = debut.indexOf(ligne);
+      const mots = ligne.split(" ").length;
+      const score =
+          (plat.split(sansAccents(ligne)).length - 1) * 10   // repris ailleurs
+        + (rang >= 0 && rang < 5 ? 6 : 0)                    // haut de page
+        + (/^[A-ZÀ-Ý]/.test(ligne) ? 3 : -6)                 // commence par une majuscule
+        + (ligne.includes(",") ? -8 : 0)                     // une virgule trahit une phrase
+        + (mots <= 8 ? 3 : -2)                               // un titre est court
+        + Math.min(ligne.length, 45) / 30;
       if (score > meilleurScore) { meilleurScore = score; meilleure = ligne; }
     });
     return meilleure;

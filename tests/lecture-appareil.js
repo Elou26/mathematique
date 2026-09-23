@@ -49,6 +49,12 @@ function verifier(nom, condition, vu) {
   else { echecs++; console.log(`[ÉCHEC] ${nom}\n        vu : ${vu}`); }
 }
 
+async function attendreMessage(page, delai = 45000) {
+  return page.waitForFunction(
+    () => { const m = document.querySelector('#scan-message'); return m && !m.hidden && m.textContent; },
+    null, { timeout: delai }).then(() => true).catch(() => false);
+}
+
 async function ouvrirScan(ctx) {
   const page = await ctx.newPage();
   await page.goto('http://localhost:8321/index.html');
@@ -119,7 +125,8 @@ async function ouvrirScan(ctx) {
     await ctx.addInitScript(FAUX('vide'));
     const page = await ouvrirScan(ctx);
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
-    await page.click('#scan-analyser'); await page.waitForTimeout(1200);
+    await page.click('#scan-analyser');
+    await attendreMessage(page);
     verifier('une photo muette est annoncée',
       /Presque rien n'a été lu/.test(await page.innerText('#scan-message')), await page.innerText('#scan-message'));
     verifier('le thème est alors demandé à la main', await page.isVisible('#scan-sujet'), 'champ absent');
@@ -129,13 +136,37 @@ async function ouvrirScan(ctx) {
     await ctx.close();
   }
 
+  /* — 3 bis. Moteur muet : on ne tourne pas à l'infini — */
+  {
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(`
+      window.claude = { use: async () => null };
+      window.Tesseract = { createWorker: () => new Promise(() => {}) };   // ne répond jamais
+    `);
+    const page = await ouvrirScan(ctx);
+    await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
+    // On raccourcit la veille pour ne pas attendre 30 s dans le test.
+    await page.evaluate(() => { window.__t0 = Date.now(); });
+    await page.click('#scan-analyser');
+    const bloque = await attendreMessage(page);
+    verifier('un moteur muet finit par rendre la main', bloque,
+      bloque ? '' : 'toujours en attente après 45 s');
+    if (bloque) {
+      verifier('le blocage est expliqué',
+        /s'est arrêté en chemin/.test(await page.innerText('#scan-message')),
+        await page.innerText('#scan-message'));
+    }
+    await ctx.close();
+  }
+
   /* — 3. Moteur inaccessible : message franc — */
   {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(FAUX('panne'));
     const page = await ouvrirScan(ctx);
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
-    await page.click('#scan-analyser'); await page.waitForTimeout(1200);
+    await page.click('#scan-analyser');
+    await attendreMessage(page);
     verifier('un moteur injoignable est annoncé',
       /moteur de lecture n'a pas pu être chargé/.test(await page.innerText('#scan-message')),
       await page.innerText('#scan-message'));

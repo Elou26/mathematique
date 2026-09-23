@@ -1189,7 +1189,7 @@
     if (!claudeResolu) return { etat: "attente", texte: "Connexion à Claude…" };
     if (peutLirePhotos()) return { etat: "prete", texte: "✳︎ Claude lit tes pages et en tire la fiche et les cartes." };
     const secours = "Ton appareil peut lire la page lui-même, gratuitement et sans compte "
-      + "(~10 Mo à télécharger la première fois) : le texte est repris tel quel, la fiche est plus brute.";
+      + "(quelques Mo à télécharger la première fois) : le texte est repris tel quel, la fiche est plus brute.";
     if (!sampleClaude) {
       return {
         etat: "sans-claude",
@@ -1364,7 +1364,9 @@
         signal: controleurScan.signal,
         surProgres: ({ etape, part }) => {
           if (etape === "chargement") {
-            $("#scan-progres").textContent = `Téléchargement du moteur de lecture… ${pourcent(part)}`;
+            $("#scan-progres").textContent = part > 0
+              ? `Téléchargement du moteur de lecture… ${pourcent(part)}`
+              : "Téléchargement du moteur de lecture… (quelques Mo, une seule fois)";
           } else if (etape === "page") {
             const rang = Math.round(part * fiche.pages.length) + 1;
             $("#scan-progres").textContent = fiche.pages.length > 1
@@ -1409,6 +1411,11 @@
       const code = erreur && erreur.code ? erreur.code : "echec";
       etapesScan(["cadrage"]);
       if (code === "cancelled") { messageScan("Lecture arrêtée."); }
+      else if (code === "bloque") {
+        messageScan("Le téléchargement du moteur s'est arrêté en chemin : cette page n'arrive pas à "
+          + "le récupérer (réseau lent, ou blocage du navigateur). Indique le thème à la main — "
+          + "et dis-le-moi, c'est réparable.", "erreur");
+      }
       else if (code === "moteur_absent") {
         messageScan("Le moteur de lecture n'a pas pu être chargé sur cette page "
           + "(connexion ou blocage du navigateur). Indique le thème à la main.", "erreur");

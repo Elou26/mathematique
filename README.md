@@ -25,6 +25,7 @@ python3 -m http.server 8000
 | `data.js` | Données : matières, catalogue des thèmes, paliers de révision, défis, banques de secours (questions rédigées et cartes) |
 | `generateurs.js` | Générateurs de questions : la banque des quiz ne s'épuise pas |
 | `ocr.js` | Lecture de secours sur l'appareil (Tesseract.js) + mise en fiche par règles |
+| `moteur/` | Tesseract.js, son cœur WebAssembly et le modèle français, servis depuis le site |
 
 ## Écran de bienvenue (choix du profil)
 
@@ -220,10 +221,21 @@ haut **et** juste au-dessus du bouton :
 - `sample.limits()` n'annonce pas `images` — Claude répond, mais cette vue ne peut pas lui envoyer
   de photos.
 
-Dans les deux cas, le bouton devient **« Lire ma page sur mon appareil »** : `ocr.js` charge
-Tesseract.js depuis un CDN (jsDelivr, cdnjs en second), télécharge le modèle français une fois
-(~10 Mo, puis en cache navigateur) et lit les pages **dans la page, sans compte, sans serveur et
-sans rien à payer**. `« Continuer sans lecture »` reste offert juste en dessous.
+Dans les deux cas, le bouton devient **« Lire ma page sur mon appareil »** : `ocr.js` lance
+Tesseract.js **servi depuis le site lui-même** (dossier `moteur/`, 8,4 Mo une fois pour toutes —
+voir `moteur/LISEZMOI.md`) et lit les pages **dans la page, sans compte, sans serveur et sans
+rien à payer**. Le lecteur télécharge le cœur WebAssembly (~3,9 Mo) et le modèle français
+(600 Ko) à sa première lecture, puis son navigateur les garde en cache.
+`« Continuer sans lecture »` reste offert juste en dessous.
+
+Tout est servi depuis la même origine — `workerBlobURL: false` compris — parce que la page
+publiée n'a pas le droit d'aller chercher des fichiers sur un domaine tiers : c'est ce qui
+faisait tourner le chargement à l'infini quand le moteur venait d'un CDN. Les CDN restent
+déclarés en second dans `OCR.SOURCES`, pour une app servie sans le dossier `moteur/`.
+
+**Aucune attente n'est infinie** : le chargement du script, chaque sonde de modèle et le moteur
+lui-même sont bornés (`DELAI_SCRIPT`, `DELAI_SONDE`, `DELAI_SILENCE`) ; une lecture qui progresse
+repousse sa propre limite, une lecture muette rend la main avec un message qui dit quoi faire.
 
 Tesseract ne rend que du **texte brut** : la mise en fiche est faite par des règles
 (`OCR.structurer()`), pas par une IA —
@@ -251,8 +263,11 @@ et renvoie au chemin manuel.
 (images transmises, fiche et cartes rangées), document illisible (aucune fiche inventée),
 capacité sans images (repli sur l'appareil) et absence de Claude.
 `node tests/lecture-appareil.js` couvre la lecture sur l'appareil avec un faux Tesseract : fiche et
-cartes tirées d'un vrai texte de cours, photo muette annoncée sans rien inventer, moteur
-injoignable annoncé franchement.
+cartes tirées d'un vrai texte de cours, photo muette annoncée sans rien inventer, moteur muet ou
+injoignable annoncé franchement plutôt que de tourner sans fin.
+`node tests/lecture-reelle.js` fait la **vraie** lecture : il imprime une page de cours avec le
+navigateur, la fait lire par le moteur embarqué (≈ 1 s), et vérifie le titre retenu, la matière
+devinée, les cartes tirées du texte — et qu'aucune requête ne sort du site.
 
 ## Page « Créer résumé »
 
