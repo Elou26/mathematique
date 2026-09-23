@@ -943,7 +943,7 @@
         fiche.matiere = matiere;
         rendreSuggestionsScan(matiere);
         $("#scan-sous-texte").textContent =
-          `Fiche ${deLaMatiere(MATIERES[matiere].nom)} : cadre-la, puis choisis ce que tu veux en faire.`;
+          `Fiche ${deLaMatiere(MATIERES[matiere].nom)} : cadre ta page.`;
       }
       return;
     }
@@ -1092,32 +1092,15 @@
      thème et on travaille sur les banques locales.
      ———————————————————————————————————————————————————————————— */
 
-  const TYPES_DOCUMENT = {
-    lecon: {
-      nom: "leçon",
-      aide: "Le cours, la leçon du cahier ou la fiche du manuel.",
-      consigne: "C'est une leçon : garde la structure du cours, les définitions, les formules et les repères.",
-    },
-    devoir: {
-      nom: "devoir",
-      aide: "Un exercice, un DM, une feuille d'entraînement — corrigée ou non.",
-      consigne: "C'est un devoir : retiens les méthodes de résolution, les étapes attendues et les erreurs à éviter ; "
-        + "les flashcards portent sur la méthode et sur les notions mobilisées.",
-    },
-    controle: {
-      nom: "contrôle",
-      aide: "Un contrôle rendu, un DS, un bac blanc — avec ou sans corrigé.",
-      consigne: "C'est un contrôle : cible ce qui est tombé et ce qui a été raté ; "
-        + "les flashcards reprennent les questions du contrôle et leur réponse attendue.",
-    },
-  };
-
   const CONSIGNE_LECTURE = [
     "Tu es professeur et tu rédiges, pour un élève francophone, la fiche de révision",
     "qu'il aurait dû écrire lui-même à partir de son document.",
     "",
-    "Les images jointes sont les pages d'un même document : <<<TYPE>>>.",
-    "<<<CONSIGNE_TYPE>>>",
+    "Les images jointes sont les pages d'un même document : une leçon, un devoir ou un",
+    "contrôle — reconnais toi-même ce que c'est et adapte la fiche :",
+    "- une leçon : garde la structure du cours, les définitions, les formules et les repères ;",
+    "- un devoir : retiens les méthodes de résolution, les étapes attendues et les erreurs à éviter ;",
+    "- un contrôle : cible ce qui est tombé et la réponse attendue.",
     "Profil de l'élève : <<<PROFIL>>>.",
     "",
     "Lis ces pages (texte imprimé comme manuscrit) et réponds uniquement avec un objet JSON de cette forme :",
@@ -1155,7 +1138,7 @@
     "- aucun texte en dehors du JSON.",
   ].join("\n");
 
-  const fiche = { pages: [], apercus: [], type: "lecon", nom: "", sujet: "", matiere: null, lecture: null };
+  const fiche = { pages: [], apercus: [], nom: "", sujet: "", matiere: null, lecture: null };
   let controleurScan = null;
 
   /** Coupe et échappe : ce que Claude renvoie est affiché, jamais interprété. */
@@ -1189,7 +1172,7 @@
       matiere: MATIERES[donnees.matiere] ? donnees.matiere : null,
       contenu: {
         lu: true,
-        accroche: nettoyer(brut.accroche, 400) || `Fiche tirée de ${TYPES_DOCUMENT[fiche.type].nom}.`,
+        accroche: nettoyer(brut.accroche, 400) || "Fiche tirée de ton document.",
         points,
         formules: listeNettoyee(brut.formules, 10),
         exemples: listeNettoyee(brut.exemples, 6, 700),
@@ -1327,8 +1310,7 @@
     $("#chargement-scan").hidden = true;
     $("#scan-stop").hidden = true;
     messageScan("");
-    $("#scan-sous-texte").textContent = "Prends en photo ta leçon, ton devoir ou ton contrôle : "
-      + "la fiche de révision et les flashcards en sont tirées.";
+    $("#scan-sous-texte").textContent = "Photographie ta page : fiche et flashcards en sortent.";
     rendrePagesScan();
     afficherMoteurScan();
   }
@@ -1344,19 +1326,17 @@
   /** Pourquoi la lecture est possible — ou non. */
   function raisonLecture() {
     if (!claudeResolu) return { etat: "attente", texte: "Connexion à Claude…" };
-    if (peutLirePhotos()) return { etat: "prete", texte: "✳︎ Claude lit tes pages et en tire la fiche et les cartes." };
-    const secours = "Ton appareil peut lire la page lui-même, gratuitement et sans compte "
-      + "(quelques Mo à télécharger la première fois) : le texte est repris tel quel, la fiche est plus brute.";
+    if (peutLirePhotos()) return { etat: "prete", texte: "✳︎ Claude lit tes pages et écrit la fiche." };
+    const secours = "Ton appareil peut la lire lui-même, gratuitement : fiche plus brute.";
     if (!sampleClaude) {
       return {
         etat: "sans-claude",
-        texte: "Claude n'est pas joignable sur cette page — sa lecture se fait sur ton compte, "
-          + "connecte-toi à claude.ai puis rouvre ce lien pour en profiter. " + secours,
+        texte: `Connecte-toi à claude.ai pour une fiche rédigée par Claude. ${secours}`,
       };
     }
     return {
       etat: "sans-images",
-      texte: "Claude répond ici, mais cette vue ne peut pas lui envoyer de photos. " + secours,
+      texte: `Les photos ne passent pas dans cette vue. ${secours}`,
     };
   }
 
@@ -1380,10 +1360,7 @@
 
   /** Lance la lecture des pages par Claude. */
   async function lirePages() {
-    const type = TYPES_DOCUMENT[fiche.type];
     const invite = CONSIGNE_LECTURE
-      .replace("<<<TYPE>>>", type.nom)
-      .replace("<<<CONSIGNE_TYPE>>>", type.consigne)
       .replace("<<<PROFIL>>>", niveauChoisi ? libelleNiveau().toLowerCase() : "non précisé")
       .replace("<<<MATIERES>>>", Object.keys(MATIERES).join("|"));
 
@@ -1462,7 +1439,7 @@
     const pages = `${fiche.pages.length} page${fiche.pages.length > 1 ? "s" : ""}`;
     apercu.innerHTML = `
       <header class="fiche-entete">
-        <p class="fiche-etiquette">${TYPES_DOCUMENT[fiche.type].nom} ${parAppareil ? "lue sur ton appareil" : "lue par Claude"} · ${pages}</p>
+        <p class="fiche-etiquette">${parAppareil ? "Lue sur ton appareil" : "Lue par Claude"} · ${pages}</p>
         <h3 class="fiche-titre">${lecture.titre}</h3>
         <p class="fiche-soustexte">${lecture.matiere ? MATIERES[lecture.matiere].nom + " · " : ""}${lecture.cartes.length} flashcards prêtes</p>
       </header>
@@ -1482,7 +1459,7 @@
     $("#outil-cartes-detail").textContent = lecture.cartes.length
       ? `${lecture.cartes.length} cartes`
       : "aucune carte";
-    $("#scan-sous-texte").textContent = "Document lu. Vérifie le titre, puis choisis ce que tu veux en faire.";
+    $("#scan-sous-texte").textContent = "Lu. Vérifie le titre, puis choisis.";
     rendreSuggestionsScan(null);
     $("#scan-resultat").hidden = false;
     $("#scan-resultat").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1493,7 +1470,7 @@
     fiche.lecture = null;
     $("#scan-fiche-lue").hidden = true;
     $("#outil-cartes-detail").textContent = "Recto-verso";
-    $("#scan-sous-texte").textContent = "Indique le thème de ce document, puis choisis quoi en faire.";
+    $("#scan-sous-texte").textContent = "Indique le thème, puis choisis.";
     rendreSuggestionsScan(fiche.matiere);
     $("#scan-resultat").hidden = false;
     $("#scan-resultat").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1537,7 +1514,7 @@
         },
       });
 
-      const brute = OCR.structurer(lecture.texte, fiche.type);
+      const brute = OCR.structurer(lecture.texte);
       // Sur l'appareil, une seule carte vaut mieux que rien : on n'exige pas les trois.
       const propre = validerLecture({
         lisible: true,
@@ -1616,11 +1593,6 @@
         ajouterPages(champ.files);
         champ.value = "";               // pour pouvoir reprendre la même photo
       });
-    });
-
-    brancherPuces("#scan-types .puce", "type", (valeur) => {
-      fiche.type = TYPES_DOCUMENT[valeur] ? valeur : "lecon";
-      $("#scan-type-aide").textContent = TYPES_DOCUMENT[fiche.type].aide;
     });
 
     $("#scan-analyser").addEventListener("click", lancerLecture);

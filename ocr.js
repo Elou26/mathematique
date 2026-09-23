@@ -493,7 +493,7 @@ const OCR = (function () {
     return gardees;
   }
 
-  function structurer(texte, type) {
+  function structurer(texte) {
     const lignes = lignesUtiles(texte);
     const titre = devinerTitre(lignes);
     const cartes = fabriquerCartes(lignes, titre);
@@ -518,7 +518,7 @@ const OCR = (function () {
       contenu: {
         lu: true,
         moteur: "ocr",
-        accroche: `Texte lu sur ${type === "lecon" ? "ta leçon" : type === "devoir" ? "ton devoir" : "ton contrôle"}, sans IA : relis-le avant de réviser.`,
+        accroche: "Texte lu sur ton document, sans IA : relis-le avant de réviser.",
         points: points.length ? points : lignes.filter((l) => l.length > 30).slice(0, 6),
         formules,
         exemples,

@@ -216,15 +216,14 @@ propose la création d'une fiche, et que la fiche créée irrigue les outils, la
 C'est le point d'entrée des trois outils : on photographie d'abord, on choisit ensuite quoi en
 faire. **C'est Claude qui lit les pages** — il n'y a pas d'OCR embarqué.
 
-1. **Type de document** — leçon, devoir ou contrôle (`TYPES_DOCUMENT` dans `app.js`). Le choix
-   change la consigne envoyée avec les images : une leçon garde la structure du cours, un devoir
-   retient les méthodes et les erreurs à éviter, un contrôle cible ce qui est tombé.
-2. **Cadrage** — un viseur à quatre coins, puis « Prendre une photo » (`<input type="file"
+1. **Cadrage** — un viseur à quatre coins, puis « Prendre une photo » (`<input type="file"
    accept="image/*" capture="environment">`, qui ouvre l'appareil photo sur mobile) ou
    « Choisir une image ». Plusieurs pages : elles s'ajoutent en vignettes (un clic retire la
    page), dans la limite de `limits().images.maxCount`.
-3. **Lecture** — `lirePages()` envoie les pages à `sample.json(invite, { images })`. La consigne
-   (`CONSIGNE_LECTURE`) demande **une fiche complète et soignée**, pas un survol : des phrases
+2. **Lecture** — `lirePages()` envoie les pages à `sample.json(invite, { images })`. La consigne
+   (`CONSIGNE_LECTURE`) laisse Claude **reconnaître lui-même** ce qu'il lit — leçon, devoir ou
+   contrôle — et adapter la fiche en conséquence ; rien n'est demandé au lecteur. Elle exige
+   **une fiche complète et soignée**, pas un survol : des phrases
    entières qui se tiennent seules, tout le document partie par partie, **chaque exemple repris
    avec son énoncé et sa résolution**, les notations du document conservées — et rien d'inventé.
    Les flashcards sont tenues d'être de **vraies questions** : la consigne donne des exemples à
@@ -234,7 +233,7 @@ faire. **C'est Claude qui lit les pages** — il n'y a pas d'OCR embarqué.
    réponse incomplète ; `{"lisible": false}` affiche la raison au lieu d'inventer une fiche.
    Une fiche lue s'affiche **entière** : ni le réglage de longueur ni les options à inclure ne
    la rabotent.
-4. **Exploitation** — la fiche lue s'affiche (titre, matière, premiers points, nombre de cartes),
+3. **Exploitation** — la fiche lue s'affiche (titre, matière, premiers points, nombre de cartes),
    le titre remplit le champ du thème, puis **FlashCards**, **Fiche** ou **Quiz**. Après le
    nommage en chapitre, la fiche est rangée avec son `contenu` et ses `cartes` : les flashcards
    sortent du document photographié, le résumé affiche ce qui a été lu (sans regénérer), et un

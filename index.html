@@ -184,20 +184,10 @@
     </button>
 
     <h2 class="titre-categorie titre-categorie--grand" id="scan-titre-page">Photographier mon cours</h2>
-    <p class="sous-texte" id="scan-sous-texte">Prends en photo ta leçon, ton devoir ou ton contrôle :
-      la fiche de révision et les flashcards en sont tirées.</p>
+    <p class="sous-texte" id="scan-sous-texte">Photographie ta page : fiche et flashcards en sortent.</p>
     <p class="ia-moteur" id="scan-moteur" hidden></p>
 
-    <!-- Étape 1 : ce qu'on photographie -->
-    <p class="etiquette">C'est quoi ?</p>
-    <div class="puces" id="scan-types" role="radiogroup" aria-label="Type de document">
-      <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-type="lecon">📘 Une leçon</button>
-      <button class="puce" type="button" role="radio" aria-checked="false" data-type="devoir">✏️ Un devoir</button>
-      <button class="puce" type="button" role="radio" aria-checked="false" data-type="controle">📝 Un contrôle</button>
-    </div>
-    <p class="mention" id="scan-type-aide">Le cours, la leçon du cahier ou la fiche du manuel.</p>
-
-    <!-- Étape 2 : cadrage -->
+    <!-- Cadrage -->
     <div class="scanner" id="scanner">
       <div class="scanner-cadre">
         <img class="scanner-apercu" id="scan-apercu" alt="Aperçu de la page photographiée" hidden>
@@ -230,10 +220,10 @@
         Choisir une image
         <input type="file" id="scan-galerie" accept="image/*" multiple hidden>
       </label>
-      <p class="mention" id="scan-mention">La photo reste sur ton téléphone tant que tu ne lances pas la lecture.</p>
+      <p class="mention" id="scan-mention">La photo reste sur ton téléphone.</p>
     </div>
 
-    <!-- Étape 3 : lecture du document -->
+    <!-- Lecture -->
     <div class="scan-lecture" id="scan-lecture" hidden>
       <p class="ia-message ia-message--erreur" id="scan-raison" hidden></p>
       <button class="bouton-principal" type="button" id="scan-analyser">Lire et créer ma fiche</button>
@@ -252,7 +242,7 @@
     <button class="bouton-texte" type="button" id="scan-stop" hidden>Arrêter</button>
     <p class="ia-message" id="scan-message" hidden aria-live="polite"></p>
 
-    <!-- Étape 4 : ce qui a été lu, et ce qu'on en fait -->
+    <!-- Ce qui a été lu, et ce qu'on en fait -->
     <div class="scan-resultat" id="scan-resultat" hidden>
       <article class="fiche fiche--lue" id="scan-fiche-lue" hidden></article>
 
@@ -500,7 +490,7 @@
     </button>
 
     <h2 class="titre-categorie titre-categorie--grand">FlashCards</h2>
-    <p class="sous-texte">Une question au recto, la réponse au verso : la mémoire se teste, elle ne se relit pas.</p>
+    <p class="sous-texte">La mémoire se teste, elle ne se relit pas.</p>
 
     <form id="form-cartes" novalidate>
       <p class="etiquette">Matière</p>
@@ -571,7 +561,7 @@
   <!-- Vue : Révision espacée (cible de la cloche) -->
   <section class="vue" id="vue-revision" hidden>
     <h2 class="titre-categorie titre-categorie--grand">Révision espacée</h2>
-    <p class="sous-texte">Chaque fiche que tu crées revient à J+1, J+3, J+7, J+15 puis J+30 pour ancrer la notion en mémoire longue.</p>
+    <p class="sous-texte">Chaque fiche revient à J+1, J+3, J+7, J+15 puis J+30. Réussie, elle passe au palier suivant ; ratée, elle revient demain.</p>
     <div class="liste-echeances" id="liste-echeances"></div>
   </section>
 

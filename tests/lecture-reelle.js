@@ -82,7 +82,7 @@ function verifier(nom, condition, vu) {
     /Mathématiques/.test(await page.innerText('#scan-fiche-lue')),
     (await page.innerText('#scan-fiche-lue')).split('\n').slice(0, 4).join(' · '));
   verifier('la fiche dit qu\'elle vient de l\'appareil',
-    /lue sur ton appareil/.test(await page.innerText('#scan-fiche-lue')), '—');
+    /lue sur ton appareil/i.test(await page.innerText('#scan-fiche-lue')), '—');
   verifier('aucune requête ne sort du site', dehors.length === 0, dehors.slice(0, 3).join(' | '));
 
   await page.click('[data-scan-outil="flashcards"]'); await page.waitForTimeout(500);

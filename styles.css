@@ -581,7 +581,9 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   position: relative;
   display: grid;
   place-items: center;
-  aspect-ratio: 3 / 4;
+  /* Assez grand pour cadrer, assez court pour laisser voir le bouton. */
+  aspect-ratio: 4 / 5;
+  max-height: 42vh;
   transition: aspect-ratio .3s ease;
   width: 100%;
   overflow: hidden;

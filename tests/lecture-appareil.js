@@ -77,7 +77,7 @@ async function ouvrirScan(ctx) {
     page.on('pageerror', (e) => erreurs.push(String(e)));
 
     verifier('le bandeau propose la lecture sur l\'appareil',
-      /appareil peut lire la page lui-même/.test(await page.innerText('#scan-moteur')),
+      /appareil peut la lire lui-même/.test(await page.innerText('#scan-moteur')),
       await page.innerText('#scan-moteur'));
 
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
@@ -89,7 +89,7 @@ async function ouvrirScan(ctx) {
     await page.click('#scan-analyser'); await page.waitForTimeout(1500);
 
     const lue = await page.innerText('#scan-fiche-lue');
-    verifier('la fiche dit qui a lu', /lue sur ton appareil/.test(lue), lue.split('\n')[0]);
+    verifier('la fiche dit qui a lu', /lue sur ton appareil/i.test(lue), lue.split('\n')[0]);
     verifier('le titre du chapitre est repéré',
       (await page.inputValue('#scan-sujet')) === 'Suites arithmétiques et géométriques',
       await page.inputValue('#scan-sujet'));

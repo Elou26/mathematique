@@ -73,10 +73,6 @@ function verifier(nom, condition, vu) {
     verifier('le moteur annonce la lecture par Claude',
       /Claude lit tes pages/.test(await page.innerText('#scan-moteur')), await page.innerText('#scan-moteur'));
 
-    await page.click('[data-type="controle"]'); await page.waitForTimeout(150);
-    verifier("le type choisi change l'aide", /contrôle rendu/.test(await page.innerText('#scan-type-aide')),
-      await page.innerText('#scan-type-aide'));
-
     await page.setInputFiles('#scan-galerie', ['/tmp/page-cours.png', '/tmp/page-cours.png']);
     await page.waitForTimeout(400);
     verifier('les deux pages sont en vignettes', (await page.$$('.scan-page')).length === 2,
@@ -87,8 +83,9 @@ function verifier(nom, condition, vu) {
     await page.click('#scan-analyser'); await page.waitForTimeout(1200);
     verifier('les images sont bien envoyées', (await page.evaluate(() => window.__images)) === 2,
       await page.evaluate(() => window.__images));
-    verifier("l'invite décrit un contrôle", /contrôle/.test(await page.evaluate(() => window.__invite || '')),
-      (await page.evaluate(() => window.__invite || '')).slice(0, 80));
+    verifier("l'invite laisse Claude reconnaître le document",
+      /leçon, un devoir ou un/.test(await page.evaluate(() => window.__invite || '')),
+      (await page.evaluate(() => window.__invite || '')).slice(0, 90));
     verifier('la fiche lue est affichée',
       /La révolution française/.test(await page.innerText('#scan-fiche-lue')), await page.innerText('#scan-fiche-lue'));
     verifier('le titre lu remplit le champ',
@@ -145,7 +142,7 @@ function verifier(nom, condition, vu) {
     await page.goto('http://localhost:8321/index.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
     await page.click('#ouvrir-creation'); await page.click('[data-creation="scan"]'); await page.waitForTimeout(300);
-    verifier('le repli manuel est annoncé', /ne peut pas lui envoyer de photos/.test(await page.innerText('#scan-moteur')),
+    verifier('le repli manuel est annoncé', /photos ne passent pas dans cette vue/.test(await page.innerText('#scan-moteur')),
       await page.innerText('#scan-moteur'));
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
     verifier('le bouton propose la lecture sur l\'appareil',
@@ -153,7 +150,7 @@ function verifier(nom, condition, vu) {
       await page.innerText('#scan-analyser'));
     verifier('le passage manuel reste offert', await page.isVisible('#scan-manuel'), 'bouton absent');
     verifier('la raison est rappelée au-dessus du bouton',
-      /ne peut pas lui envoyer de photos/.test(await page.innerText('#scan-raison')),
+      /photos ne passent pas dans cette vue/.test(await page.innerText('#scan-raison')),
       await page.innerText('#scan-raison'));
     await page.click('#scan-manuel'); await page.waitForTimeout(500);
     verifier('le thème est demandé à la main', await page.isVisible('#scan-sujet'), 'champ absent');
