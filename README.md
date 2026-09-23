@@ -111,13 +111,36 @@ Depuis le scan, le bouton devient « Enregistrer et continuer » : la fiche est 
 l'outil demandé s'ouvre. Une fiche déjà présente dans la bibliothèque n'est pas renommée : elle
 est simplement marquée comme révisée.
 
-## Révision espacée (cloche) et profil
+## La boucle d'apprentissage
 
-La file n'est plus une donnée figée : `echeancesFiches()` la calcule à partir de la dernière
-révision de chaque fiche et des paliers `PALIERS_REVISION` (J+1, J+3, J+7, J+15, J+30). La
-pastille de la cloche compte les fiches dues aujourd'hui — invisible tant qu'il n'y en a pas —
-et toucher une échéance relance directement la révision. Sans fiche, la page propose d'en créer
-une. Le profil compte les fiches créées, les matières suivies et la progression moyenne.
+L'app est construite autour de ce qui fait réellement mémoriser : se tester plutôt que relire,
+espacer les reprises, revenir sur ses erreurs, et tenir la régularité.
+
+**L'accueil ouvre sur ce qui est dû** (`rendreAujourdhui()`) : les fiches à revoir aujourd'hui,
+la plus en retard en tête, avec un bouton « Réviser » qui lance le quiz sans détour. Au-dessus,
+le compte des révisions du jour et la série de jours consécutifs (🔥 à partir de deux). Quand
+tout est à jour, le bloc dit quand tombe la prochaine et propose **une fiche au hasard** —
+mélanger les sujets ancre mieux que réviser en bloc.
+
+**Le palier suit le résultat, pas le calendrier.** `echeancesFiches()` calcule l'échéance depuis
+le **palier de la fiche** (`PALIERS_REVISION` : J+1, J+3, J+7, J+15, J+30), pas depuis le temps
+écoulé : une fiche oubliée reste due et affiche son retard, au lieu de glisser toute seule d'un
+palier au suivant. `marquerRevisee()` fait monter le palier au-dessus de 60 % de réussite, le
+remet à zéro en dessous de 40 %, et le laisse tel quel entre les deux.
+
+**Le quiz rend l'erreur utile** : le bilan propose « Revoir mes N erreurs », qui rejoue
+uniquement les questions ratées, choix remélangés.
+
+**Les flashcards s'auto-évaluent en trois niveaux** — *À revoir* (la carte revient 2 cartes plus
+loin), *Presque* (5 cartes plus loin), *Je savais* (elle sort) : un Leitner ramené à l'échelle de
+la séance, au lieu d'un simple « raté / su ». Le recto invite d'abord à répondre de tête.
+
+**Après une fiche, on se teste** : « Me tester sur cette fiche » est l'action principale de la
+fiche de résumé, devant l'enregistrement.
+
+Le journal (`mathematique.journal`, une ligne par jour) alimente la série et le compte du jour ;
+la pastille de la cloche compte les fiches dues ; le profil affiche fiches créées, jours
+d'affilée et progression moyenne.
 
 ## Feuille « Option de création de fiche »
 
@@ -282,6 +305,10 @@ capacité sans images (repli sur l'appareil) et absence de Claude.
 `node tests/lecture-appareil.js` couvre la lecture sur l'appareil avec un faux Tesseract : fiche et
 cartes tirées d'un vrai texte de cours, photo muette annoncée sans rien inventer, moteur muet ou
 injoignable annoncé franchement plutôt que de tourner sans fin.
+`node tests/apprentissage.js` parcourt la boucle entière : l'accueil qui ouvre sur les fiches
+dues et annonce le retard, la révision lancée depuis l'accueil, le palier qui suit le score, les
+erreurs rejouées seules, le compte du jour et la série qui avancent, et une carte ratée qui
+revient dans la séance.
 `node tests/lecture-reelle.js` fait la **vraie** lecture : il imprime une page de cours avec le
 navigateur, la fait lire par le moteur embarqué (≈ 1 s), et vérifie le titre retenu, la matière
 devinée, les cartes tirées du texte — et qu'aucune requête ne sort du site.

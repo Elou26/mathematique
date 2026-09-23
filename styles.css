@@ -1350,18 +1350,74 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
 .carte-face--verso .carte-contenu { color: var(--blanc); }
 .carte-aide { font-size: 12px; color: var(--gris-texte); }
 
-.verdicts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.verdicts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
 .verdicts[hidden] { display: none; }
 .bouton-verdict {
-  padding: 12px 8px;
-  border-radius: 50px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 6px;
+  border-radius: 16px;
   font-size: 14px;
   font-weight: 600;
   border: 1.5px solid;
 }
-.bouton-verdict--revoir { background: #FDECEC; border-color: #E8A9A9; color: #96201F; }
-.bouton-verdict--su { background: #E7F6EC; border-color: #9CD3B0; color: #17632F; }
+.verdict-nom { font-size: 14px; font-weight: 700; }
+.verdict-detail { font-size: 12px; font-weight: 400; opacity: .8; line-height: 1.25; }
+.bouton-verdict--revoir  { background: #FDECEC; border-color: #E8A9A9; color: #96201F; }
+.bouton-verdict--presque { background: #FDF3E3; border-color: #E8C98F; color: #8A5B12; }
+.bouton-verdict--su      { background: #E7F6EC; border-color: #9CD3B0; color: #17632F; }
 .bouton-verdict:active { transform: scale(.98); }
+
+/* ————— Accueil : la révision du jour ————————————————————————— */
+.aujourdhui {
+  margin-bottom: 20px;
+  padding: 14px;
+  background: var(--blanc);
+  border: 1px solid var(--bordure);
+  border-radius: 18px;
+  box-shadow: var(--ombre);
+}
+.aujourdhui[hidden] { display: none; }
+
+.aujourdhui-entete { display: flex; align-items: center; gap: 8px; }
+.aujourdhui-titre { margin: 0; font-size: 14px; font-weight: 700; color: var(--noir); }
+.aujourdhui-compte {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--marine);
+  color: var(--blanc);
+  font-size: 12px;
+  font-weight: 700;
+}
+.aujourdhui-detail { margin: 4px 0 10px; font-size: 12px; color: var(--gris-texte); }
+.aujourdhui .barre-progression { margin-top: 0; }
+.aujourdhui-vide { margin: 12px 0 0; font-size: 12px; color: var(--noir); }
+.aujourdhui .bouton-secondaire, .aujourdhui .bouton-texte { margin-top: 10px; }
+
+.aujourdhui-liste { list-style: none; margin: 12px 0 0; padding: 0; }
+.aujourdhui-liste li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--bordure);
+}
+/* Un titre de fiche ne doit pas être coupé : c'est ce qu'on vient lire. */
+.aujourdhui-liste .ligne-nom { white-space: normal; overflow: visible; }
+.aujourdhui-liste .ligne-detail { font-size: 12px; }
+
+.bouton-reviser--petit {
+  width: auto;
+  flex: none;
+  margin-top: 0;
+  padding: 8px 14px;
+  font-size: 12px;
+}
 
 /* Champs libres du quiz (sujet + complément) */
 .etiquette--sous {

@@ -107,7 +107,7 @@ async function ouvrirScan(ctx) {
       (await page.$$eval('#nom-matieres .puce--active', (n) => n.map((b) => b.innerText))).join(' | '));
     await page.click('#nom-valider'); await page.waitForTimeout(1400);
     verifier('le paquet vient du document lu',
-      /U0|U1|U2|Propriété|Raison/.test(await page.innerText('#carte-recto')),
+      /U0|U1|U2|propriété|raison/i.test(await page.innerText('#carte-recto')),
       await page.innerText('#carte-recto'));
 
     const rangee = await page.evaluate(() => JSON.parse(localStorage.getItem('mathematique.fiches') || '[]'));

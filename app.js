@@ -84,11 +84,57 @@
       cartes: cartes && cartes.length ? cartes : null,
       creee: maintenant,
       derniereRevision: maintenant,
+      palier: 0,                      // revient à J+1, puis J+3, J+7…
       progression: 0,
     };
     fiches.push(fiche);
     majBibliotheque();
     return fiche;
+  }
+
+  /* ————— Journal : une ligne par jour de révision ————————————————
+     Réviser un peu chaque jour vaut mieux que tout d'un coup : la série
+     et le compte du jour sont là pour le rendre visible.
+     ———————————————————————————————————————————————————————————— */
+
+  const CLE_JOURNAL = "mathematique.journal";
+  let journal = {};
+
+  function cleJour(date) {
+    const d = minuit(date);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function lireJournal() {
+    try {
+      const brut = localStorage.getItem(CLE_JOURNAL);
+      const lu = brut ? JSON.parse(brut) : {};
+      return lu && typeof lu === "object" && !Array.isArray(lu) ? lu : {};
+    } catch (erreur) { return {}; }
+  }
+
+  function ecrireJournal() {
+    try { localStorage.setItem(CLE_JOURNAL, JSON.stringify(journal)); } catch (erreur) { /* stockage indisponible */ }
+  }
+
+  function noterRevision() {
+    const jour = cleJour(new Date());
+    journal[jour] = (journal[jour] || 0) + 1;
+    ecrireJournal();
+  }
+
+  function revisionsDuJour() { return journal[cleJour(new Date())] || 0; }
+
+  /** Jours consécutifs avec au moins une révision ; hier compte encore. */
+  function serieJours() {
+    const curseur = minuit(new Date());
+    if (!journal[cleJour(curseur)]) curseur.setDate(curseur.getDate() - 1);
+    let serie = 0;
+    while (journal[cleJour(curseur)]) {
+      serie++;
+      curseur.setDate(curseur.getDate() - 1);
+    }
+    return serie;
   }
 
   function trouverFiche(id) { return fiches.find((f) => f.id === id) || null; }
@@ -99,12 +145,22 @@
   }
 
   /** Après une partie : date du jour, et on garde le meilleur score obtenu. */
+  /**
+   * Une révision réussie espace la suivante ; une révision ratée rapproche.
+   * Sans score (simple relecture), le palier ne bouge pas.
+   */
   function marquerRevisee(id, pourcentage) {
     const fiche = trouverFiche(id);
     if (!fiche) return;
     fiche.derniereRevision = new Date().toISOString();
+    noterRevision();
+
+    const palier = Math.max(fiche.palier || 0, 0);
     if (typeof pourcentage === "number") {
       fiche.progression = Math.max(fiche.progression || 0, pourcentage);
+      if (pourcentage >= 60) fiche.palier = Math.min(palier + 1, PALIERS_REVISION.length - 1);
+      else if (pourcentage < 40) fiche.palier = 0;     // à revoir dès demain
+      else fiche.palier = palier;
     }
     majBibliotheque();
   }
@@ -115,6 +171,7 @@
     ecrireBibliotheque();
     rendreDossiers();
     rendreEcheances($("#liste-echeances"));
+    rendreAujourdhui();
     majCloche();
     majProfil();
     aRafraichir.forEach((rafraichir) => rafraichir());
@@ -280,7 +337,7 @@
       : 0;
     if ($("#stat-cours")) $("#stat-cours").textContent = total;
     if ($("#stat-moyenne")) $("#stat-moyenne").textContent = `${moyenne} %`;
-    if ($("#stat-serie")) $("#stat-serie").textContent = new Set(fiches.map((f) => f.matiere)).size;
+    if ($("#stat-serie")) $("#stat-serie").textContent = serieJours();
   }
 
   /* ————— Liste des défis ——————————————————————————————————————— */
@@ -321,23 +378,33 @@
      fiches créées et de leur dernière révision.
      ———————————————————————————————————————————————————————————— */
 
+  /** Le délai d'une fiche dépend du nombre de fois où elle a été revue, pas du temps passé. */
+  function attenteDeLaFiche(fiche) {
+    const rang = Math.min(Math.max(fiche.palier || 0, 0), PALIERS_REVISION.length - 1);
+    return PALIERS_REVISION[rang];
+  }
+
+  /**
+   * Une fiche oubliée reste due : son échéance ne glisse pas d'un palier à
+   * l'autre toute seule. C'est la révision réussie qui fait monter le palier.
+   */
   function echeancesFiches() {
     const aujourdhui = new Date();
     return fiches
       .map((fiche) => {
+        const attente = attenteDeLaFiche(fiche);
         const depuis = joursEntre(fiche.derniereRevision, aujourdhui);
-        const palier = PALIERS_REVISION.find((jours) => jours > depuis);
-        const reste = palier === undefined ? 0 : palier - depuis;
-        const echeance = new Date(minuit(fiche.derniereRevision).getTime()
-          + (palier === undefined ? depuis : palier) * JOUR_MS);
+        const reste = attente - depuis;
         return {
           fiche,
-          palier: `J+${palier === undefined ? PALIERS_REVISION[PALIERS_REVISION.length - 1] : palier}`,
-          echeance,
+          palier: `J+${attente}`,
+          echeance: new Date(minuit(fiche.derniereRevision).getTime() + attente * JOUR_MS),
           reste,
+          retard: Math.max(-reste, 0),
           etat: reste <= 0 ? "aujourdhui" : reste === 1 ? "demain" : "a-venir",
         };
       })
+      // Le plus en retard d'abord : c'est ce qu'on est le plus près d'oublier.
       .sort((a, b) => a.reste - b.reste);
   }
 
@@ -364,7 +431,8 @@
     }
 
     echeances.forEach((e) => {
-      const quand = e.etat === "aujourdhui" ? "À revoir aujourd'hui"
+      const quand = e.retard > 1 ? `En retard de ${e.retard} jours`
+                  : e.etat === "aujourdhui" ? "À revoir aujourd'hui"
                   : e.etat === "demain" ? "Demain"
                   : `Dans ${e.reste} jours · ${formatCourt.format(e.echeance)}`;
 
@@ -381,6 +449,77 @@
       `;
       bloc.addEventListener("click", () => reviserFiche(e.fiche));
       conteneur.appendChild(bloc);
+    });
+  }
+
+  /* ————— Accueil : ce qui est dû aujourd'hui ————————————————————
+     Une fiche qu'on ne revoit pas s'oublie. Ce bloc met la révision du
+     jour devant, au lieu de la cacher derrière la cloche.
+     ———————————————————————————————————————————————————————————— */
+
+  function rendreAujourdhui() {
+    const bloc = $("#bloc-aujourdhui");
+    if (!bloc) return;
+
+    if (!fiches.length) { bloc.hidden = true; return; }
+
+    const echeances = echeancesFiches();
+    const dues = echeances.filter((e) => e.etat === "aujourdhui");
+    const faites = revisionsDuJour();
+    const serie = serieJours();
+    const objectif = Math.max(dues.length + faites, 1);
+    const part = Math.round((faites / objectif) * 100);
+
+    const entete = `
+      <div class="aujourdhui-entete">
+        <h2 class="aujourdhui-titre">${dues.length ? "À revoir aujourd'hui" : "Révisions du jour"}</h2>
+        ${dues.length ? `<span class="aujourdhui-compte">${dues.length}</span>` : ""}
+      </div>
+      <p class="aujourdhui-detail">${faites
+        ? `${faites} révision${faites > 1 ? "s" : ""} aujourd'hui`
+        : "Pas encore de révision aujourd'hui"}${serie > 1 ? ` · ${serie} jours d'affilée 🔥` : ""}</p>
+      <div class="barre-progression" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${part}"
+           aria-label="Avancement des révisions du jour">
+        <div class="barre-progression-remplie" style="width:${part}%"></div>
+      </div>`;
+
+    if (!dues.length) {
+      const prochaine = echeances[0];
+      bloc.innerHTML = `${entete}
+        <p class="aujourdhui-vide">Tout est à jour.${prochaine
+          ? ` Prochaine : « ${echapper(prochaine.fiche.titre)} » ${prochaine.reste === 1 ? "demain" : `dans ${prochaine.reste} jours`}.`
+          : ""}</p>
+        <button class="bouton-secondaire" type="button" data-aujourdhui="hasard">Revoir une fiche au hasard</button>`;
+    } else {
+      bloc.innerHTML = `${entete}
+        <ul class="aujourdhui-liste">
+          ${dues.slice(0, 3).map((e) => `
+            <li>
+              <span class="ligne-pastille">${MATIERES[e.fiche.matiere] ? MATIERES[e.fiche.matiere].emoji : "📘"}</span>
+              <span class="ligne-texte">
+                <span class="ligne-nom">${echapper(e.fiche.titre)}</span>
+                <span class="ligne-detail">${e.retard > 1 ? `en retard de ${e.retard} jours` : e.palier} · ${e.fiche.progression} % maîtrisé</span>
+              </span>
+              <button class="bouton-reviser bouton-reviser--petit" type="button" data-revoir="${e.fiche.id}">Réviser</button>
+            </li>`).join("")}
+        </ul>
+        ${dues.length > 3 ? `<button class="bouton-texte" type="button" data-aujourdhui="tout">Voir les ${dues.length} fiches à revoir</button>` : ""}`;
+    }
+
+    bloc.hidden = false;
+    $$("[data-revoir]", bloc).forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        const fiche = trouverFiche(bouton.dataset.revoir);
+        if (fiche) reviserFiche(fiche);
+      });
+    });
+    $$("[data-aujourdhui]", bloc).forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        if (bouton.dataset.aujourdhui === "tout") { afficherVue("revision"); return; }
+        // Piocher au hasard mélange les sujets : c'est ce qui ancre le mieux.
+        const fiche = fiches[Math.floor(Math.random() * fiches.length)];
+        if (fiche) reviserFiche(fiche);
+      });
     });
   }
 
@@ -1746,8 +1885,9 @@
       ${exemples ? sectionFiche("Exemples corrigés", contenu.exemples, "fiche-section--exemples") : ""}
       ${pieges ? sectionFiche("Pièges fréquents", contenu.pieges, "fiche-section--pieges") : ""}
       <div class="fiche-actions">
-        <button class="bouton-principal" type="button" data-action="enregistrer">Enregistrer dans mes fiches</button>
-        <button class="bouton-secondaire" type="button" data-action="flashcards">Générer des flashcards</button>
+        <button class="bouton-principal" type="button" data-action="tester">Me tester sur cette fiche</button>
+        <button class="bouton-secondaire" type="button" data-action="enregistrer">Enregistrer dans mes fiches</button>
+        <button class="bouton-secondaire" type="button" data-action="flashcards">Réviser en flashcards</button>
         <button class="bouton-secondaire" type="button" data-action="refaire">Régénérer</button>
       </div>
     `;
@@ -1762,6 +1902,8 @@
             toast(`Fiche « ${gardee.titre} » enregistrée en ${MATIERES[gardee.matiere].nom}`);
             return;
           }
+          // Relire ne suffit pas : se tester juste après fixe bien mieux.
+          if (action === "tester") { reviserFiche(gardee); return; }
           // Flashcards : seulement si un paquet existe pour ce sujet.
           if (!cartesDeLaFiche(gardee).length) {
             toast("Pas encore de cartes pour ce sujet : lance plutôt un quiz.");
@@ -2581,7 +2723,10 @@
       <p class="bilan-message">${message}</p>
       ${corrections}
       <div class="bilan-actions">
-        <button class="bouton-principal" type="button" data-quiz="rejouer">Refaire un quiz</button>
+        ${rates.length
+          ? `<button class="bouton-principal" type="button" data-quiz="erreurs">Revoir mes ${rates.length} erreur${rates.length > 1 ? "s" : ""}</button>`
+          : ""}
+        <button class="${rates.length ? "bouton-secondaire" : "bouton-principal"}" type="button" data-quiz="rejouer">Refaire un quiz</button>
         ${!dejaRangee && sujetLibre.length >= 3
           ? '<button class="bouton-secondaire" type="button" data-quiz="garder">Garder ce sujet dans mes fiches</button>'
           : ""}
@@ -2593,6 +2738,17 @@
     $$("[data-quiz]", bilan).forEach((bouton) => {
       bouton.addEventListener("click", () => {
         const action = bouton.dataset.quiz;
+        if (action === "erreurs") {
+          // Reprendre juste ce qui a manqué : c'est là que le progrès se joue.
+          const reprise = rates.map((q) => ({
+            enonce: q.enonce,
+            explication: q.explication,
+            choix: melanger(q.choix.map((c) => ({ texte: c.texte, correct: c.correct }))),
+          }));
+          bilan.hidden = true;
+          demarrerPartie(reprise, `Reprise de tes ${rates.length} erreur${rates.length > 1 ? "s" : ""}`, demandeIA);
+          return;
+        }
         if (action === "rejouer") {
           if (demandeIA && sampleClaude) {
             afficherVue("ia");
@@ -2826,6 +2982,11 @@
     $("#cartes-barre").style.width = `${(paquet.sues.size / total) * 100}%`;
   }
 
+  /* Plus la réponse a été difficile, plus la carte revient tôt : c'est le
+     principe des paquets de Leitner, ramené à l'échelle d'une séance. */
+  const RETOUR_CARTE = { revoir: 2, presque: 5 };
+  const REPRISES_MAX = 2;
+
   function verdictCarte(verdict) {
     const carte = paquet.file.shift();
 
@@ -2834,11 +2995,12 @@
     } else {
       paquet.ratees.add(carte.id);
       paquet.sues.delete(carte.id);
-      if (!carte.repassee) {           // une seule reprise par carte, pour ne pas boucler
-        carte.repassee = true;
-        paquet.file.push(carte);
+      carte.reprises = (carte.reprises || 0) + 1;
+      if (carte.reprises <= REPRISES_MAX) {
+        const saut = Math.min(RETOUR_CARTE[verdict] || 3, paquet.file.length);
+        paquet.file.splice(saut, 0, carte);   // replacée plus loin, pas en fin de paquet
       } else {
-        paquet.sues.add(carte.id);     // vue deux fois : on la considère traitée
+        paquet.sues.add(carte.id);            // trois passages : on la laisse pour la prochaine séance
       }
     }
 
@@ -2953,6 +3115,7 @@
 
   function init() {
     fiches = lireBibliotheque();
+    journal = lireJournal();
     rendreDefis($("#liste-defis"));
 
     // Cloche + onglets du bas + logo → changement de vue.
