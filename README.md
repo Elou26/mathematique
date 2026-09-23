@@ -200,11 +200,17 @@ faire. **C'est Claude qui lit les pages** — il n'y a pas d'OCR embarqué.
    accept="image/*" capture="environment">`, qui ouvre l'appareil photo sur mobile) ou
    « Choisir une image ». Plusieurs pages : elles s'ajoutent en vignettes (un clic retire la
    page), dans la limite de `limits().images.maxCount`.
-3. **Lecture** — `lirePages()` envoie les pages à `sample.json(invite, { images })`. Claude
-   renvoie un JSON : titre de chapitre, matière, résumé (accroche, points, formules, exemples,
-   pièges) et 6 à 12 flashcards. `validerLecture()` vérifie la forme, échappe tout le texte
-   (`nettoyer()`) et refuse une réponse incomplète ; `{"lisible": false}` affiche la raison au
-   lieu d'inventer une fiche.
+3. **Lecture** — `lirePages()` envoie les pages à `sample.json(invite, { images })`. La consigne
+   (`CONSIGNE_LECTURE`) demande **une fiche complète et soignée**, pas un survol : des phrases
+   entières qui se tiennent seules, tout le document partie par partie, **chaque exemple repris
+   avec son énoncé et sa résolution**, les notations du document conservées — et rien d'inventé.
+   Les flashcards sont tenues d'être de **vraies questions** : la consigne donne des exemples à
+   suivre (« Comment calcule-t-on la raison d'une suite arithmétique ? ») et à proscrire
+   (« Propriété ? », « Que dit le cours ? », un mot suivi d'un point d'interrogation).
+   `validerLecture()` vérifie la forme, échappe tout le texte (`nettoyer()`) et refuse une
+   réponse incomplète ; `{"lisible": false}` affiche la raison au lieu d'inventer une fiche.
+   Une fiche lue s'affiche **entière** : ni le réglage de longueur ni les options à inclure ne
+   la rabotent.
 4. **Exploitation** — la fiche lue s'affiche (titre, matière, premiers points, nombre de cartes),
    le titre remplit le champ du thème, puis **FlashCards**, **Fiche** ou **Quiz**. Après le
    nommage en chapitre, la fiche est rangée avec son `contenu` et ses `cartes` : les flashcards
@@ -245,15 +251,22 @@ Tesseract ne rend que du **texte brut** : la mise en fiche est faite par des rè
 | Mots de l'application ou du navigateur (`BRUIT_APP`) | rien : une capture d'écran de l'app ne pollue pas la fiche |
 | Ligne reprise deux fois en tête de page | le titre du chapitre |
 | Comptage de mots par matière (`MOTS_MATIERES`) | la matière, si elle se détache (≥ 3 occurrences) |
-| `Définition/Propriété/Théorème/Règle/Formule/Méthode` | une carte « Propriété — <chapitre> ? » |
-| `terme : définition` | une carte « terme ? » |
-| `X = …`, même plusieurs sur une ligne | une carte « Que vaut X ? » par égalité, et la liste des repères |
+| `Définition : une suite arithmétique est …` | « Qu'est-ce qu'une suite arithmétique ? » — le sujet est extrait de la définition |
+| `Propriété/Théorème/Règle/Formule/Méthode` | « Quelle propriété le cours énonce-t-il sur <chapitre> ? » |
+| `raison : la différence constante…` | « Que signifie « raison » dans ce cours ? » — aucun article inventé, donc aucun faux genre |
+| `Exemple : …` et les lignes qui suivent | l'exemple entier, énoncé **et** résolution |
+| `X = …`, même plusieurs sur une ligne, égalités en chaîne comprises | « Dans l'exemple du cours, que vaut X ? » pour une valeur, « Quelle expression donne X ? » pour une formule |
 | `1789 : …` | une carte « Que se passe-t-il en 1789 ? » |
 | `Exemple :` | la section *Exemples* de la fiche, jamais une carte |
 | 4 phrases de 30 à 180 caractères, sans redite, sans fragment, sans ligne de calcul | *L'essentiel* |
 
 Les lignes courtes (titres, numéros, navigation) sont exclues de la prose : mêlées au texte, elles
 fabriquaient des phrases qui n'existent pas. Les égalités sont posées à plat, en pastilles.
+
+**Toute carte est une vraie question** : `ajouter()` refuse un recto de moins de trois mots ou qui
+ne se termine pas par un point d'interrogation, et le verso est remis en phrase (majuscule, point
+final). Les intitulés accentués sont enfin reconnus — `\b` ne considère pas « é » comme une lettre,
+d'où un `(?![a-zà-ÿ])` à la place, sans quoi « Propriété » passait au travers.
 
 La fiche produite **dit d'où elle vient** (« leçon lue sur ton appareil »), son accroche invite à
 la relire, et un repli « Voir le texte lu » montre le texte brut pour vérifier. La photo ne quitte

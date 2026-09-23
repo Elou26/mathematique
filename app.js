@@ -974,7 +974,8 @@
   };
 
   const CONSIGNE_LECTURE = [
-    "Tu es professeur et tu aides un élève francophone à réviser.",
+    "Tu es professeur et tu rédiges, pour un élève francophone, la fiche de révision",
+    "qu'il aurait dû écrire lui-même à partir de son document.",
     "",
     "Les images jointes sont les pages d'un même document : <<<TYPE>>>.",
     "<<<CONSIGNE_TYPE>>>",
@@ -982,16 +983,33 @@
     "",
     "Lis ces pages (texte imprimé comme manuscrit) et réponds uniquement avec un objet JSON de cette forme :",
     '{"lisible": true, "titre": "Titre de chapitre, court", "matiere": "<<<MATIERES>>>",',
-    ' "resume": {"accroche": "une phrase qui situe le chapitre",',
-    '            "points": ["3 à 6 points essentiels"],',
-    '            "formules": ["formules, dates ou repères clés, 0 à 6"],',
-    '            "exemples": ["exemples corrigés tirés du document, 0 à 3"],',
-    '            "pieges": ["erreurs classiques, 0 à 4"]},',
-    ' "flashcards": [{"recto": "question courte", "verso": "réponse courte"}]}',
+    ' "resume": {"accroche": "deux phrases qui situent le chapitre et disent à quoi il sert",',
+    '            "points": ["5 à 10 phrases complètes qui couvrent tout le document, dans son ordre"],',
+    '            "formules": ["toutes les formules, dates ou repères du document, 0 à 10"],',
+    '            "exemples": ["chaque exemple du document, énoncé puis résolution, 0 à 6"],',
+    '            "pieges": ["erreurs classiques que ce document permet d\'éviter, 0 à 4"]},',
+    ' "flashcards": [{"recto": "une vraie question", "verso": "la réponse, en une phrase"}]}',
     "",
-    "Règles :",
-    "- reste fidèle au document : n'invente rien qui ne s'y trouve pas ;",
-    "- 6 à 12 flashcards, recto = une question, verso = la réponse en une ligne ;",
+    "La fiche doit être complète et soignée :",
+    "- couvre TOUT le document, partie par partie, sans en sauter ;",
+    "- écris des phrases entières, qui se tiennent seules, pas des bouts de texte recopiés ;",
+    "- reprends CHAQUE exemple du document : rappelle l'énoncé, puis déroule la résolution",
+    "  avec ses valeurs, pour qu'on puisse la refaire sans la page sous les yeux ;",
+    "- garde les notations du document (noms des variables, indices, unités) ;",
+    "- reste fidèle : n'invente rien qui ne s'y trouve pas, et ne complète pas par ce que tu sais.",
+    "",
+    "Les flashcards sont de vraies questions :",
+    "- 8 à 14 cartes, chacune interrogeant UNE chose précise ;",
+    "- le recto se comprend seul, sans avoir la fiche sous les yeux : il nomme la notion,",
+    "  le terme ou la grandeur sur laquelle il porte ;",
+    '- bonnes questions : "Comment calcule-t-on la raison d\'une suite arithmétique ?",',
+    '  "Que vaut le terme U3 dans l\'exemple du cours ?", "Quelle formule donne Un en fonction de n ?" ;',
+    '- questions à proscrire : "Propriété ?", "Définition ?", "Que dit le cours ?",',
+    '  "Raison ?", ou tout recto qui reprend juste un mot suivi d\'un point d\'interrogation ;',
+    "- le verso répond vraiment, en une phrase ou une formule, pas par oui ou non ;",
+    "- couvre les définitions, les formules, les valeurs des exemples et la méthode.",
+    "",
+    "Enfin :",
     "- texte brut uniquement, pas de HTML ni de Markdown ;",
     '- si les pages sont illisibles ou ne contiennent pas de cours, réponds {"lisible": false, "raison": "…"} ;',
     "- tout est en français, calé sur le niveau de l'élève ;",
@@ -1018,12 +1036,12 @@
 
     const titre = nettoyer(donnees.titre, 80);
     const brut = donnees.resume && typeof donnees.resume === "object" ? donnees.resume : {};
-    const points = listeNettoyee(brut.points, 8);
+    const points = listeNettoyee(brut.points, 12, 400);
     const cartes = (Array.isArray(donnees.flashcards) ? donnees.flashcards : [])
       .filter((c) => c && typeof c === "object")
       .map((c) => ({ recto: nettoyer(c.recto, 200), verso: nettoyer(c.verso, 300) }))
       .filter((c) => c.recto.length > 2 && c.verso.length > 0)
-      .slice(0, 20);
+      .slice(0, 24);
 
     if (titre.length < 3 || !points.length || cartes.length < minCartes) return null;
 
@@ -1032,10 +1050,10 @@
       matiere: MATIERES[donnees.matiere] ? donnees.matiere : null,
       contenu: {
         lu: true,
-        accroche: nettoyer(brut.accroche, 300) || `Fiche tirée de ${TYPES_DOCUMENT[fiche.type].nom}.`,
+        accroche: nettoyer(brut.accroche, 400) || `Fiche tirée de ${TYPES_DOCUMENT[fiche.type].nom}.`,
         points,
-        formules: listeNettoyee(brut.formules, 6),
-        exemples: listeNettoyee(brut.exemples, 3, 400),
+        formules: listeNettoyee(brut.formules, 10),
+        exemples: listeNettoyee(brut.exemples, 6, 700),
         pieges: listeNettoyee(brut.pieges, 4),
         libelleFormules: "Formules & repères",
       },
@@ -1703,12 +1721,18 @@
     const source = sourceChoisie();
     if (!source) return;
     const { titre, sousTitre, contenu } = source;
-    const max = LONGUEURS[etatResume.longueur].points;
-    const { formules, exemples, pieges } = etatResume.options;
+    // Une fiche lue sur un document est déjà à la bonne taille : on ne la rabote pas.
+    const max = contenu.lu ? contenu.points.length : LONGUEURS[etatResume.longueur].points;
+    // Une fiche lue est un travail complet : on n'en cache aucune section.
+    const { formules, exemples, pieges } = contenu.lu
+      ? { formules: true, exemples: true, pieges: true }
+      : etatResume.options;
 
     fiche.innerHTML = `
       <header class="fiche-entete">
-        <p class="fiche-etiquette">${LONGUEURS[etatResume.longueur].libelle}</p>
+        <p class="fiche-etiquette">${contenu.lu
+          ? (contenu.moteur === "ocr" ? "Fiche lue sur ton document" : "Fiche écrite par Claude")
+          : LONGUEURS[etatResume.longueur].libelle}</p>
         <h3 class="fiche-titre">${titre}</h3>
         <p class="fiche-soustexte">${sousTitre}</p>
       </header>

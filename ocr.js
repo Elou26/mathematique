@@ -173,11 +173,16 @@ const OCR = (function () {
 
   // Ce qui fait une bonne carte : une notion qu'on doit savoir restituer.
   const NUMERO = "(?:[IVX]+|\\d+)\\s*[).\\-]\\s*";
+
+  // `\b` ne voit pas les accents comme des lettres : « Propriété » n'était
+  // jamais reconnu. On teste donc « pas suivi d'une lettre ».
+  const FIN_MOT = "(?![a-zà-ÿ])";
   const INTITULES_CARTE = new RegExp(
-    `^(?:${NUMERO})?(d[ée]finition|propri[ée]t[ée]s?|th[ée]or[èe]me|r[èe]gle|formule|m[ée]thode|corollaire|lemme|vocabulaire)\\b`, "i");
+    `^(?:${NUMERO})?(d[ée]finition|propri[ée]t[ée]s?|th[ée]or[èe]me|r[èe]gle|formule|m[ée]thode|corollaire|lemme|vocabulaire)${FIN_MOT}`, "i");
   // Ce qui éclaire la fiche sans faire une carte.
-  const INTITULES_EXEMPLE = /^(exemple|application|illustration)\b/i;
-  const INTITULES = /^(d[ée]finition|propri[ée]t[ée]s?|th[ée]or[èe]me|r[èe]gle|formule|m[ée]thode|remarque|exemple|cons[ée]quence|corollaire|lemme|vocabulaire|rappel|conclusion)\b/i;
+  const INTITULES_EXEMPLE = new RegExp(`^(?:${NUMERO})?(exemple|application|illustration)${FIN_MOT}`, "i");
+  const INTITULES = new RegExp(
+    `^(?:${NUMERO})?(d[ée]finition|propri[ée]t[ée]s?|th[ée]or[èe]me|r[èe]gle|formule|m[ée]thode|remarque|exemple|cons[ée]quence|corollaire|lemme|vocabulaire|rappel|conclusion)${FIN_MOT}`, "i");
   const BRUIT = /^(exercice|page\s*\d+|chapitre\s*\d*|sommaire|table des mati[èe]res|nom\s*:|pr[ée]nom\s*:|classe\s*:|\d{1,2}\s*[\/.]\s*\d{1,2})\s*$/i;
 
   /* Une capture d'écran de l'application (ou du navigateur) se reconnaît à ses
@@ -310,6 +315,50 @@ const OCR = (function () {
   }
 
   /** Cartes tirées des tournures d'un cours : intitulés, deux-points, égalités, dates. */
+  /* ————— Des questions qui se tiennent seules ————————————————————
+     Une carte dont le recto est « Propriété ? » ne veut rien dire une
+     semaine plus tard. Chaque recto nomme donc ce sur quoi il porte.
+     ———————————————————————————————————————————————————————————— */
+
+  const VERBES_DEFINITION = /\s(?:est|sont|se d[ée]finit|d[ée]signe|s'appelle|correspond)\s/i;
+  const ARTICLES = /^(?:l'|la |le |les |un |une |des |du |de la )/i;
+
+  /**
+   * « Qu'est-ce qu'une suite arithmétique ? » quand le terme porte son article,
+   * « Que signifie « raison » ? » sinon — inventer un article se trompe de genre.
+   */
+  function questionDefinition(terme) {
+    let propre = terme.replace(/^[«»"']+|[»"'.]+$/g, "").trim();
+    if (propre.length < 3) return "";
+
+    if (!ARTICLES.test(propre)) {
+      const mot = /^[A-ZÀ-Ý][a-zà-ÿ]+$/.test(propre) ? propre.toLowerCase() : propre;
+      return `Que signifie « ${mot} » dans ce cours ?`;
+    }
+
+    // « Une suite… » au milieu d'une question : la majuscule n'a plus lieu d'être.
+    if (/^[A-ZÀ-Ý][a-zà-ÿ]/.test(propre)) propre = propre[0].toLowerCase() + propre.slice(1);
+    const elide = /^(?:un |une |l')/i.test(propre) || /^[aeiouyéèêàh]/i.test(propre);
+    return `Qu'est-ce qu${elide ? "'" : "e "}${propre} ?`;
+  }
+
+  /** Le sujet d'une définition : « une suite arithmétique est … » → « une suite arithmétique ». */
+  function sujetDefini(corps) {
+    const coupe = corps.split(VERBES_DEFINITION);
+    if (coupe.length < 2) return "";
+    const sujet = coupe[0].trim();
+    if (sujet.length < 4 || sujet.length > 60 || sujet.split(" ").length > 8) return "";
+    return sujet;
+  }
+
+  /** Une phrase de réponse : majuscule au début, point à la fin. */
+  function enReponse(texte) {
+    const propre = texte.replace(/^[\s:—–-]+/, "").replace(/\s+/g, " ").trim();
+    if (!propre) return "";
+    const majuscule = propre[0].toUpperCase() + propre.slice(1);
+    return /[.!?)]$/.test(majuscule) ? majuscule : `${majuscule}.`;
+  }
+
   function fabriquerCartes(lignes, titre) {
     const cartes = [];
     const vues = new Set();
@@ -317,8 +366,10 @@ const OCR = (function () {
 
     const ajouter = (recto, verso) => {
       const r = recto.replace(/\s+/g, " ").trim();
-      const v = verso.replace(/\s+/g, " ").trim();
-      if (r.length < 5 || v.length < 3 || v.length > 320) return;
+      const v = enReponse(verso);
+      // Une question digne de ce nom : au moins trois mots et une forme interrogative.
+      if (r.length < 12 || r.split(" ").length < 3 || !/\?$/.test(r)) return;
+      if (v.length < 4 || v.length > 320) return;
       const cle = sansAccents(r);
       if (vues.has(cle)) return;
       vues.add(cle);
@@ -328,22 +379,40 @@ const OCR = (function () {
     lignes.forEach((ligne, rang) => {
       if (INTITULES_EXEMPLE.test(ligne)) return;     // un exemple n'est pas une carte
 
-      // « Définition : une suite est… » ou « Définition » puis la ligne suivante
+      // « Définition : une suite arithmétique est… », numéro éventuel compris
       const intitule = ligne.match(INTITULES_CARTE);
       if (intitule) {
-        const brut = intitule[1];                     // l'intitulé sans son numéro
-        const mot = `${brut[0].toUpperCase()}${brut.slice(1).toLowerCase()}`;
-        const reste = ligne.slice(intitule[0].length).replace(/^[\s:—-]+/, "");
+        const brut = intitule[1].toLowerCase();
+        const reste = ligne.slice(intitule[0].length).replace(/^[\s:—–-]+/, "");
         const corps = reste.length > 10 ? reste : (lignes[rang + 1] || "");
-        ajouter(chapitre ? `${mot} — ${chapitre} ?` : `${mot} ?`, corps);
+        const sujet = sujetDefini(corps);
+
+        if (/^d[ée]finition|vocabulaire/.test(brut) && sujet) {
+          ajouter(questionDefinition(sujet), corps);
+        } else if (/^(propri[ée]t|th[ée]or[èe]me|r[èe]gle|corollaire|lemme)/.test(brut)) {
+          ajouter(chapitre
+            ? `Quelle ${brut.replace(/s$/, "")} le cours énonce-t-il sur ${chapitre} ?`
+            : `Quelle ${brut.replace(/s$/, "")} le cours énonce-t-il ?`, corps);
+        } else if (/^(formule|m[ée]thode)/.test(brut)) {
+          ajouter(chapitre
+            ? `Quelle ${brut} retenir pour ${chapitre} ?`
+            : `Quelle ${brut} le cours donne-t-il ?`, corps);
+        } else if (sujet) {
+          ajouter(questionDefinition(sujet), corps);
+        }
         return;
       }
 
-      // « terme : définition »
-      const deuxPoints = ligne.match(/^([^:]{3,60}?)\s*:\s*(.{10,})$/);
-      if (deuxPoints && /[a-zà-ÿ]/i.test(deuxPoints[1])) {
-        ajouter(`${deuxPoints[1].trim()} ?`, deuxPoints[2]);
-        return;
+      // « raison : la différence constante… » — un terme suivi de sa définition
+      const deuxPoints = ligne.match(/^([^:]{3,48}?)\s*:\s*(.{10,})$/);
+      if (deuxPoints) {
+        const terme = deuxPoints[1].trim();
+        const court = terme.split(" ").length <= 5;
+        const sansVerbe = !VERBES_DEFINITION.test(` ${terme} `) && !/\b(donc|ainsi|alors|par)\b/i.test(terme);
+        if (court && sansVerbe && /[a-zà-ÿ]{3}/i.test(terme)) {
+          ajouter(questionDefinition(terme), deuxPoints[2]);
+          return;
+        }
       }
 
       // Une ou plusieurs égalités sur la même ligne : « Uo = 3, U1 = 8, U2 = 13 »
@@ -351,7 +420,11 @@ const OCR = (function () {
       if (egalites.length) {
         egalites.forEach((formule) => {
           const nom = formule.split(" = ")[0];
-          ajouter(`Que vaut ${nom} ?`, formule);
+          const valeur = formule.split(" = ").slice(1).join(" = ");
+          // Une valeur seule se demande ; une formule se demande autrement.
+          ajouter(/^[-+]?[\d\s,.]+$/.test(valeur)
+            ? `Dans l'exemple du cours, que vaut ${nom} ?`
+            : `Quelle expression donne ${nom} ?`, formule);
         });
         return;
       }
@@ -361,18 +434,14 @@ const OCR = (function () {
       if (date) ajouter(`Que se passe-t-il en ${date[1]} ?`, date[2]);
     });
 
-    return cartes.slice(0, 12);
+    return cartes.slice(0, 14);
   }
 
-  /**
-   * Met le texte lu en forme de fiche. Renvoie la même structure que la
-   * lecture par Claude, avec `moteur: "ocr"` pour que la page puisse le dire.
-   */
   /**
    * Repère les égalités, même alignées sur une seule ligne :
    * « Uo = 3, U1 = 8, U2 = 13 » en rend trois.
    */
-  const FORMULE = /([A-Za-zÀ-ÿ][\wÀ-ÿ+\-()]{0,12})\s*=\s*([^=,;.]{1,40})/g;
+  const FORMULE = /([A-Za-zÀ-ÿ][\wÀ-ÿ+\-()]{0,12})\s*=\s*([^,;]{1,60}?)(?=$|[,;]|\s+(?:et|puis|donc|avec|or)\s)/g;
 
   function repererFormules(lignes) {
     const trouvees = [];
@@ -390,6 +459,27 @@ const OCR = (function () {
       }
     });
     return trouvees;
+  }
+
+  /**
+   * Un exemple ne s'arrête pas à sa première ligne : on prend le bloc, de
+   * l'énoncé jusqu'au prochain intitulé, pour garder la résolution avec lui.
+   */
+  function repererExemples(lignes) {
+    const blocs = [];
+    lignes.forEach((ligne, rang) => {
+      if (!INTITULES_EXEMPLE.test(ligne) || blocs.length >= 4) return;
+      const morceaux = [ligne];
+      for (let i = rang + 1; i < lignes.length; i++) {
+        const suivante = lignes[i];
+        if (INTITULES.test(suivante) || suivante.length < 4) break;
+        morceaux.push(suivante);
+        if (morceaux.join(" ").length > 500) break;
+      }
+      const bloc = morceaux.join(" ").replace(/\s+/g, " ").trim();
+      if (bloc.length > 30) blocs.push(bloc.slice(0, 600));
+    });
+    return blocs;
   }
 
   /** Retire les redites : une phrase déjà contenue dans une autre ne sert à rien. */
@@ -416,11 +506,9 @@ const OCR = (function () {
     const points = sansRedites(phrases(prose))
       // une « phrase » qui n'est que le titre recopié n'apprend rien
       .filter((phrase) => sansAccents(phrase).split(platTitre).join("").replace(/\W/g, "").length > 25)
-      .slice(0, 4);
+      .slice(0, 6);
 
-    const exemples = lignes
-      .filter((ligne) => INTITULES_EXEMPLE.test(ligne) && ligne.length > 25 && ligne.length < 220)
-      .slice(0, 2);
+    const exemples = repererExemples(lignes);
 
     const formules = sansRedites(repererFormules(lignes)).slice(0, 6);
 
@@ -431,7 +519,7 @@ const OCR = (function () {
         lu: true,
         moteur: "ocr",
         accroche: `Texte lu sur ${type === "lecon" ? "ta leçon" : type === "devoir" ? "ton devoir" : "ton contrôle"}, sans IA : relis-le avant de réviser.`,
-        points: points.length ? points : lignes.filter((l) => l.length > 30).slice(0, 4),
+        points: points.length ? points : lignes.filter((l) => l.length > 30).slice(0, 6),
         formules,
         exemples,
         pieges: [],

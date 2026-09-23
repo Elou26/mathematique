@@ -92,7 +92,10 @@ function verifier(nom, condition, vu) {
   const cartes = (fiches[0] && fiches[0].cartes) || [];
   verifier('des cartes sortent du texte lu', cartes.length >= 3, `${cartes.length} carte(s)`);
   verifier('les valeurs de la suite sont reprises',
-    cartes.some((c) => /Que vaut U/.test(c.recto)), cartes.map((c) => c.recto).join(' | '));
+    cartes.some((c) => /que vaut U/i.test(c.recto)), cartes.map((c) => c.recto).join(' | '));
+  verifier('les questions se tiennent seules',
+    cartes.every((c) => /\?$/.test(c.recto) && c.recto.split(' ').length >= 3),
+    cartes.map((c) => c.recto).join(' | '));
   verifier('la propriété du cours devient une carte',
     cartes.some((c) => /Propriete/i.test(c.recto) || /Raison/i.test(c.recto)),
     cartes.map((c) => c.recto).join(' | '));
