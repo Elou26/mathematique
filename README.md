@@ -209,11 +209,17 @@ faire. **C'est Claude qui lit les pages** — il n'y a pas d'OCR embarqué.
    sortent du document photographié, le résumé affiche ce qui a été lu (sans regénérer), et un
    quiz lancé sur cette fiche part de ses points essentiels.
 
-**Ce que le repli fait.** Quand `claude.use("sample")` répond `null` ou que
-`sample.limits()` n'annonce pas `images` (site servi tel quel, capacité refusée), le bandeau le
-dit, le bouton devient « Continuer sans lecture » et on retombe sur le chemin manuel :
-confirmation du thème, puis banques locales. La photo ne quitte l'appareil que si la lecture est
-lancée, et elle n'est jamais enregistrée.
+**Ce que le repli fait.** `raisonLecture()` distingue deux empêchements et le dit en toutes
+lettres, dans le bandeau du haut **et** juste au-dessus du bouton :
+
+- `claude.use("sample")` répond `null` — le plus souvent un lecteur **non connecté** à claude.ai,
+  puisque la lecture tourne sur son compte : le message invite à se connecter et à rouvrir le lien ;
+- `sample.limits()` n'annonce pas `images` — Claude répond, mais cette vue ne peut pas lui envoyer
+  de photos.
+
+Dans les deux cas le bouton devient « Continuer sans lecture » et on retombe sur le chemin
+manuel : confirmation du thème, puis banques locales. La photo ne quitte l'appareil que si la
+lecture est lancée, et elle n'est jamais enregistrée.
 
 `node tests/lecture-photo.js` couvre les quatre cas avec un faux runtime : lecture réussie
 (images transmises, fiche et cartes rangées), document illisible (aucune fiche inventée),

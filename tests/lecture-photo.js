@@ -145,14 +145,33 @@ function verifier(nom, condition, vu) {
     await page.goto('http://localhost:8321/index.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
     await page.click('#ouvrir-creation'); await page.click('[data-creation="scan"]'); await page.waitForTimeout(300);
-    verifier('le repli manuel est annoncé', /pas disponible ici/.test(await page.innerText('#scan-moteur')),
+    verifier('le repli manuel est annoncé', /ne peut pas lui envoyer de photos/.test(await page.innerText('#scan-moteur')),
       await page.innerText('#scan-moteur'));
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
     verifier('le bouton propose de continuer', /Continuer sans lecture/.test(await page.innerText('#scan-analyser')),
       await page.innerText('#scan-analyser'));
+    verifier('la raison est rappelée au-dessus du bouton',
+      /ne peut pas lui envoyer de photos/.test(await page.innerText('#scan-raison')),
+      await page.innerText('#scan-raison'));
     await page.click('#scan-analyser'); await page.waitForTimeout(500);
     verifier('le thème est demandé à la main', await page.isVisible('#scan-sujet'), 'champ absent');
     verifier('aucune fiche lue affichée', !(await page.isVisible('#scan-fiche-lue')), 'aperçu visible');
+    await ctx.close();
+  }
+
+  /* — 4. Claude absent (lecteur déconnecté) : on dit quoi faire — */
+  {
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(FAUX('absent'));
+    const page = await ctx.newPage();
+    await page.goto('http://localhost:8321/index.html');
+    await page.click('text=Lycéen'); await page.waitForTimeout(400);
+    await page.click('#ouvrir-creation'); await page.click('[data-creation="scan"]'); await page.waitForTimeout(400);
+    verifier('déconnecté : le message renvoie à la connexion',
+      /connecte-toi à claude\.ai/i.test(await page.innerText('#scan-moteur')), await page.innerText('#scan-moteur'));
+    await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
+    verifier('déconnecté : la raison est sous les yeux',
+      /connecte-toi à claude\.ai/i.test(await page.innerText('#scan-raison')), await page.innerText('#scan-raison'));
     await ctx.close();
   }
 

@@ -1182,14 +1182,40 @@
     ligne.hidden = !texte;
   }
 
+  /** Pourquoi la lecture est possible — ou non. */
+  function raisonLecture() {
+    if (!claudeResolu) return { etat: "attente", texte: "Connexion à Claude…" };
+    if (peutLirePhotos()) return { etat: "prete", texte: "✳︎ Claude lit tes pages et en tire la fiche et les cartes." };
+    if (!sampleClaude) {
+      return {
+        etat: "sans-claude",
+        texte: "Claude n'est pas joignable sur cette page. La lecture se fait sur ton compte : "
+          + "connecte-toi à claude.ai, puis rouvre ce lien. En attendant, indique le thème à la main.",
+      };
+    }
+    return {
+      etat: "sans-images",
+      texte: "Claude répond ici, mais cette vue ne peut pas lui envoyer de photos. "
+        + "Indique le thème à la main : la photo ne quitte pas ton téléphone.",
+    };
+  }
+
   function afficherMoteurScan() {
     const ligne = $("#scan-moteur");
-    if (!ligne || !claudeResolu) return;
-    ligne.textContent = peutLirePhotos()
-      ? "✳︎ Claude lit tes pages et en tire la fiche et les cartes."
-      : "La lecture des photos n'est pas disponible ici : indique le thème à la main, la photo ne quitte pas ton téléphone.";
-    ligne.classList.toggle("ia-moteur--actif", peutLirePhotos());
-    ligne.hidden = false;
+    if (!ligne) return;
+    const raison = raisonLecture();
+    const prete = raison.etat === "prete";
+
+    ligne.textContent = raison.texte;
+    ligne.classList.toggle("ia-moteur--actif", prete);
+    ligne.hidden = raison.etat === "attente";
+
+    // Le même constat, juste au-dessus du bouton : c'est là qu'on le cherche.
+    const note = $("#scan-raison");
+    if (note) {
+      note.textContent = prete || raison.etat === "attente" ? "" : raison.texte;
+      note.hidden = prete || raison.etat === "attente";
+    }
   }
 
   /** Lance la lecture des pages par Claude. */
