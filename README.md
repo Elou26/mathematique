@@ -242,14 +242,18 @@ Tesseract ne rend que du **texte brut** : la mise en fiche est faite par des rè
 
 | Règle | Ce qu'elle produit |
 | --- | --- |
+| Mots de l'application ou du navigateur (`BRUIT_APP`) | rien : une capture d'écran de l'app ne pollue pas la fiche |
 | Ligne reprise deux fois en tête de page | le titre du chapitre |
 | Comptage de mots par matière (`MOTS_MATIERES`) | la matière, si elle se détache (≥ 3 occurrences) |
 | `Définition/Propriété/Théorème/Règle/Formule/Méthode` | une carte « Propriété — <chapitre> ? » |
 | `terme : définition` | une carte « terme ? » |
-| `X = …` | une carte « Que vaut X ? » et une ligne de formules |
+| `X = …`, même plusieurs sur une ligne | une carte « Que vaut X ? » par égalité, et la liste des repères |
 | `1789 : …` | une carte « Que se passe-t-il en 1789 ? » |
 | `Exemple :` | la section *Exemples* de la fiche, jamais une carte |
-| Les 5 plus longues phrases, sans redites ni titre recopié | *L'essentiel* |
+| 4 phrases de 30 à 180 caractères, sans redite, sans fragment, sans ligne de calcul | *L'essentiel* |
+
+Les lignes courtes (titres, numéros, navigation) sont exclues de la prose : mêlées au texte, elles
+fabriquaient des phrases qui n'existent pas. Les égalités sont posées à plat, en pastilles.
 
 La fiche produite **dit d'où elle vient** (« leçon lue sur ton appareil »), son accroche invite à
 la relire, et un repli « Voir le texte lu » montre le texte brut pour vérifier. La photo ne quitte

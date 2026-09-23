@@ -173,6 +173,37 @@ async function ouvrirScan(ctx) {
     await ctx.close();
   }
 
+  /* — 4. Capture d'écran de l'app : son interface ne doit pas entrer dans la fiche — */
+  {
+    const CAPTURE = [
+      'claude.ai', 'Mathématique ~', 'Le contenu est généré par les utilisateurs e...', 'Connexion',
+      'Le cours, la leçon du cahier ou la fiche du manuel.',
+      '1ere STMG      Chap. 6 - Suites arithmétiques et géométriques',
+      'Chapitre 6', 'Suites arithmétiques et géométriques', 'I. Suites arithmétiques', '1) Définition',
+      'Exemple : Considérons une suite numérique U, où la différence entre un terme et son précédent reste constante et égale à 5.',
+      'Si le premier terme est égal à 3, les premiers termes successifs sont : Uo = 3, U =8, U2 = 13.',
+      'Propriété : pour tout entier n, Un = U0 + n x r.',
+      '@ Pages cadrées Lecture du document Fiche et flashcards écrites',
+      'Continuer sans lecture', 'Accueil  Fiches  Profil',
+    ].join('\n');
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(`
+      window.claude = { use: async () => null };
+      window.Tesseract = { createWorker: async () => ({
+        recognize: async () => ({ data: { text: ${JSON.stringify(0)} } }), terminate: async () => {},
+      }) };`.replace(JSON.stringify(0), JSON.stringify(CAPTURE)));
+    const page = await ouvrirScan(ctx);
+    await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
+    await page.click('#scan-analyser'); await page.waitForTimeout(1500);
+
+    const fiche = await page.innerText('#scan-fiche-lue');
+    verifier('le titre du cours l\'emporte sur l\'interface',
+      (await page.inputValue('#scan-sujet')).startsWith('Suites arithmétiques'), await page.inputValue('#scan-sujet'));
+    verifier('aucun mot de l\'interface dans la fiche',
+      !/Connexion|Pages cadrées|Continuer sans lecture|Accueil/.test(fiche), fiche.replace(/\n+/g, ' / '));
+    await ctx.close();
+  }
+
   await nav.close();
   if (echecs) { console.log(`\n${echecs} vérification(s) en échec.`); process.exit(1); }
   console.log('\nLecture sur l\'appareil : tout est conforme.');

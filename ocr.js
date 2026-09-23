@@ -172,11 +172,36 @@ const OCR = (function () {
      ———————————————————————————————————————————————————————————— */
 
   // Ce qui fait une bonne carte : une notion qu'on doit savoir restituer.
-  const INTITULES_CARTE = /^(d[ée]finition|propri[ée]t[ée]s?|th[ée]or[èe]me|r[èe]gle|formule|m[ée]thode|corollaire|lemme|vocabulaire)\b/i;
+  const NUMERO = "(?:[IVX]+|\\d+)\\s*[).\\-]\\s*";
+  const INTITULES_CARTE = new RegExp(
+    `^(?:${NUMERO})?(d[ée]finition|propri[ée]t[ée]s?|th[ée]or[èe]me|r[èe]gle|formule|m[ée]thode|corollaire|lemme|vocabulaire)\\b`, "i");
   // Ce qui éclaire la fiche sans faire une carte.
   const INTITULES_EXEMPLE = /^(exemple|application|illustration)\b/i;
   const INTITULES = /^(d[ée]finition|propri[ée]t[ée]s?|th[ée]or[èe]me|r[èe]gle|formule|m[ée]thode|remarque|exemple|cons[ée]quence|corollaire|lemme|vocabulaire|rappel|conclusion)\b/i;
   const BRUIT = /^(exercice|page\s*\d+|chapitre\s*\d*|sommaire|table des mati[èe]res|nom\s*:|pr[ée]nom\s*:|classe\s*:|\d{1,2}\s*[\/.]\s*\d{1,2})\s*$/i;
+
+  /* Une capture d'écran de l'application (ou du navigateur) se reconnaît à ses
+     propres mots : on les écarte du cours, et on prévient si elle domine. */
+  const BRUIT_APP = new RegExp([
+    "claude\\.ai", "connexion", "le contenu est g[ée]n[ée]r[ée]", "pages cadr[ée]es",
+    "lecture du document", "continuer sans lecture", "flashcards? [ée]crites",
+    "photographier", "qu'est-ce que tu veux en faire", "accueil\\s+fiches\\s+profil",
+    "le cours, la le[çc]on du cahier", "cadre ta page", "prendre une photo",
+    "choisir une image", "ajouter une page", "th[èe]me de la fiche", "recommencer",
+    "mati[èe]res? suivies?", "fiches cr[ée][ée]es",
+  ].join("|"), "i");
+
+  /* Corrections de reconnaissance les plus fréquentes sur un cours. */
+  function nettoyerLigne(ligne) {
+    return ligne
+      .replace(/^[«»"'|@©®*•·~^_=+\-–—.\s]+/, "")     // décorations de début de ligne
+      .replace(/\s[|¦~]\s/g, " ")                      // barres et tildes lus en plein texte
+      .replace(/\s*([=<>])\s*/g, " $1 ")               // « U =8 » → « U = 8 »
+      .replace(/\s+([,;:.!?])/g, "$1")                 // espace avant ponctuation
+      .replace(/\s{2,}/g, " ")
+      .replace(/[,;]\s*$/, "")                         // virgule ou point-virgule orphelin
+      .trim();
+  }
 
   const MOTS_MATIERES = {
     maths: ["suite", "suites", "derivee", "derivation", "fonction", "equation", "theoreme", "calcul",
@@ -205,7 +230,8 @@ const OCR = (function () {
   function lignesUtiles(texte) {
     return String(texte || "")
       .split(/\r?\n/)
-      .map((ligne) => ligne.replace(/\s+/g, " ").trim())
+      .map((ligne) => nettoyerLigne(ligne.replace(/\s+/g, " ").trim()))
+      .filter((ligne) => !BRUIT_APP.test(ligne))
       // Les caractères isolés sont du bruit de reconnaissance ; une égalité,
       // elle, est du contenu même sans mot lisible (« U1 = 8 »).
       .filter((ligne) => ligne.length > 2 && !BRUIT.test(ligne)
@@ -264,12 +290,23 @@ const OCR = (function () {
     return meilleure;
   }
 
+  /**
+   * Découpe en phrases lisibles. Une fiche se lit en un coup d'œil : on écarte
+   * les fragments, les pavés et tout ce qui vient de l'interface.
+   */
   function phrases(texte) {
     return String(texte || "")
       .replace(/\s+/g, " ")
-      .split(/(?<=[.!?])\s+/)
-      .map((p) => p.trim())
-      .filter((p) => p.length > 25 && p.length < 240);
+      .split(/(?<=[.!?:])\s+(?=[A-ZÀ-Ý0-9])/)
+      .map((p) => nettoyerLigne(p))
+      .filter((p) =>
+        p.length >= 30 && p.length <= 180
+        && p.split(" ").length >= 5
+        && /[a-zà-ÿ]{3}/i.test(p)
+        && !BRUIT_APP.test(p)
+        && !/[:;]$/.test(p)                            // « … sont : » annonce une liste
+        && p.split("=").length <= 2                    // deux égalités : c'est une ligne de calcul
+        && /^[A-ZÀ-Ý0-9«"]/.test(p));                  // une phrase, pas un bout de phrase
   }
 
   /** Cartes tirées des tournures d'un cours : intitulés, deux-points, égalités, dates. */
@@ -294,7 +331,8 @@ const OCR = (function () {
       // « Définition : une suite est… » ou « Définition » puis la ligne suivante
       const intitule = ligne.match(INTITULES_CARTE);
       if (intitule) {
-        const mot = `${intitule[0][0].toUpperCase()}${intitule[0].slice(1).toLowerCase()}`;
+        const brut = intitule[1];                     // l'intitulé sans son numéro
+        const mot = `${brut[0].toUpperCase()}${brut.slice(1).toLowerCase()}`;
         const reste = ligne.slice(intitule[0].length).replace(/^[\s:—-]+/, "");
         const corps = reste.length > 10 ? reste : (lignes[rang + 1] || "");
         ajouter(chapitre ? `${mot} — ${chapitre} ?` : `${mot} ?`, corps);
@@ -308,10 +346,13 @@ const OCR = (function () {
         return;
       }
 
-      // « Un+1 = Un + 5 » : une formule nommée
-      const egalite = ligne.match(/^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9_+\-()]{0,24})\s*=\s*(.{2,120})$/);
-      if (egalite) {
-        ajouter(`Que vaut ${egalite[1].trim()} ?`, `${egalite[1].trim()} = ${egalite[2].trim()}`);
+      // Une ou plusieurs égalités sur la même ligne : « Uo = 3, U1 = 8, U2 = 13 »
+      const egalites = repererFormules([ligne]);
+      if (egalites.length) {
+        egalites.forEach((formule) => {
+          const nom = formule.split(" = ")[0];
+          ajouter(`Que vaut ${nom} ?`, formule);
+        });
         return;
       }
 
@@ -327,6 +368,30 @@ const OCR = (function () {
    * Met le texte lu en forme de fiche. Renvoie la même structure que la
    * lecture par Claude, avec `moteur: "ocr"` pour que la page puisse le dire.
    */
+  /**
+   * Repère les égalités, même alignées sur une seule ligne :
+   * « Uo = 3, U1 = 8, U2 = 13 » en rend trois.
+   */
+  const FORMULE = /([A-Za-zÀ-ÿ][\wÀ-ÿ+\-()]{0,12})\s*=\s*([^=,;.]{1,40})/g;
+
+  function repererFormules(lignes) {
+    const trouvees = [];
+    lignes.forEach((ligne) => {
+      if (ligne.length > 200) return;
+      let coup;
+      FORMULE.lastIndex = 0;
+      while ((coup = FORMULE.exec(ligne)) !== null) {
+        const nom = coup[1].trim();
+        const valeur = coup[2].trim()
+          .replace(/\s+(et|puis|donc|avec)\s+\S*$/i, "")   // « = Un + 5 et Uo » → « = Un + 5 »
+          .replace(/[.,;]$/, "");
+        if (nom.length && valeur.length) trouvees.push(`${nom} = ${valeur}`);
+        if (trouvees.length > 12) break;
+      }
+    });
+    return trouvees;
+  }
+
   /** Retire les redites : une phrase déjà contenue dans une autre ne sert à rien. */
   function sansRedites(liste) {
     const gardees = [];
@@ -343,21 +408,21 @@ const OCR = (function () {
     const titre = devinerTitre(lignes);
     const cartes = fabriquerCartes(lignes, titre);
 
-    // Les plus longues phrases portent le cours ; on les remet dans l'ordre du document.
+    // Quatre phrases claires valent mieux que six pavés : on garde l'ordre du cours.
     const platTitre = sansAccents(titre);
-    const toutes = sansRedites(phrases(lignes.join(" ")))
+    // Les lignes courtes sont des titres, des numéros ou de la navigation :
+    // les mêler à la prose fabrique des phrases qui n'existent pas.
+    const prose = lignes.filter((ligne) => ligne.length >= 25).join(" ");
+    const points = sansRedites(phrases(prose))
       // une « phrase » qui n'est que le titre recopié n'apprend rien
-      .filter((phrase) => sansAccents(phrase).split(platTitre).join("").replace(/\W/g, "").length > 25);
-    const retenues = toutes.slice().sort((a, b) => b.length - a.length).slice(0, 5);
-    const points = toutes.filter((p) => retenues.includes(p));
+      .filter((phrase) => sansAccents(phrase).split(platTitre).join("").replace(/\W/g, "").length > 25)
+      .slice(0, 4);
 
     const exemples = lignes
-      .filter((ligne) => INTITULES_EXEMPLE.test(ligne) && ligne.length > 25)
-      .slice(0, 3);
+      .filter((ligne) => INTITULES_EXEMPLE.test(ligne) && ligne.length > 25 && ligne.length < 220)
+      .slice(0, 2);
 
-    const formules = sansRedites(lignes
-      .filter((ligne) => /=/.test(ligne) && ligne.length < 90))
-      .slice(0, 6);
+    const formules = sansRedites(repererFormules(lignes)).slice(0, 6);
 
     return {
       titre: titre || "Document lu sur l'appareil",
@@ -366,11 +431,11 @@ const OCR = (function () {
         lu: true,
         moteur: "ocr",
         accroche: `Texte lu sur ${type === "lecon" ? "ta leçon" : type === "devoir" ? "ton devoir" : "ton contrôle"}, sans IA : relis-le avant de réviser.`,
-        points: (points.length ? points : lignes.slice(1, 6)).slice(0, 6),
+        points: points.length ? points : lignes.filter((l) => l.length > 30).slice(0, 4),
         formules,
         exemples,
         pieges: [],
-        libelleFormules: "Formules & repères repérés",
+        libelleFormules: "Formules et repères",
       },
       cartes,
       texte,

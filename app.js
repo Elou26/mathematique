@@ -1311,6 +1311,8 @@
       </header>
       <p class="fiche-accroche">${lecture.contenu.accroche}</p>
       ${sectionFiche("L'essentiel", lecture.contenu.points.slice(0, 3), "fiche-section--points")}
+      ${sectionFiche(lecture.contenu.libelleFormules || "Formules clés",
+                     (lecture.contenu.formules || []).slice(0, 6), "fiche-section--reperes")}
       ${parAppareil && lecture.texte ? `
         <details class="reglages">
           <summary>Voir le texte lu</summary>
