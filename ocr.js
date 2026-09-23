@@ -98,6 +98,123 @@ const OCR = (function () {
     return chargement;
   }
 
+  /* ————— Préparation de l'image ————————————————————————————————
+     Une photo de cahier a des ombres, un contraste mou et souvent trop
+     ou pas assez de pixels. Trois gestes avant de lire : mettre à la
+     bonne taille, effacer l'éclairage inégal, durcir le contraste.
+     ———————————————————————————————————————————————————————————— */
+
+  const LARGEUR_CIBLE = 1800;      // ce que Tesseract lit le mieux
+  const AGRANDISSEMENT_MAX = 2;
+
+  function toileDepuis(source, largeur, hauteur) {
+    const toile = document.createElement("canvas");
+    toile.width = largeur;
+    toile.height = hauteur;
+    const ctx = toile.getContext("2d", { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(source, 0, 0, largeur, hauteur);
+    return toile;
+  }
+
+  /** Divise l'image par son propre flou : l'ombre s'efface, le texte reste. */
+  function aplatirEclairage(toile) {
+    const ctx = toile.getContext("2d", { willReadFrequently: true });
+    const image = ctx.getImageData(0, 0, toile.width, toile.height);
+
+    const petit = toileDepuis(toile, Math.max(1, toile.width >> 4), Math.max(1, toile.height >> 4));
+    const flou = toileDepuis(petit, toile.width, toile.height)
+      .getContext("2d", { willReadFrequently: true })
+      .getImageData(0, 0, toile.width, toile.height);
+
+    const pixels = image.data;
+    const fond = flou.data;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const gris = 0.299 * pixels[i] + 0.587 * pixels[i + 1] + 0.114 * pixels[i + 2];
+      const base = Math.max(1, 0.299 * fond[i] + 0.587 * fond[i + 1] + 0.114 * fond[i + 2]);
+      // Le papier est ramené vers le blanc quelle que soit l'ombre qui le couvre.
+      let v = Math.min(255, (gris / base) * 205);
+      // Puis on écarte l'encre du papier, sans binariser : Tesseract aime les gris.
+      v = v < 115 ? v * 0.65 : Math.min(255, 115 + (v - 115) * 1.7);
+      pixels[i] = pixels[i + 1] = pixels[i + 2] = v;
+    }
+    ctx.putImageData(image, 0, 0);
+    return toile;
+  }
+
+  /** Renvoie une image prête à lire, ou le fichier d'origine si le navigateur ne suit pas. */
+  async function preparerImage(fichier) {
+    try {
+      if (typeof createImageBitmap !== "function" || typeof document === "undefined") return fichier;
+      const bitmap = await createImageBitmap(fichier);
+      const facteur = Math.min(LARGEUR_CIBLE / bitmap.width, AGRANDISSEMENT_MAX);
+      const largeur = Math.round(bitmap.width * (facteur > 0 ? facteur : 1));
+      const hauteur = Math.round(bitmap.height * (facteur > 0 ? facteur : 1));
+      const toile = aplatirEclairage(toileDepuis(bitmap, largeur, hauteur));
+      if (typeof bitmap.close === "function") bitmap.close();
+
+      const blob = await new Promise((resoudre) => {
+        if (typeof toile.toBlob === "function") toile.toBlob(resoudre, "image/png");
+        else resoudre(null);
+      });
+      return blob || fichier;
+    } catch (erreur) {
+      return fichier;                 // un traitement raté ne doit jamais bloquer la lecture
+    }
+  }
+
+  /* ————— Filtrage par confiance ————————————————————————————————
+     Tesseract note chaque mot. Sur une photo, les taches d'encre et les
+     ombres ressortent en « mots » à 0 ou 30 de confiance : ce sont eux
+     qui polluaient les fiches. On ne garde que ce dont il est sûr.
+     ———————————————————————————————————————————————————————————— */
+
+  /* Réglés au banc d'essai (tests/qualite-lecture.js) : sur une image nettoyée,
+     un filtre serré coûte du texte sans gagner en propreté ; sur une image
+     restée sale, il sauve la fiche. On s'adapte donc à ce que le moteur dit
+     de sa propre lecture. */
+  const SEUILS_NET = { mot: 30, ligne: 40 };
+  const SEUILS_DIFFICILE = { mot: 60, ligne: 70 };
+  const CONFIANCE_NETTE = 75;
+
+  const SEUIL_MOT = SEUILS_NET.mot;
+  const SEUIL_LIGNE = SEUILS_NET.ligne;
+
+  function texteFiable(donnees, seuilMot, seuilLigne) {
+    const lignes = (donnees && donnees.lines) || [];
+    if (!lignes.length) return (donnees && donnees.text) || "";
+    const difficile = typeof donnees.confidence === "number" && donnees.confidence < CONFIANCE_NETTE;
+    const defauts = difficile ? SEUILS_DIFFICILE : SEUILS_NET;
+    const parMot = typeof seuilMot === "number" ? seuilMot : defauts.mot;
+    const parLigne = typeof seuilLigne === "number" ? seuilLigne : defauts.ligne;
+
+    const gardees = [];
+    lignes.forEach((ligne) => {
+      const brut = String(ligne.text || "").trim();
+      // Une ligne de formule est toujours moins sûre : on ne la juge pas comme du texte.
+      const formule = /[=<>]|\d/.test(brut);
+      const mots = (ligne.words || [])
+        .filter((mot) => mot && mot.confidence >= (formule ? parMot - 20 : parMot) && String(mot.text || "").trim());
+      if (!mots.length) return;
+
+      const moyenne = mots.reduce((somme, mot) => somme + mot.confidence, 0) / mots.length;
+      if (moyenne < (formule ? parLigne - 20 : parLigne)) return;
+
+      const texte = mots.map((mot) => mot.text).join(" ").replace(/\s+/g, " ").trim();
+      // Une « ligne » d'un seul signe est un reste d'ombre, pas du cours.
+      if (texte.replace(/[^A-Za-zÀ-ÿ0-9]/g, "").length < 2) return;
+      gardees.push(texte);
+    });
+
+    return gardees.join("\n");
+  }
+
+  /** Un mot coupé en fin de ligne est recollé. */
+  function recollerCoupures(texte) {
+    return String(texte || "").replace(/([A-Za-zÀ-ÿ])[-‐‑–]\s*\n\s*([a-zà-ÿ])/g, "$1$2");
+  }
+
   /* ————— Lecture des pages ——————————————————————————————————————— */
 
   /**
@@ -138,6 +255,10 @@ const OCR = (function () {
           // que la politique de sécurité de la page peut refuser.
           workerBlobURL: false,
           logger: suivre,
+        }).then(async (w) => {
+          // Les espaces entre mots comptent dans une formule.
+          try { await w.setParameters({ preserve_interword_spaces: "1" }); } catch (erreur) { /* option absente */ }
+          return w;
         }),
         sentinelle.promesse,
       ]);
@@ -147,13 +268,18 @@ const OCR = (function () {
     }
 
     const textes = [];
+    const confiances = [];
     try {
       for (let rang = 0; rang < pages.length; rang++) {
         if (signal && signal.aborted) throw { code: "cancelled" };
         avancer("page", rang / pages.length);
         sentinelle.toucher();
-        const resultat = await Promise.race([ouvrier.recognize(pages[rang]), sentinelle.promesse]);
-        textes.push(((resultat && resultat.data && resultat.data.text) || "").trim());
+        const image = await preparerImage(pages[rang]);
+        sentinelle.toucher();
+        const resultat = await Promise.race([ouvrier.recognize(image), sentinelle.promesse]);
+        const donnees = (resultat && resultat.data) || {};
+        confiances.push(typeof donnees.confidence === "number" ? donnees.confidence : 0);
+        textes.push(recollerCoupures(texteFiable(donnees)).trim());
       }
     } finally {
       sentinelle.arreter();
@@ -162,7 +288,10 @@ const OCR = (function () {
 
     const texte = textes.join("\n").trim();
     if (texte.replace(/\s/g, "").length < 40) throw { code: "illisible" };
-    return { texte, pages: textes };
+    const confiance = confiances.length
+      ? Math.round(confiances.reduce((somme, c) => somme + c, 0) / confiances.length)
+      : 0;
+    return { texte, pages: textes, confiance };
   }
 
   /* ————— Structuration : du texte brut à une fiche —————————————————
@@ -482,7 +611,30 @@ const OCR = (function () {
     return blocs;
   }
 
-  /** Retire les redites : une phrase déjà contenue dans une autre ne sert à rien. */
+  /* Ce qui fait une phrase de cours plutôt qu'une phrase de remplissage. */
+  const VERBES_COURS = /\b(est|sont|d[ée]signe|s'appelle|appelle|correspond|permet|signifie|d[ée]finit|vaut|s'[ée]crit|se calcule|not[ée]e?)\b/i;
+  const LIENS_COURS = /\b(donc|ainsi|c'est-[àa]-dire|autrement dit|si|alors|lorsque|quand|car|parce que|pour tout)\b/i;
+  const CONSIGNE = /^(calculer|montrer|d[ée]montrer|justifier|d[ée]terminer|r[ée]soudre|tracer|compl[ée]ter|exercice)/i;
+
+  /** Note une phrase : plus elle explique, plus elle monte dans la fiche. */
+  function pertinence(phrase, titre) {
+    const mots = phrase.split(" ").length;
+    const motsTitre = sansAccents(titre).split(" ").filter((m) => m.length > 4);
+    const plat = sansAccents(phrase);
+
+    let note = 0;
+    if (VERBES_COURS.test(phrase)) note += 3;                 // elle définit
+    if (LIENS_COURS.test(phrase)) note += 2;                  // elle raisonne
+    if (motsTitre.some((m) => plat.includes(m))) note += 2;   // elle parle du chapitre
+    if (/\d/.test(phrase)) note += 1;                         // une valeur, une date
+    if (CONSIGNE.test(phrase)) note -= 5;                     // c'est une consigne d'exercice
+    if (INTITULES_EXEMPLE.test(phrase)) note -= 2;            // l'exemple a sa section
+    if (mots < 8) note -= 2;
+    if (mots > 32) note -= 2;
+    return note;
+  }
+
+  /** Retire les redites : une phrase déjà contenue dans une autre ne sert à rien. */  /** Retire les redites : une phrase déjà contenue dans une autre ne sert à rien. */
   function sansRedites(liste) {
     const gardees = [];
     liste.forEach((entree) => {
@@ -493,20 +645,34 @@ const OCR = (function () {
     return gardees;
   }
 
-  function structurer(texte) {
+  function structurer(texte, confiance) {
     const lignes = lignesUtiles(texte);
     const titre = devinerTitre(lignes);
     const cartes = fabriquerCartes(lignes, titre);
 
     // Quatre phrases claires valent mieux que six pavés : on garde l'ordre du cours.
     const platTitre = sansAccents(titre);
-    // Les lignes courtes sont des titres, des numéros ou de la navigation :
-    // les mêler à la prose fabrique des phrases qui n'existent pas.
-    const prose = lignes.filter((ligne) => ligne.length >= 25).join(" ");
-    const points = sansRedites(phrases(prose))
+    /* Ce qui entre dans la prose : des phrases, rien d'autre. Un titre, un
+       en-tête de page ou un intitulé recollé au texte fabriquerait des
+       phrases qui n'existent pas dans le cours. */
+    const prose = lignes
+      .filter((ligne) => ligne.length >= 25)
+      .filter((ligne) => sansAccents(ligne) !== platTitre)
+      .filter((ligne) => /[.!?]$/.test(ligne) || ligne.split(" ").length > 8)
+      .join(" ");
+    const candidates = sansRedites(phrases(prose))
       // une « phrase » qui n'est que le titre recopié n'apprend rien
-      .filter((phrase) => sansAccents(phrase).split(platTitre).join("").replace(/\W/g, "").length > 25)
-      .slice(0, 6);
+      .filter((phrase) => sansAccents(phrase).split(platTitre).join("").replace(/\W/g, "").length > 25);
+    const notees = candidates
+      .map((phrase, rang) => ({ phrase, rang, note: pertinence(phrase, titre) }))
+      .sort((a, b) => b.note - a.note || a.rang - b.rang);
+    // Une phrase qui n'explique rien n'entre pas, même s'il reste de la place —
+    // sauf si la fiche serait vide sans elle.
+    const dignes = notees.filter((e) => e.note >= 2);
+    const points = (dignes.length >= 3 ? dignes : notees.slice(0, 4))
+      .slice(0, 6)
+      .sort((a, b) => a.rang - b.rang)
+      .map((entree) => entree.phrase);
 
     const exemples = repererExemples(lignes);
 
@@ -518,7 +684,9 @@ const OCR = (function () {
       contenu: {
         lu: true,
         moteur: "ocr",
-        accroche: "Texte lu sur ton document, sans IA : relis-le avant de réviser.",
+        accroche: typeof confiance === "number" && confiance < 70
+          ? "Photo difficile à lire : le texte comporte sans doute des erreurs. Reprends-la à plat et bien éclairée, ou corrige à la main."
+          : "Texte lu sur ton document, sans IA : relis-le avant de réviser.",
         points: points.length ? points : lignes.filter((l) => l.length > 30).slice(0, 6),
         formules,
         exemples,
@@ -530,5 +698,6 @@ const OCR = (function () {
     };
   }
 
-  return { charger, lire, structurer, SOURCES };
+  // Exposés pour le banc d'essai (tests/qualite-lecture.js), pas pour l'app.
+  return { charger, lire, structurer, SOURCES, __preparerImage: preparerImage, __texteFiable: texteFiable };
 })();

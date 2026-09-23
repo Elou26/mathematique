@@ -1514,7 +1514,7 @@
         },
       });
 
-      const brute = OCR.structurer(lecture.texte);
+      const brute = OCR.structurer(lecture.texte, lecture.confiance);
       // Sur l'appareil, une seule carte vaut mieux que rien : on n'exige pas les trois.
       const propre = validerLecture({
         lisible: true,
@@ -1541,6 +1541,10 @@
       if (propre.matiere) fiche.matiere = propre.matiere;
       fiche.sujet = propre.titre;
       etapesScan(["cadrage", "lecture", "notions"]);
+      if (typeof lecture.confiance === "number" && lecture.confiance < 70) {
+        messageScan(`Photo lue difficilement (${lecture.confiance} % de confiance). `
+          + "Vérifie le titre et les formules, ou reprends la photo à plat.", "erreur");
+      }
       afficherLecture(propre);
       return;
     } catch (erreur) {

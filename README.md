@@ -265,6 +265,22 @@ déclarés en second dans `OCR.SOURCES`, pour une app servie sans le dossier `mo
 lui-même sont bornés (`DELAI_SCRIPT`, `DELAI_SONDE`, `DELAI_SILENCE`) ; une lecture qui progresse
 repousse sa propre limite, une lecture muette rend la main avec un message qui dit quoi faire.
 
+**Trois gestes avant de lire** (`preparerImage()`), parce qu'une photo de cahier a des ombres et
+un contraste mou : mise à ~1800 px de large (la taille que Tesseract lit le mieux), effacement de
+l'éclairage inégal — l'image est divisée par son propre flou, l'ombre s'efface et le texte reste —
+puis durcissement du contraste sans binariser.
+
+**Puis un filtre sur la confiance** (`texteFiable()`) : Tesseract note chaque mot, et sur une
+photo les taches et les ombres ressortent en « mots » notés 0 à 30. Les seuils s'adaptent à ce
+que le moteur dit de sa lecture : image nette, filtre lâche (mot ≥ 30) pour ne rien perdre ;
+image difficile, filtre serré (mot ≥ 60) pour sauver la fiche. Une ligne de formule est jugée
+20 points plus bas, parce qu'elle est toujours moins sûre qu'une phrase. Les mots coupés en fin
+de ligne sont recollés, et une photo lue sous 70 % de confiance est signalée au lecteur.
+
+Mesuré par `tests/qualite-lecture.js` sur quatre pages (nettes et dégradées) : **100 % des mots
+retrouvés, 1 % de bruit** — contre 97 % et jusqu'à 72 % de bruit sur les photos avant ces deux
+étapes.
+
 Tesseract ne rend que du **texte brut** : la mise en fiche est faite par des règles
 (`OCR.structurer()`), pas par une IA —
 
@@ -280,10 +296,11 @@ Tesseract ne rend que du **texte brut** : la mise en fiche est faite par des rè
 | `X = …`, même plusieurs sur une ligne, égalités en chaîne comprises | « Dans l'exemple du cours, que vaut X ? » pour une valeur, « Quelle expression donne X ? » pour une formule |
 | `1789 : …` | une carte « Que se passe-t-il en 1789 ? » |
 | `Exemple :` | la section *Exemples* de la fiche, jamais une carte |
-| 4 phrases de 30 à 180 caractères, sans redite, sans fragment, sans ligne de calcul | *L'essentiel* |
+| Phrases notées par `pertinence()` : une définition (+3), un raisonnement (+2), le sujet du chapitre (+2), une valeur (+1), une consigne d'exercice (−5) | *L'essentiel* — les 6 meilleures, remises dans l'ordre du cours, et seulement celles qui expliquent quelque chose |
 
-Les lignes courtes (titres, numéros, navigation) sont exclues de la prose : mêlées au texte, elles
-fabriquaient des phrases qui n'existent pas. Les égalités sont posées à plat, en pastilles.
+Les lignes courtes (titres, numéros, navigation), le titre lui-même et les intitulés sans
+ponctuation finale sont exclus de la prose : mêlés au texte, ils fabriquaient des phrases qui
+n'existent pas dans le cours. Les égalités sont posées à plat, en pastilles.
 
 **Toute carte est une vraie question** : `ajouter()` refuse un recto de moins de trois mots ou qui
 ne se termine pas par un point d'interrogation, et le verso est remis en phrase (majuscule, point
@@ -308,6 +325,10 @@ injoignable annoncé franchement plutôt que de tourner sans fin.
 dues et annonce le retard, la révision lancée depuis l'accueil, le palier qui suit le score, les
 erreurs rejouées seules, le compte du jour et la série qui avancent, et une carte ratée qui
 revient dans la séance.
+`node tests/qualite-lecture.js` est le banc d'essai chiffré : il imprime des pages dont il connaît
+le texte, les dégrade (rotation, ombre en dégradé, bruit, compression JPEG), les fait lire, et
+échoue si moins de 90 % des mots sont retrouvés ou si plus de 10 % de ce qui est lu n'existe pas
+dans la page.
 `node tests/lecture-reelle.js` fait la **vraie** lecture : il imprime une page de cours avec le
 navigateur, la fait lire par le moteur embarqué (≈ 1 s), et vérifie le titre retenu, la matière
 devinée, les cartes tirées du texte — et qu'aucune requête ne sort du site.
