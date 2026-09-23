@@ -26,19 +26,22 @@ const OCR = (function () {
     ],
     worker: "moteur/worker.min.js",
     coeur: "moteur/",
-    // Modèle français « fast » : 600 Ko compressés, largement assez sur de
-    // l'imprimé. `langPath` n'a pas de barre finale, le worker l'ajoute.
-    langues: [
-      "moteur",
-      "https://cdn.jsdelivr.net/npm/@tesseract.js-data/fra@1.0.0/4.0.0",
-      "https://tessdata.projectnaptha.com/4.0.0",
-    ],
+    /* Modèle français « fast », 600 Ko compressés, servi sous le nom
+       `modele-fra.txt` : l'hébergement ne sert pas les `.gz`. Le worker
+       embarqué demande ce nom-là (voir moteur/LISEZMOI.md) ; il reconnaît
+       le gzip aux octets, pas à l'extension. */
+    modele: "moteur",
+    // Repli quand l'app tourne sans le dossier moteur/ : tout vient du CDN.
+    secours: {
+      worker: "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js",
+      coeur: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1/",
+      modele: "https://cdn.jsdelivr.net/npm/@tesseract.js-data/fra@1.0.0/4.0.0",
+    },
   };
 
   /* Un téléchargement bloqué ne rend jamais la main : toute attente est bornée,
      et une attente qui progresse repousse sa propre limite. */
   const DELAI_SCRIPT = 20000;     // chargement du script depuis le CDN
-  const DELAI_SONDE = 5000;       // test d'un chemin de modèle
   const DELAI_SILENCE = 30000;    // sans le moindre signe de vie du moteur
 
   function veille(delai) {
@@ -63,7 +66,7 @@ const OCR = (function () {
   }
 
   let chargement = null;      // promesse de chargement du script
-  let cheminLangue = null;    // premier chemin de modèle qui répond
+  let embarque = true;        // vrai tant qu'on sert le moteur nous-mêmes
 
   /* ————— Chargement du moteur ——————————————————————————————————— */
 
@@ -85,31 +88,14 @@ const OCR = (function () {
 
     chargement = SOURCES.scripts
       .reduce(
-        (suite, url) => suite.catch(() => avecDelai(ajouterScript(url), DELAI_SCRIPT, "bloque")),
+        (suite, url) => suite.catch(() => avecDelai(ajouterScript(url), DELAI_SCRIPT, "bloque")
+          .then(() => { embarque = url.indexOf("://") === -1; })),
         Promise.reject(new Error("début"))
       )
       .then(() => typeof Tesseract !== "undefined")
       .catch(() => false);
 
     return chargement;
-  }
-
-  /** Le modèle de langue n'est pas rangé pareil partout : on prend le premier qui répond. */
-  async function trouverLangue() {
-    if (cheminLangue) return cheminLangue;
-    for (const base of SOURCES.langues) {
-      const abandon = new AbortController();
-      const minuteur = setTimeout(() => abandon.abort(), DELAI_SONDE);
-      try {
-        const reponse = await fetch(`${base.replace(/\/$/, "")}/fra.traineddata.gz`, {
-          method: "HEAD", mode: "cors", signal: abandon.signal,
-        });
-        if (reponse.ok) { cheminLangue = base; return base; }
-      } catch (erreur) { /* bloqué ou trop lent : on essaie le suivant */
-      } finally { clearTimeout(minuteur); }
-    }
-    cheminLangue = SOURCES.langues[0];   // dernier recours : Tesseract dira s'il échoue
-    return cheminLangue;
   }
 
   /* ————— Lecture des pages ——————————————————————————————————————— */
@@ -126,7 +112,9 @@ const OCR = (function () {
     const avancer = (etape, part) => { if (surProgres) surProgres({ etape, part }); };
     avancer("chargement", 0);
 
-    const langPath = await trouverLangue();
+    const chemins = embarque
+      ? { worker: SOURCES.worker, coeur: SOURCES.coeur, modele: SOURCES.modele }
+      : SOURCES.secours;
 
     // Tant que le moteur progresse, on le laisse faire ; s'il se tait trop
     // longtemps (worker refusé, téléchargement gelé), on rend la main.
@@ -143,9 +131,9 @@ const OCR = (function () {
     try {
       ouvrier = await Promise.race([
         Tesseract.createWorker("fra", 1, {
-          workerPath: SOURCES.worker,
-          corePath: SOURCES.coeur,
-          langPath,
+          workerPath: chemins.worker,
+          corePath: chemins.coeur,
+          langPath: chemins.modele,
           // Le worker est servi par le site : inutile de passer par un blob,
           // que la politique de sécurité de la page peut refuser.
           workerBlobURL: false,
