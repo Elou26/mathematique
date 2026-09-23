@@ -26,10 +26,10 @@ const OCR = (function () {
     ],
     worker: "moteur/worker.min.js",
     coeur: "moteur/",
-    /* Modèle français « fast », 600 Ko compressés, servi sous le nom
-       `modele-fra.txt` : l'hébergement ne sert pas les `.gz`. Le worker
-       embarqué demande ce nom-là (voir moteur/LISEZMOI.md) ; il reconnaît
-       le gzip aux octets, pas à l'extension. */
+    /* Modèle français « fast », servi sous le nom `modele-fra.txt` et encodé
+       en base64 : l'hébergement ne sert ni les `.gz` ni les `.txt` binaires.
+       Le worker embarqué demande ce nom-là et décode lui-même — les deux
+       lignes modifiées sont détaillées dans moteur/LISEZMOI.md. */
     modele: "moteur",
     // Repli quand l'app tourne sans le dossier moteur/ : tout vient du CDN.
     secours: {

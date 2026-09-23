@@ -26,6 +26,21 @@ _="".concat(y,"/").concat(i,".traineddata").concat(w?".gz":"")   → avant
 _="".concat(y,"/modele-").concat(i,".txt")                        → après
 ```
 
-Le modèle est donc servi sous le nom `modele-fra.txt`, et reste gzippé : le
-worker reconnaît le gzip aux premiers octets, pas à l'extension. À chaque
-mise à jour du paquet, refaire ce remplacement.
+Et comme un `.txt` doit être du texte réel, le modèle gzippé est **encodé en
+base64** ; une deuxième ligne du worker le décode au vol :
+
+```
+,t.next=35,O.arrayBuffer()                                          → avant
+,t.next=35,O.text().then(function(s){return Uint8Array.from(         → après
+  atob(s.trim()),function(c){return c.charCodeAt(0)}).buffer})
+```
+
+Une fois décodé, le gzip est reconnu aux premiers octets, pas à l'extension.
+À chaque mise à jour du paquet, refaire ces deux remplacements et réencoder
+le modèle :
+
+```bash
+curl -L -o fra.traineddata \
+  https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/fra.traineddata
+gzip -9 -c fra.traineddata | base64 -w0 > modele-fra.txt
+```
