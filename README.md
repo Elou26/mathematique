@@ -222,8 +222,14 @@ faire. **C'est Claude qui lit les pages** — il n'y a pas d'OCR embarqué.
    page), dans la limite de `limits().images.maxCount`.
 2. **Lecture** — `lirePages()` envoie les pages à `sample.json(invite, { images })`. La consigne
    (`CONSIGNE_LECTURE`) laisse Claude **reconnaître lui-même** ce qu'il lit — leçon, devoir ou
-   contrôle — et adapter la fiche en conséquence ; rien n'est demandé au lecteur. Elle exige
-   **une fiche complète et soignée**, pas un survol : des phrases
+   contrôle — et adapter la fiche en conséquence ; rien n'est demandé au lecteur.
+
+   Elle exige un **condensé structuré** : 3 à 8 **sections titrées** dans l'ordre du document,
+   reprenant ses propres intitulés, chacune avec un paragraphe et ses points à retenir ; les
+   **termes du document repris exactement** — vocabulaire, noms propres, dates, unités,
+   notations — parce que c'est là-dessus que l'élève sera interrogé ; **au moins 10 flashcards**
+   terme → définition ; et, pour l'histoire-géo, toutes les dates, les lieux, les acteurs et les
+   termes d'époque. Elle exige aussi **une fiche complète et soignée**, pas un survol : des phrases
    entières qui se tiennent seules, tout le document partie par partie, **chaque exemple repris
    avec son énoncé et sa résolution**, les notations du document conservées — et rien d'inventé.
    Les flashcards sont tenues d'être de **vraies questions** : la consigne donne des exemples à
@@ -234,7 +240,9 @@ faire. **C'est Claude qui lit les pages** — il n'y a pas d'OCR embarqué.
    Une fiche lue s'affiche **entière** : ni le réglage de longueur ni les options à inclure ne
    la rabotent.
 3. **Exploitation** — la fiche lue s'affiche (titre, matière, premiers points, nombre de cartes),
-   le titre remplit le champ du thème, puis **FlashCards**, **Fiche** ou **Quiz**. Après le
+   le titre remplit le champ du thème, puis **FlashCards**, **Fiche** ou **Quiz**. Le quiz d'une
+   fiche lue part de son contenu : `reviserFiche()` envoie les sections, les repères et les
+   termes des cartes, et demande **au moins 10 questions** sur ces termes-là. Après le
    nommage en chapitre, la fiche est rangée avec son `contenu` et ses `cartes` : les flashcards
    sortent du document photographié, le résumé affiche ce qui a été lu (sans regénérer), et un
    quiz lancé sur cette fiche part de ses points essentiels.
@@ -286,6 +294,8 @@ Tesseract ne rend que du **texte brut** : la mise en fiche est faite par des rè
 
 | Règle | Ce qu'elle produit |
 | --- | --- |
+| Titres du document (`I. …`, `2) …`, ligne courte sans ponctuation) | les **sections titrées** de la fiche, avec leur paragraphe et leurs points |
+| `Un espace à fortes contraintes est une région où…` | une carte « Qu'est-ce qu'un espace à fortes contraintes ? » — l'article du cours est conservé, aucun genre inventé |
 | Mots de l'application ou du navigateur (`BRUIT_APP`) | rien : une capture d'écran de l'app ne pollue pas la fiche |
 | Ligne reprise deux fois en tête de page | le titre du chapitre |
 | Comptage de mots par matière (`MOTS_MATIERES`) | la matière, si elle se détache (≥ 3 occurrences) |

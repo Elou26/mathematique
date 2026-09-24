@@ -32,7 +32,12 @@ window.claude = { use: async (n) => {
       matiere: 'histoire',
       resume: {
         accroche: "Dix ans qui font basculer l'Europe.",
-        points: ['1789 : prise de la Bastille', 'Abolition des privilèges', 'Chute de la monarchie'],
+        sections: [
+          { titre: 'Les causes', texte: "La crise financière et la société d'ordres nourrissent la contestation.",
+            points: ['Convocation des États généraux en 1789.'] },
+          { titre: 'La chute de la monarchie', texte: 'La prise de la Bastille ouvre une décennie révolutionnaire.',
+            points: ['Abolition des privilèges le 4 août 1789.', 'Proclamation de la République en 1792.'] },
+        ],
         formules: ['1789-1799'],
         exemples: ['Nuit du 4 août'],
         pieges: ['Ne pas confondre Directoire et Consulat'],
@@ -42,6 +47,12 @@ window.claude = { use: async (n) => {
         { recto: 'Que se passe-t-il le 4 août 1789 ?', verso: "L'abolition des privilèges" },
         { recto: 'Qui est arrêté à Varennes ?', verso: 'Louis XVI, en juin 1791' },
         { recto: 'Quand la République est-elle proclamée ?', verso: 'Le 22 septembre 1792' },
+        { recto: 'États généraux', verso: 'Assemblée des trois ordres convoquée en mai 1789.' },
+        { recto: "Société d'ordres", verso: 'Clergé, noblesse et tiers état, aux droits inégaux.' },
+        { recto: 'Directoire', verso: 'Régime de 1795 à 1799, dirigé par cinq directeurs.' },
+        { recto: 'Consulat', verso: 'Régime installé par Bonaparte en 1799.' },
+        { recto: 'Sans-culottes', verso: 'Militants populaires parisiens de la Révolution.' },
+        { recto: 'Terreur', verso: 'Période de répression politique en 1793-1794.' },
       ],
     };
   };
@@ -83,34 +94,52 @@ function verifier(nom, condition, vu) {
     await page.click('#scan-analyser'); await page.waitForTimeout(1200);
     verifier('les images sont bien envoyées', (await page.evaluate(() => window.__images)) === 2,
       await page.evaluate(() => window.__images));
+    verifier("l'invite exige des sections titrées",
+      /sections titr[ée]es|3 à 8 sections/.test(await page.evaluate(() => window.__invite || '')),
+      'consigne sans sections');
+    verifier("l'invite exige au moins 10 cartes",
+      /au moins 10/.test(await page.evaluate(() => window.__invite || '')), 'consigne sans minimum');
+    verifier("l'invite exige les termes exacts du document",
+      /TERMES DU DOCUMENT/.test(await page.evaluate(() => window.__invite || '')), 'consigne sans termes');
     verifier("l'invite laisse Claude reconnaître le document",
       /leçon, un devoir ou un/.test(await page.evaluate(() => window.__invite || '')),
       (await page.evaluate(() => window.__invite || '')).slice(0, 90));
     verifier('la fiche lue est affichée',
       /La révolution française/.test(await page.innerText('#scan-fiche-lue')), await page.innerText('#scan-fiche-lue'));
+    verifier('le sommaire des parties est montré',
+      /Les causes/.test(await page.innerText('#scan-fiche-lue'))
+        && /La chute de la monarchie/.test(await page.innerText('#scan-fiche-lue')),
+      await page.innerText('#scan-fiche-lue'));
     verifier('le titre lu remplit le champ',
       (await page.inputValue('#scan-sujet')) === 'La révolution française', await page.inputValue('#scan-sujet'));
-    verifier('la tuile annonce les cartes', /4 cartes/.test(await page.innerText('#outil-cartes-detail')),
+    verifier('la tuile annonce les cartes', /10 cartes/.test(await page.innerText('#outil-cartes-detail')),
       await page.innerText('#outil-cartes-detail'));
 
     await page.click('[data-scan-outil="flashcards"]'); await page.waitForTimeout(500);
     verifier('la feuille de nommage reprend le titre lu',
       (await page.inputValue('#nom-champ')) === 'La révolution française', await page.inputValue('#nom-champ'));
     await page.click('#nom-valider'); await page.waitForTimeout(1400);
-    verifier('le paquet vient du document', /Bastille|4 août|Varennes|République/.test(await page.innerText('#carte-recto')),
+    verifier('le paquet vient du document',
+      /Bastille|4 août|Varennes|République|ordres|Directoire|Consulat|culottes|Terreur|États généraux/
+        .test(await page.innerText('#carte-recto')),
       await page.innerText('#carte-recto'));
 
     const rangee = await page.evaluate(() => JSON.parse(localStorage.getItem('mathematique.fiches') || '[]'));
-    verifier('la fiche garde son contenu et ses cartes',
+    verifier('la fiche garde ses sections et ses dix cartes',
       rangee.length === 1 && rangee[0].matiere === 'histoire'
-        && rangee[0].contenu && rangee[0].contenu.points.length === 3 && rangee[0].cartes.length === 4,
-      JSON.stringify(rangee).slice(0, 160));
+        && rangee[0].contenu && rangee[0].contenu.sections.length === 2 && rangee[0].cartes.length === 10,
+      JSON.stringify(rangee).slice(0, 200));
 
     // le résumé de cette fiche est celui qui a été lu, sans génération
     await page.evaluate(() => { document.querySelectorAll('.vue').forEach((v) => { v.hidden = v.id !== 'vue-resume'; }); });
     await page.click('#bouton-generer'); await page.waitForTimeout(400);
-    verifier('la fiche de résumé affiche le contenu lu',
-      /Bastille/.test(await page.innerText('#fiche-resume')), (await page.innerText('#fiche-resume')).slice(0, 120));
+    const rendu = await page.innerText('#fiche-resume');
+    verifier('la fiche de résumé affiche les parties titrées',
+      /Les causes/.test(rendu) && /La chute de la monarchie/.test(rendu) && /Bastille/.test(rendu),
+      rendu.slice(0, 160));
+    verifier('les parties sont numérotées',
+      (await page.$$('#fiche-resume .fiche-partie')).length === 2,
+      `${(await page.$$('#fiche-resume .fiche-partie')).length} partie(s)`);
 
     verifier('aucune erreur console', erreurs.length === 0, erreurs.join(' || '));
     await ctx.close();

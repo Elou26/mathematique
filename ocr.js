@@ -560,7 +560,20 @@ const OCR = (function () {
 
       // « 1789 : prise de la Bastille »
       const date = ligne.match(/^(1[0-9]{3}|20[0-9]{2})\s*[:–—-]\s*(.{5,})$/);
-      if (date) ajouter(`Que se passe-t-il en ${date[1]} ?`, date[2]);
+      if (date) { ajouter(`Que se passe-t-il en ${date[1]} ?`, date[2]); return; }
+
+      // « Un espace à fortes contraintes est une région où… » : le terme se définit
+      // dans la phrase elle-même. C'est la carte la plus utile d'un cours.
+      phrases(ligne).forEach((phrase) => {
+        const defini = phrase.match(
+          /^(L'|La |Le |Les |Un |Une |Des )?([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ'’\- ]{3,50}?)\s(?:est|sont|d[ée]signe|d[ée]signent|correspond à|correspondent à|se caract[ée]rise(?:nt)? par|regroupe(?:nt)?|comprend|comprennent|consiste à)\s(.{15,240})$/);
+        if (!defini) return;
+        const article = defini[1] || "";
+        const terme = defini[2].trim();
+        if (terme.split(" ").length > 7) return;
+        // L'article du cours est conservé : inventer « le » se trompe une fois sur deux.
+        ajouter(questionDefinition(`${article}${terme}`.trim()), phrase);
+      });
     });
 
     return cartes.slice(0, 14);
@@ -634,7 +647,52 @@ const OCR = (function () {
     return note;
   }
 
-  /** Retire les redites : une phrase déjà contenue dans une autre ne sert à rien. */  /** Retire les redites : une phrase déjà contenue dans une autre ne sert à rien. */
+  /* Un titre de partie : « I. Les milieux froids », « 2) Définition », ou une
+     ligne courte sans ponctuation finale. C'est ce qui découpe le cours. */
+  const TITRE_NUMEROTE = new RegExp(`^(?:${NUMERO})(.{3,70})$`);
+
+  function estTitre(ligne) {
+    if (INTITULES.test(ligne)) return true;
+    if (TITRE_NUMEROTE.test(ligne) && !/[.!?]$/.test(ligne)) return true;
+    return ligne.split(" ").length <= 7 && !/[.!?,;:]$/.test(ligne)
+      && /^[A-ZÀ-Ý]/.test(ligne) && ligne.length >= 8;
+  }
+
+  function nettoyerTitre(ligne) {
+    return ligne.replace(new RegExp(`^(?:${NUMERO})`), "").replace(/\s*:\s*$/, "").trim();
+  }
+
+  /** Découpe le document en parties titrées, comme le cours lui-même. */
+  function repererSections(lignes, titre) {
+    const platTitre = sansAccents(titre);
+    const sections = [];
+    let courante = null;
+
+    lignes.forEach((ligne) => {
+      if (estTitre(ligne)) {
+        if (sansAccents(ligne) === platTitre) return;      // le titre du cours n'est pas une partie
+        courante = { titre: nettoyerTitre(ligne), lignes: [] };
+        sections.push(courante);
+        return;
+      }
+      if (courante) courante.lignes.push(ligne);
+    });
+
+    return sections
+      .map((section) => {
+        const corps = section.lignes.join(" ").replace(/\s+/g, " ").trim();
+        const utiles = phrases(corps);
+        return {
+          titre: section.titre,
+          texte: utiles[0] || corps.slice(0, 300),
+          points: sansRedites(utiles.slice(1)).slice(0, 4),
+        };
+      })
+      .filter((section) => section.titre.length > 2 && (section.texte.length > 15 || section.points.length))
+      .slice(0, 8);
+  }
+
+  /** Retire les redites : une phrase déjà contenue dans une autre ne sert à rien. */
   function sansRedites(liste) {
     const gardees = [];
     liste.forEach((entree) => {
@@ -674,6 +732,7 @@ const OCR = (function () {
       .sort((a, b) => a.rang - b.rang)
       .map((entree) => entree.phrase);
 
+    const sections = repererSections(lignes, titre);
     const exemples = repererExemples(lignes);
 
     const formules = sansRedites(repererFormules(lignes)).slice(0, 6);
@@ -687,6 +746,7 @@ const OCR = (function () {
         accroche: typeof confiance === "number" && confiance < 70
           ? "Photo difficile à lire : le texte comporte sans doute des erreurs. Reprends-la à plat et bien éclairée, ou corrige à la main."
           : "Texte lu sur ton document, sans IA : relis-le avant de réviser.",
+        sections,
         points: points.length ? points : lignes.filter((l) => l.length > 30).slice(0, 6),
         formules,
         exemples,

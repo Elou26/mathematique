@@ -1095,6 +1095,36 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   border-radius: 8px;
   color: var(--marine);
 }
+/* Sections titrées d'une fiche lue sur un document */
+.fiche-partie { margin-top: 18px; }
+.fiche-partie + .fiche-partie { padding-top: 16px; border-top: 1px dashed var(--bordure); }
+.fiche-partie-titre {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--marine);
+}
+.fiche-partie-numero {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 6px;
+  background: var(--bleu-pastel);
+  font-size: 12px;
+}
+.fiche-partie-texte { margin: 0; font-size: 12px; line-height: 1.6; color: var(--noir); }
+.fiche-partie-points { margin: 8px 0 0; padding-left: 18px; }
+.fiche-partie-points li { font-size: 12px; line-height: 1.55; color: var(--noir); margin-bottom: 5px; }
+
+.fiche-sommaire { margin: 12px 0 0; padding-left: 18px; }
+.fiche-sommaire li { font-size: 12px; line-height: 1.7; color: var(--marine); font-weight: 600; }
+
 .fiche-actions { margin-top: 18px; }
 .fiche-actions .bouton-principal { margin-top: 0; }
 

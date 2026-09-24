@@ -311,14 +311,21 @@
     etatQuiz.complement = `Fiche « ${fiche.titre} » en ${MATIERES[fiche.matiere].nom}`
       + (niveauChoisi ? `, profil ${libelleNiveau().toLowerCase()}.` : ".");
 
-    // Le document a été lu : les questions portent sur son contenu réel.
+    // Le document a été lu : les questions portent sur ses termes, pas sur le thème en général.
     if (fiche.contenu && fiche.contenu.lu) {
       const reperes = []
-        .concat(fiche.contenu.points || [], fiche.contenu.formules || [])
+        .concat(pointsDeLaFiche(fiche.contenu), fiche.contenu.formules || [])
         .map(texteBrut)
-        .slice(0, 8);
+        .filter((ligne) => ligne.length > 10)
+        .slice(0, 14);
+      const termes = (fiche.cartes || []).map((carte) => texteBrut(carte.recto)).slice(0, 14);
+
       if (reperes.length) {
-        etatQuiz.complement += "\n\nInterroge-moi sur le contenu de cette fiche :\n- " + reperes.join("\n- ");
+        etatQuiz.complement += "\n\nPose au moins 10 questions, uniquement sur le contenu de cette fiche,"
+          + " en reprenant ses termes exacts (mots, dates, notations) :\n- " + reperes.join("\n- ");
+        if (termes.length) {
+          etatQuiz.complement += "\n\nTermes à faire réviser :\n- " + termes.join("\n- ");
+        }
       }
     }
 
@@ -1094,7 +1101,7 @@
 
   const CONSIGNE_LECTURE = [
     "Tu es professeur et tu rédiges, pour un élève francophone, la fiche de révision",
-    "qu'il aurait dû écrire lui-même à partir de son document.",
+    "de son document : un condensé fidèle, structuré, qui lui évite de rouvrir la page.",
     "",
     "Les images jointes sont les pages d'un même document : une leçon, un devoir ou un",
     "contrôle — reconnais toi-même ce que c'est et adapte la fiche :",
@@ -1106,30 +1113,36 @@
     "Lis ces pages (texte imprimé comme manuscrit) et réponds uniquement avec un objet JSON de cette forme :",
     '{"lisible": true, "titre": "Titre de chapitre, court", "matiere": "<<<MATIERES>>>",',
     ' "resume": {"accroche": "deux phrases qui situent le chapitre et disent à quoi il sert",',
-    '            "points": ["5 à 10 phrases complètes qui couvrent tout le document, dans son ordre"],',
-    '            "formules": ["toutes les formules, dates ou repères du document, 0 à 10"],',
+    '            "sections": [{"titre": "Titre de la partie, comme dans le document",',
+    '                          "texte": "le paragraphe qui explique cette partie",',
+    '                          "points": ["les éléments à retenir de cette partie, 0 à 6"]}],',
+    '            "formules": ["toutes les formules, dates ou repères du document, 0 à 12"],',
     '            "exemples": ["chaque exemple du document, énoncé puis résolution, 0 à 6"],',
     '            "pieges": ["erreurs classiques que ce document permet d\'éviter, 0 à 4"]},',
-    ' "flashcards": [{"recto": "une vraie question", "verso": "la réponse, en une phrase"}]}',
+    ' "flashcards": [{"recto": "le terme ou la question", "verso": "sa définition, en une phrase"}]}',
     "",
-    "La fiche doit être complète et soignée :",
+    "LE RÉSUMÉ — un travail complet, structuré et fidèle :",
+    "- découpe-le en 3 à 8 sections titrées, dans l'ordre du document ; reprends les titres",
+    "  du document quand il en a (« Définition », « Caractéristiques », « Répartition »…) ;",
+    "- chaque section a un paragraphe qui explique, et des points qui listent ce qui se retient ;",
+    "- REPRENDS LES TERMES DU DOCUMENT, exactement : le vocabulaire, les noms propres, les",
+    "  dates, les unités, les notations (variables, indices). N'en reformule aucun, ne les",
+    "  remplace pas par des synonymes : l'élève sera interrogé sur ces mots-là ;",
     "- couvre TOUT le document, partie par partie, sans en sauter ;",
-    "- écris des phrases entières, qui se tiennent seules, pas des bouts de texte recopiés ;",
-    "- reprends CHAQUE exemple du document : rappelle l'énoncé, puis déroule la résolution",
-    "  avec ses valeurs, pour qu'on puisse la refaire sans la page sous les yeux ;",
-    "- garde les notations du document (noms des variables, indices, unités) ;",
-    "- reste fidèle : n'invente rien qui ne s'y trouve pas, et ne complète pas par ce que tu sais.",
+    "- reprends CHAQUE exemple : rappelle l'énoncé, puis déroule la résolution avec ses valeurs ;",
+    "- en histoire-géo : garde toutes les dates, les lieux, les acteurs et les termes d'époque ;",
+    "- reste fidèle : n'invente rien qui ne s'y trouve pas, ne complète pas par ce que tu sais,",
+    "  et si un passage est illisible, ne le devine pas — laisse-le de côté.",
     "",
-    "Les flashcards sont de vraies questions :",
-    "- 8 à 14 cartes, chacune interrogeant UNE chose précise ;",
-    "- le recto se comprend seul, sans avoir la fiche sous les yeux : il nomme la notion,",
-    "  le terme ou la grandeur sur laquelle il porte ;",
-    '- bonnes questions : "Comment calcule-t-on la raison d\'une suite arithmétique ?",',
-    '  "Que vaut le terme U3 dans l\'exemple du cours ?", "Quelle formule donne Un en fonction de n ?" ;',
-    '- questions à proscrire : "Propriété ?", "Définition ?", "Que dit le cours ?",',
-    '  "Raison ?", ou tout recto qui reprend juste un mot suivi d\'un point d\'interrogation ;',
-    "- le verso répond vraiment, en une phrase ou une formule, pas par oui ou non ;",
-    "- couvre les définitions, les formules, les valeurs des exemples et la méthode.",
+    "LES FLASHCARDS — au moins 10, une par terme à connaître :",
+    "- 10 à 18 cartes ; s'il y a moins de 10 termes dans le document, prends aussi les dates,",
+    "  les formules, les valeurs des exemples et les méthodes ;",
+    "- recto : LE TERME du document (« Espace à fortes contraintes », « Doctrine Truman »,",
+    "  « Raison d'une suite ») ou une question précise sur lui ;",
+    "- verso : sa définition telle que le document la donne, en une phrase ;",
+    '- questions à proscrire : "Propriété ?", "Définition ?", "Que dit le cours ?", ou tout',
+    "  recto qui reprend un mot vague suivi d'un point d'interrogation ;",
+    "- le verso répond vraiment, jamais par oui ou non.",
     "",
     "Enfin :",
     "- texte brut uniquement, pas de HTML ni de Markdown ;",
@@ -1158,6 +1171,16 @@
 
     const titre = nettoyer(donnees.titre, 80);
     const brut = donnees.resume && typeof donnees.resume === "object" ? donnees.resume : {};
+    const sections = (Array.isArray(brut.sections) ? brut.sections : [])
+      .filter((s) => s && typeof s === "object")
+      .map((s) => ({
+        titre: nettoyer(s.titre, 90),
+        texte: nettoyer(s.texte, 900),
+        points: listeNettoyee(s.points, 6, 320),
+      }))
+      .filter((s) => s.titre.length > 2 && (s.texte.length > 10 || s.points.length))
+      .slice(0, 10);
+    // Les anciennes fiches n'ont qu'une liste de points : on la garde telle quelle.
     const points = listeNettoyee(brut.points, 12, 400);
     const cartes = (Array.isArray(donnees.flashcards) ? donnees.flashcards : [])
       .filter((c) => c && typeof c === "object")
@@ -1165,7 +1188,7 @@
       .filter((c) => c.recto.length > 2 && c.verso.length > 0)
       .slice(0, 24);
 
-    if (titre.length < 3 || !points.length || cartes.length < minCartes) return null;
+    if (titre.length < 3 || (!sections.length && !points.length) || cartes.length < minCartes) return null;
 
     return {
       titre,
@@ -1173,6 +1196,7 @@
       contenu: {
         lu: true,
         accroche: nettoyer(brut.accroche, 400) || "Fiche tirée de ton document.",
+        sections,
         points,
         formules: listeNettoyee(brut.formules, 10),
         exemples: listeNettoyee(brut.exemples, 6, 700),
@@ -1444,7 +1468,10 @@
         <p class="fiche-soustexte">${lecture.matiere ? MATIERES[lecture.matiere].nom + " · " : ""}${lecture.cartes.length} flashcards prêtes</p>
       </header>
       <p class="fiche-accroche">${lecture.contenu.accroche}</p>
-      ${sectionFiche("L'essentiel", lecture.contenu.points.slice(0, 3), "fiche-section--points")}
+      ${(lecture.contenu.sections || []).length
+        ? `<ul class="fiche-sommaire">${lecture.contenu.sections
+            .map((section) => `<li>${section.titre}</li>`).join("")}</ul>`
+        : sectionFiche("L'essentiel", (lecture.contenu.points || []).slice(0, 3), "fiche-section--points")}
       ${sectionFiche(lecture.contenu.libelleFormules || "Formules clés",
                      (lecture.contenu.formules || []).slice(0, 6), "fiche-section--reperes")}
       ${parAppareil && lecture.texte ? `
@@ -1775,6 +1802,31 @@
     return null;
   }
 
+  /** Tout ce que la fiche retient, à plat : sert au quiz et aux repères. */
+  function pointsDeLaFiche(contenu) {
+    if (!contenu) return [];
+    if (Array.isArray(contenu.sections) && contenu.sections.length) {
+      return contenu.sections.reduce((tout, section) => {
+        if (section.texte) tout.push(section.texte);
+        return tout.concat(section.points || []);
+      }, []);
+    }
+    return contenu.points || [];
+  }
+
+  /** Les sections titrées du document, numérotées comme dans un cours. */
+  function sectionsFiche(sections) {
+    if (!Array.isArray(sections) || !sections.length) return "";
+    return sections.map((section, rang) => `
+      <section class="fiche-partie">
+        <h4 class="fiche-partie-titre"><span class="fiche-partie-numero">${rang + 1}</span>${section.titre}</h4>
+        ${section.texte ? `<p class="fiche-partie-texte">${section.texte}</p>` : ""}
+        ${(section.points || []).length
+          ? `<ul class="fiche-partie-points">${section.points.map((p) => `<li>${p}</li>`).join("")}</ul>`
+          : ""}
+      </section>`).join("");
+  }
+
   function sectionFiche(titre, elements, classe) {
     if (!elements || !elements.length) return "";
     const items = elements.map((e) => `<li>${e}</li>`).join("");
@@ -1837,7 +1889,9 @@
     if (!source) return;
     const { titre, sousTitre, contenu } = source;
     // Une fiche lue sur un document est déjà à la bonne taille : on ne la rabote pas.
-    const max = contenu.lu ? contenu.points.length : LONGUEURS[etatResume.longueur].points;
+    const anciens = contenu.points || [];
+    const max = contenu.lu ? anciens.length : LONGUEURS[etatResume.longueur].points;
+    const parties = sectionsFiche(contenu.sections);
     // Une fiche lue est un travail complet : on n'en cache aucune section.
     const { formules, exemples, pieges } = contenu.lu
       ? { formules: true, exemples: true, pieges: true }
@@ -1852,7 +1906,7 @@
         <p class="fiche-soustexte">${sousTitre}</p>
       </header>
       <p class="fiche-accroche">${contenu.accroche}</p>
-      ${sectionFiche("L'essentiel", contenu.points.slice(0, max), "fiche-section--points")}
+      ${parties || sectionFiche("L'essentiel", anciens.slice(0, max), "fiche-section--points")}
       ${formules ? sectionFiche(
           contenu.libelleFormules || "Formules clés",
           contenu.formules,
