@@ -339,6 +339,14 @@ ne se termine pas par un point d'interrogation, et le verso est remis en phrase 
 final). Les intitulés accentués sont enfin reconnus — `\b` ne considère pas « é » comme une lettre,
 d'où un `(?![a-zà-ÿ])` à la place, sans quoi « Propriété » passait au travers.
 
+**Et une question qui se dit à voix haute.** Le numéro de la partie est retiré du terme avant tout :
+« 2.1 Les milieux froids » donnait « Que signifie « 2.1 Les milieux froids » dans ce cours ? », il
+donne « Que sont les milieux froids ? » — le pluriel appelle *Que sont*, pas *Qu'est-ce que*. Un
+terme nu reste cité entre guillemets, sans article inventé, et seulement s'il tient en quatre mots :
+au-delà, c'est un titre de partie, et la carte n'est pas faite. Le chapitre, enfin, se nomme en
+français : « sur les suites arithmétiques » quand le titre porte son article, « sur le chapitre
+« Contraintes » » sinon — jamais « sur CONTRAINTES ».
+
 La fiche produite **dit d'où elle vient** (« leçon lue sur ton appareil »), son accroche invite à
 la relire, et un repli « Voir le texte lu » montre le texte brut pour vérifier. La photo ne quitte
 jamais l'appareil dans ce mode, et elle n'est jamais enregistrée.
@@ -364,6 +372,9 @@ dans la page.
 `node tests/lecture-reelle.js` fait la **vraie** lecture : il imprime une page de cours avec le
 navigateur, la fait lire par le moteur embarqué (≈ 1 s), et vérifie le titre retenu, la matière
 devinée, les cartes tirées du texte — et qu'aucune requête ne sort du site.
+`node tests/questions-cartes.js` lit une leçon aux parties numérotées, sans navigateur, et vérifie
+la formulation de chaque carte : aucun numéro recopié, aucun titre en capitales, le bon tour pour
+un pluriel, l'article du cours conservé et les réponses remises en phrase.
 `node tests/page-fiche.js` couvre la fiche en pleine page — sommaire, parties numérotées, repères
 et exemples, retour à l'onglet d'où l'on vient — et le refus d'une lecture illisible : message
 motivé, aucune fiche fabriquée, chemin manuel offert.

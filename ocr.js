@@ -535,16 +535,26 @@ const OCR = (function () {
    * « Que signifie « raison » ? » sinon — inventer un article se trompe de genre.
    */
   function questionDefinition(terme) {
-    let propre = terme.replace(/^[«»"']+|[»"'.]+$/g, "").trim();
+    let propre = terme
+      .replace(/^[«»"']+|[»"'.]+$/g, "")
+      // « 2.1 Les milieux froids » : le numéro du cours n'a rien à faire dans une question.
+      .replace(new RegExp(`^(?:${NUMERO})`), "")
+      .replace(/^[\s.)\-–—]+/, "")
+      .trim();
     if (propre.length < 3) return "";
 
     if (!ARTICLES.test(propre)) {
+      // Un terme nu se cite tel quel : lui inventer un article se trompe de genre
+      // une fois sur deux. Mais on ne cite qu'un terme, pas un titre de partie.
+      if (propre.split(" ").length > 4) return "";
       const mot = /^[A-ZÀ-Ý][a-zà-ÿ]+$/.test(propre) ? propre.toLowerCase() : propre;
       return `Que signifie « ${mot} » dans ce cours ?`;
     }
 
     // « Une suite… » au milieu d'une question : la majuscule n'a plus lieu d'être.
     if (/^[A-ZÀ-Ý][a-zà-ÿ]/.test(propre)) propre = propre[0].toLowerCase() + propre.slice(1);
+    // Le pluriel appelle « Que sont… » : « Qu'est-ce que les milieux froids ? » sonne faux.
+    if (/^(?:les |des )/.test(propre)) return `Que sont ${propre} ?`;
     const elide = /^(?:un |une |l')/i.test(propre) || /^[aeiouyéèêàh]/i.test(propre);
     return `Qu'est-ce qu${elide ? "'" : "e "}${propre} ?`;
   }
@@ -569,7 +579,17 @@ const OCR = (function () {
   function fabriquerCartes(lignes, titre) {
     const cartes = [];
     const vues = new Set();
-    const chapitre = String(titre || "").slice(0, 44).replace(/\s+$/, "");
+    const brutTitre = String(titre || "").slice(0, 44).replace(/\s+$/, "");
+    // « … sur CONTRAINTES ? » crie au milieu d'une phrase : on rend sa casse au titre.
+    const casse = CAPITALES.test(brutTitre) && brutTitre.length > 3
+      ? brutTitre.charAt(0) + brutTitre.slice(1).toLowerCase()
+      : brutTitre;
+    /* Comment nommer le chapitre dans une question : « sur les suites
+       arithmétiques » quand le titre porte son article, « sur le chapitre
+       « Contraintes » » sinon — « sur Contraintes » n'est pas du français. */
+    const chapitre = !casse ? ""
+      : ARTICLES.test(casse) ? casse.charAt(0).toLowerCase() + casse.slice(1)
+      : `le chapitre « ${casse} »`;
 
     const ajouter = (recto, verso) => {
       const r = recto.replace(/\s+/g, " ").trim();
