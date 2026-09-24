@@ -1128,6 +1128,129 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .fiche-actions { margin-top: 18px; }
 .fiche-actions .bouton-principal { margin-top: 0; }
 
+/* ————— La fiche en pleine page ————————————————————————————————
+   Une page de lecture, pas un formulaire : texte plus grand, marges
+   plus larges, une partie par bloc et le sommaire en tête.
+   ———————————————————————————————————————————————————————————— */
+.page-fiche { display: block; }
+
+.page-fiche-entete {
+  padding: 18px 16px 16px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, var(--marine), #2b3f8f);
+  color: var(--blanc);
+}
+.page-fiche-matiere {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.page-fiche-titre {
+  margin: 10px 0 0;
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.25;
+  color: var(--blanc);
+}
+.page-fiche-meta { margin: 8px 0 0; font-size: 12px; color: rgba(255, 255, 255, 0.82); }
+.page-fiche-jauge {
+  margin-top: 12px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+.page-fiche-jauge-remplie {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--blanc);
+  transition: width 0.5s ease;
+}
+
+.page-fiche-avis {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--bleu-grise);
+  border-radius: 10px;
+  background: var(--bleu-pastel);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--marine);
+}
+
+.page-fiche-sommaire {
+  margin: 16px 0 0;
+  padding: 14px 16px;
+  border: 1px solid var(--bordure);
+  border-radius: 14px;
+  background: var(--blanc);
+}
+.page-fiche-sommaire h3 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gris-texte);
+}
+.page-fiche-sommaire ol { margin: 0; padding-left: 18px; }
+.page-fiche-sommaire li { margin-bottom: 5px; font-size: 13px; line-height: 1.5; }
+.page-fiche-sommaire a { color: var(--marine); font-weight: 600; text-decoration: none; }
+
+.page-fiche-corps {
+  margin-top: 16px;
+  padding: 4px 16px 16px;
+  border: 1px solid var(--bordure);
+  border-radius: 16px;
+  background: var(--blanc);
+}
+.page-fiche-corps .fiche-partie-titre { font-size: 15px; }
+.page-fiche-corps .fiche-partie-texte,
+.page-fiche-corps .fiche-partie-points li { font-size: 13.5px; line-height: 1.65; }
+
+.page-fiche-bloc { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--bordure); }
+.page-fiche-bloc h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--marine);
+}
+.page-fiche-bloc ul { margin: 0; padding-left: 18px; }
+.page-fiche-bloc li { font-size: 13.5px; line-height: 1.6; margin-bottom: 6px; }
+.page-fiche-bloc--reperes ul { padding-left: 0; list-style: none; }
+.page-fiche-bloc--reperes li {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--gris-fond);
+  font-size: 13px;
+}
+/* La chasse fixe est réservée à ce qui se calcule. */
+.page-fiche-bloc--reperes li.calcul {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+.page-fiche-vide {
+  margin: 16px 0 0;
+  padding: 16px;
+  border: 1px dashed var(--bordure);
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--gris-texte);
+  background: var(--blanc);
+}
+
+.page-fiche-actions { margin-top: 20px; }
+.page-fiche-actions .bouton-principal { margin-top: 0; }
+.page-fiche-actions .bouton-secondaire { margin-top: 10px; }
+
 /* ————— Atelier « Générer par l'IA » ————————————————————————— */
 .precision {
   margin-top: 14px;

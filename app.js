@@ -215,15 +215,24 @@
       <p class="barre-legende">${detailFiche(fiche)} · ${fiche.progression} % maîtrisé</p>
       <div class="carte-actions">
         <button class="bouton-reviser" type="button" data-fiche="reviser">Réviser maintenant</button>
+        <button class="bouton-texte" type="button" data-fiche="ouvrir">Lire la fiche</button>
         <button class="bouton-texte" type="button" data-fiche="supprimer">Supprimer</button>
       </div>
     `;
 
     $$("[data-fiche]", carte).forEach((bouton) => {
       bouton.addEventListener("click", () => {
-        if (bouton.dataset.fiche === "reviser") reviserFiche(fiche);
+        const action = bouton.dataset.fiche;
+        if (action === "reviser") reviserFiche(fiche);
+        else if (action === "ouvrir") ouvrirFiche(fiche, "cours");
         else { supprimerFiche(fiche.id); toast("Fiche supprimée"); }
       });
+    });
+
+    // Toucher la carte ailleurs que sur un bouton ouvre la fiche.
+    carte.addEventListener("click", (evenement) => {
+      if (evenement.target.closest("[data-fiche]")) return;
+      ouvrirFiche(fiche, "cours");
     });
 
     // Remplissage animé au moment de l'affichage.
@@ -548,7 +557,7 @@
 
   /* ————— Navigation entre vues ———————————————————————————————— */
 
-  const VUES = ["accueil", "cours", "profil", "revision", "scan", "ia", "resume", "quiz", "flashcards"];
+  const VUES = ["accueil", "cours", "profil", "revision", "scan", "ia", "resume", "fiche", "quiz", "flashcards"];
 
   function afficherVue(nom) {
     if (!VUES.includes(nom)) nom = "accueil";
@@ -564,7 +573,10 @@
     // La révision espacée n'a pas d'onglet dédié : on garde « Accueil » allumé.
     // Les vues ouvertes depuis l'accueil (cloche, outils IA) gardent « Accueil » allumé.
     const OUVERTES_DEPUIS_ACCUEIL = ["revision", "scan", "ia", "resume", "quiz", "flashcards"];
-    const ongletActif = OUVERTES_DEPUIS_ACCUEIL.includes(nom) ? "accueil" : nom;
+    // La fiche en pleine page garde allumé l'onglet d'où on l'a ouverte.
+    const ongletActif = nom === "fiche"
+      ? (retourFiche === "cours" ? "cours" : "accueil")
+      : OUVERTES_DEPUIS_ACCUEIL.includes(nom) ? "accueil" : nom;
     $$(".barre-bas .onglet").forEach((onglet) => {
       const actif = onglet.dataset.onglet === ongletActif;
       onglet.classList.toggle("onglet--actif", actif);
@@ -1464,13 +1476,13 @@
     apercu.innerHTML = `
       <header class="fiche-entete">
         <p class="fiche-etiquette">${parAppareil ? "Lue sur ton appareil" : "Lue par Claude"} · ${pages}</p>
-        <h3 class="fiche-titre">${lecture.titre}</h3>
+        <h3 class="fiche-titre">${echapper(lecture.titre)}</h3>
         <p class="fiche-soustexte">${lecture.matiere ? MATIERES[lecture.matiere].nom + " · " : ""}${lecture.cartes.length} flashcards prêtes</p>
       </header>
       <p class="fiche-accroche">${lecture.contenu.accroche}</p>
       ${(lecture.contenu.sections || []).length
         ? `<ul class="fiche-sommaire">${lecture.contenu.sections
-            .map((section) => `<li>${section.titre}</li>`).join("")}</ul>`
+            .map((section) => `<li>${echapper(section.titre)}</li>`).join("")}</ul>`
         : sectionFiche("L'essentiel", (lecture.contenu.points || []).slice(0, 3), "fiche-section--points")}
       ${sectionFiche(lecture.contenu.libelleFormules || "Formules clés",
                      (lecture.contenu.formules || []).slice(0, 6), "fiche-section--reperes")}
@@ -1541,6 +1553,18 @@
         },
       });
 
+      /* Une photo floue rend du texte, mais du texte qui ne veut rien dire.
+         Fabriquer une fiche avec ça ne rend pas service : on le dit. */
+      const qualite = lecture.qualite || { verdict: "bon" };
+      if (qualite.verdict === "mauvais") {
+        messageScan(`Cette photo est trop mal lue pour en tirer une fiche fiable`
+          + `${qualite.motif ? ` (${qualite.motif})` : ""}. Reprends-la à plat, bien éclairée, `
+          + `en cadrant la page entière — ou indique le thème à la main.`, "erreur");
+        etapesScan(["cadrage"]);
+        ouvrirEtapeManuelle();
+        return;
+      }
+
       const brute = OCR.structurer(lecture.texte, lecture.confiance);
       // Sur l'appareil, une seule carte vaut mieux que rien : on n'exige pas les trois.
       const propre = validerLecture({
@@ -1562,14 +1586,16 @@
       propre.contenu.moteur = "ocr";
       propre.contenu.accroche = brute.contenu.accroche;
       propre.contenu.libelleFormules = brute.contenu.libelleFormules;
+      // Le texte lu voyage avec la fiche : on peut le relire pour vérifier.
+      propre.contenu.texte = String(lecture.texte || "").slice(0, 6000);
       propre.texte = lecture.texte;
 
       fiche.lecture = propre;
       if (propre.matiere) fiche.matiere = propre.matiere;
       fiche.sujet = propre.titre;
       etapesScan(["cadrage", "lecture", "notions"]);
-      if (typeof lecture.confiance === "number" && lecture.confiance < 70) {
-        messageScan(`Photo lue difficilement (${lecture.confiance} % de confiance). `
+      if (qualite.verdict === "moyen") {
+        messageScan(`Photo lue difficilement (${qualite.lisibles} % des mots sont sûrs). `
           + "Vérifie le titre et les formules, ou reprends la photo à plat.", "erreur");
       }
       afficherLecture(propre);
@@ -1710,7 +1736,10 @@
       return;
     }
 
-    // Résumé : on part de la fiche enregistrée, sinon de la photo elle-même.
+    // Résumé : la fiche lue a sa propre page, on l'y ouvre directement.
+    if (enregistree && contenuDeLaFiche(enregistree)) { ouvrirFiche(enregistree, "cours"); return; }
+
+    // Sans contenu lu, il reste l'atelier résumé.
     afficherVue("resume");
     $("#form-resume").hidden = false;
     if (enregistree) {
@@ -1815,22 +1844,154 @@
   }
 
   /** Les sections titrées du document, numérotées comme dans un cours. */
-  function sectionsFiche(sections) {
+  function sectionsFiche(sections, ancre) {
     if (!Array.isArray(sections) || !sections.length) return "";
     return sections.map((section, rang) => `
-      <section class="fiche-partie">
-        <h4 class="fiche-partie-titre"><span class="fiche-partie-numero">${rang + 1}</span>${section.titre}</h4>
-        ${section.texte ? `<p class="fiche-partie-texte">${section.texte}</p>` : ""}
+      <section class="fiche-partie"${ancre ? ` id="${ancre}-${rang + 1}"` : ""}>
+        <h4 class="fiche-partie-titre"><span class="fiche-partie-numero">${rang + 1}</span>${echapper(section.titre)}</h4>
+        ${section.texte ? `<p class="fiche-partie-texte">${echapper(section.texte)}</p>` : ""}
         ${(section.points || []).length
-          ? `<ul class="fiche-partie-points">${section.points.map((p) => `<li>${p}</li>`).join("")}</ul>`
+          ? `<ul class="fiche-partie-points">${section.points.map((p) => `<li>${echapper(p)}</li>`).join("")}</ul>`
           : ""}
       </section>`).join("");
   }
 
   function sectionFiche(titre, elements, classe) {
     if (!elements || !elements.length) return "";
-    const items = elements.map((e) => `<li>${e}</li>`).join("");
+    const items = elements.map((e) => `<li>${echapper(e)}</li>`).join("");
     return `<section class="fiche-section ${classe}"><h4 class="fiche-soustitre">${titre}</h4><ul>${items}</ul></section>`;
+  }
+
+  /* ————— La fiche en pleine page ————————————————————————————————
+     Relire, c'est le moment où l'on a besoin de calme : la fiche a sa
+     propre page, sans réglages autour, avec le sommaire en tête et une
+     partie par bloc. C'est là qu'on arrive après une lecture de photo.
+     ———————————————————————————————————————————————————————————— */
+
+  let retourFiche = "cours";       // d'où l'on vient, pour le bouton de retour
+  let fichePageId = null;
+
+  /** Le contenu lisible d'une fiche : ce qui a été lu, sinon le chapitre reconnu. */
+  function contenuDeLaFiche(fiche) {
+    if (!fiche) return null;
+    if (fiche.contenu) return fiche.contenu;
+    const banqueId = banqueDeLaFiche(fiche);
+    return (banqueId && RESUMES[banqueId]) || null;
+  }
+
+  function ouvrirFiche(fiche, depuis) {
+    if (!fiche) return;
+    retourFiche = VUES.includes(depuis) ? depuis : "cours";
+    fichePageId = fiche.id;
+    const nom = $("#fiche-retour-nom");
+    if (nom) nom.textContent = retourFiche === "cours" ? "Mes fiches" : "Retour";
+    rendrePageFiche(fiche);
+    afficherVue("fiche");
+  }
+
+  function blocPageFiche(titre, elements, classe) {
+    if (!elements || !elements.length) return "";
+    const lignes = elements.map((element) => {
+      // « Exemple : … » sous un titre « Exemples » : on ne le dit pas deux fois.
+      const texte = String(element).replace(/^Exemples?\s*[:\u202f]+\s*/i, "");
+      // Seul ce qui se calcule mérite la police à chasse fixe.
+      const calcul = /[=<>≤≥±×÷√∑]/.test(texte);
+      return `<li${calcul ? ' class="calcul"' : ""}>${echapper(texte)}</li>`;
+    }).join("");
+    return `<section class="page-fiche-bloc ${classe || ""}">
+        <h3>${echapper(titre)}</h3>
+        <ul>${lignes}</ul>
+      </section>`;
+  }
+
+  function rendrePageFiche(fiche) {
+    const hote = $("#page-fiche");
+    if (!hote) return;
+    const contenu = contenuDeLaFiche(fiche);
+    const matiere = MATIERES[fiche.matiere];
+    const cartes = cartesDeLaFiche(fiche);
+    const sections = (contenu && contenu.sections) || [];
+    const points = (contenu && contenu.points) || [];
+    const parties = sectionsFiche(sections, "partie")
+      || sectionFiche("L'essentiel", points, "fiche-section--points");
+    const meta = [
+      SOURCES_FICHE[fiche.source] || "Sujet libre",
+      `${cartes.length} carte${cartes.length > 1 ? "s" : ""}`,
+      `révisée le ${formatDate.format(new Date(fiche.derniereRevision))}`,
+    ].join(" · ");
+
+    hote.innerHTML = `
+      <header class="page-fiche-entete">
+        <span class="page-fiche-matiere">${matiere ? echapper(matiere.nom) : "Fiche"}</span>
+        <h2 class="page-fiche-titre">${echapper(fiche.titre)}</h2>
+        <p class="page-fiche-meta">${meta}</p>
+        <div class="page-fiche-jauge" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+             aria-valuenow="${fiche.progression}" aria-label="Progression">
+          <div class="page-fiche-jauge-remplie"></div>
+        </div>
+        <p class="page-fiche-meta">${fiche.progression} % maîtrisé</p>
+      </header>
+
+      ${contenu && contenu.accroche ? `<p class="page-fiche-avis">${contenu.accroche}</p>` : ""}
+
+      ${sections.length > 1 ? `
+        <nav class="page-fiche-sommaire" aria-label="Sommaire de la fiche">
+          <h3>Sommaire</h3>
+          <ol>${sections.map((section, rang) =>
+            `<li><button type="button" data-ancre="partie-${rang + 1}">${echapper(section.titre)}</button></li>`).join("")}</ol>
+        </nav>` : ""}
+
+      ${parties ? `<div class="page-fiche-corps">
+        ${parties}
+        ${blocPageFiche(contenu.libelleFormules || "Formules clés", contenu.formules, "page-fiche-bloc--reperes")}
+        ${blocPageFiche("Exemples du cours", contenu.exemples)}
+        ${blocPageFiche("Pièges fréquents", contenu.pieges)}
+      </div>` : `<p class="page-fiche-vide">Cette fiche n'a pas encore de contenu lu. Photographie ta page :
+        le texte, les parties et les cartes en sortiront.</p>`}
+
+      ${contenu && contenu.texte ? `
+        <details class="reglages">
+          <summary>Voir le texte lu sur ta page</summary>
+          <p class="texte-lu">${echapper(String(contenu.texte).slice(0, 6000))}</p>
+        </details>` : ""}
+
+      <div class="page-fiche-actions">
+        <button class="bouton-principal" type="button" data-page="tester">Me tester sur cette fiche</button>
+        ${cartes.length ? `<button class="bouton-secondaire" type="button" data-page="cartes">Réviser en flashcards (${cartes.length})</button>` : ""}
+        <button class="bouton-secondaire" type="button" data-page="photo">Ajouter une page photographiée</button>
+      </div>
+    `;
+
+    $$("[data-ancre]", hote).forEach((lien) => {
+      lien.addEventListener("click", () => {
+        const cible = document.getElementById(lien.dataset.ancre);
+        if (cible) cible.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    });
+
+    $$("[data-page]", hote).forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        const action = bouton.dataset.page;
+        if (action === "tester") { reviserFiche(fiche); return; }
+        if (action === "cartes") {
+          etatCartes.ficheId = fiche.id;
+          afficherVue("flashcards");
+          lancerCartes(null);
+          return;
+        }
+        afficherVue("scan");
+      });
+    });
+
+    requestAnimationFrame(() => {
+      const jauge = $(".page-fiche-jauge-remplie", hote);
+      if (jauge) jauge.style.width = `${fiche.progression}%`;
+    });
+  }
+
+  function initPageFiche() {
+    const retour = $("#fiche-retour");
+    if (retour) retour.addEventListener("click", () => afficherVue(retourFiche));
   }
 
   /** Les cartes d'une fiche : celles lues sur le document, sinon une banque. */
@@ -1902,7 +2063,7 @@
         <p class="fiche-etiquette">${contenu.lu
           ? (contenu.moteur === "ocr" ? "Fiche lue sur ton document" : "Fiche écrite par Claude")
           : LONGUEURS[etatResume.longueur].libelle}</p>
-        <h3 class="fiche-titre">${titre}</h3>
+        <h3 class="fiche-titre">${echapper(titre)}</h3>
         <p class="fiche-soustexte">${sousTitre}</p>
       </header>
       <p class="fiche-accroche">${contenu.accroche}</p>
@@ -1930,6 +2091,7 @@
         enregistrerLaFiche(source, (gardee) => {
           if (action === "enregistrer") {
             toast(`Fiche « ${gardee.titre} » enregistrée en ${MATIERES[gardee.matiere].nom}`);
+            ouvrirFiche(gardee, "cours");
             return;
           }
           // Relire ne suffit pas : se tester juste après fixe bien mieux.
@@ -3161,6 +3323,7 @@
     initIA();
     initScan();
     initResume();
+    initPageFiche();
     initQuiz();
     initCartes();
 

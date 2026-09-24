@@ -291,7 +291,62 @@ const OCR = (function () {
     const confiance = confiances.length
       ? Math.round(confiances.reduce((somme, c) => somme + c, 0) / confiances.length)
       : 0;
-    return { texte, pages: textes, confiance };
+    return { texte, pages: textes, confiance, qualite: qualiteTexte(texte, confiance) };
+  }
+
+  /* ————— Verdict de lisibilité ——————————————————————————————————
+     Une photo floue donne du texte, mais du texte qui ne veut rien dire.
+     Mieux vaut le dire à l'élève que de lui fabriquer une fiche incom-
+     préhensible : on compte la part de mots qui existent vraiment.
+     ———————————————————————————————————————————————————————————— */
+
+  /* Un mot français plausible : des lettres, éventuellement un tiret ou
+     une apostrophe. « nn] », « US> », « 4j » n'en sont pas. */
+  const MOT_PLAUSIBLE = /^(?:[ldnmtscjLDNMTSCJ]['’])?[A-Za-zÀ-ÿ]{3,}(?:['’\-][A-Za-zÀ-ÿ]+){0,2}$/;
+  const PETITS_MOTS = new Set(("a à au aux ce ces cet de des du en et est été il ils je la le les leur "
+    + "lui ma me mes moi mon ne ni non nos notre nous on ont ou où par pas peu plus pour que qui quoi "
+    + "sa se ses si son sont sur ta te tes toi ton tu un une vos votre vous y d l n s c j m t "
+    + "ai as eu fut ont sois soit").split(" "));
+  /* Un mot sans voyelle de trois lettres ou plus n'existe pas en français :
+     c'est du bruit de lecture. */
+  const SANS_VOYELLE = /^[^aeiouyàâäéèêëîïôöùûüAEIOUYÀÂÄÉÈÊËÎÏÔÖÙÛÜ]{3,}$/;
+
+  /** Part des mots qui existent vraiment, entre 0 et 1, et compte de jetons. */
+  function partLisible(texte) {
+    const jetons = String(texte || "")
+      .split(/\s+/)
+      .map((mot) => mot.replace(/^[^A-Za-zÀ-ÿ0-9]+|[^A-Za-zÀ-ÿ0-9]+$/g, ""))
+      .filter((mot) => mot.length > 0);
+    let lisibles = 0;
+    let bruit = 0;
+    jetons.forEach((mot) => {
+      const plat = mot.toLowerCase();
+      if (MOT_PLAUSIBLE.test(mot) || PETITS_MOTS.has(plat) || /^\d[\d.,/%°-]*$/.test(mot)) lisibles++;
+      else if (SANS_VOYELLE.test(mot) || mot.length <= 2) bruit++;
+    });
+    return { mots: jetons.length, part: jetons.length ? lisibles / jetons.length : 0, bruit };
+  }
+
+  function qualiteTexte(texte, confiance) {
+    const { mots: total, part: fraction, bruit } = partLisible(texte);
+    const jetons = { length: total };
+    if (!total) return { verdict: "mauvais", motif: "aucun mot lisible", mots: 0, lisibles: 0, confiance: confiance || 0 };
+
+    const part = Math.round(fraction * 100);
+    const note = typeof confiance === "number" ? confiance : 100;
+    const verdict =
+        jetons.length < 20 ? "mauvais"
+      : part < 60 ? "mauvais"
+      : note < 55 && part < 75 ? "mauvais"
+      : part < 78 || note < 68 ? "moyen"
+      : "bon";
+    const motif =
+        jetons.length < 20 ? "trop peu de texte lu"
+      : part < 60 ? `${100 - part} % des mots lus n'en sont pas`
+      : note < 55 && part < 75 ? "photo trop peu nette"
+      : "";
+
+    return { verdict, motif, mots: jetons.length, lisibles: part, bruit, confiance: note };
   }
 
   /* ————— Structuration : du texte brut à une fiche —————————————————
@@ -301,7 +356,7 @@ const OCR = (function () {
      ———————————————————————————————————————————————————————————— */
 
   // Ce qui fait une bonne carte : une notion qu'on doit savoir restituer.
-  const NUMERO = "(?:[IVX]+|\\d+)\\s*[).\\-]\\s*";
+  const NUMERO = "(?:[IVX]+|\\d+(?:\\.\\d+)?)\\s*(?:[).\\-]\\s*|\\s+(?=[A-ZÀ-Ý]))";
 
   // `\b` ne voit pas les accents comme des lettres : « Propriété » n'était
   // jamais reconnu. On teste donc « pas suivi d'une lettre ».
@@ -325,16 +380,31 @@ const OCR = (function () {
     "mati[èe]res? suivies?", "fiches cr[ée][ée]es",
   ].join("|"), "i");
 
+  /* Les scories que l'OCR accroche aux bords d'une ligne : une lettre isolée,
+     un « 1 > », un « US > », un « PES » ou un « nn] 4 » en fin de phrase.
+     Elles ne veulent rien dire et polluaient titres et cartes. */
+  const SCORIES_DEBUT = /^(?:[A-ZÀ-Ýa-zà-ÿ]\s+(?=[A-ZÀ-Ý])|[A-Z]{1,4}\s*[>»]\s*|\d{1,3}\s*[>»]\s*|[^A-Za-zÀ-ÿ0-9]{1,3}\s*)+/;
+  const SCORIES_FIN = /(?:\s+[A-Z]{2,4}|\s+[a-zà-ÿ]|\s*[\]\[|=~—–]+\s*\d{0,2}|\s+\d{1,2}\s*[\]\[|])+$/;
+
+  function retirerScories(ligne) {
+    let propre = ligne.replace(SCORIES_DEBUT, "");
+    // On ne rogne la fin que si la ligne garde de quoi être une phrase.
+    const rogne = propre.replace(SCORIES_FIN, "");
+    if (rogne.replace(/[^A-Za-zÀ-ÿ]/g, "").length >= 12) propre = rogne;
+    return propre.trim();
+  }
+
   /* Corrections de reconnaissance les plus fréquentes sur un cours. */
   function nettoyerLigne(ligne) {
-    return ligne
+    return retirerScories(ligne
       .replace(/^[«»"'|@©®*•·~^_=+\-–—.\s]+/, "")     // décorations de début de ligne
       .replace(/\s[|¦~]\s/g, " ")                      // barres et tildes lus en plein texte
       .replace(/\s*([=<>])\s*/g, " $1 ")               // « U =8 » → « U = 8 »
       .replace(/\s+([,;:.!?])/g, "$1")                 // espace avant ponctuation
+      .replace(/([^\s])([;:!?])/g, "$1\u202f$2")        // … et on remet l'espace fine du français
       .replace(/\s{2,}/g, " ")
       .replace(/[,;]\s*$/, "")                         // virgule ou point-virgule orphelin
-      .trim();
+      .trim());
   }
 
   const MOTS_MATIERES = {
@@ -399,12 +469,13 @@ const OCR = (function () {
       ligne.length >= 8 && ligne.length <= 70
       && /[a-zà-ÿ]{3}/i.test(ligne)
       && !/[.;:]$/.test(ligne)
-      && ligne.split(" ").length >= 2
       && !INTITULES.test(ligne));
     if (!candidates.length) return (debut[0] || "").slice(0, 70);
 
     /* Un titre de chapitre : court, sans virgule, capitalisé, haut de page,
-       et souvent repris dans l'en-tête. Une phrase du cours coche l'inverse. */
+       et souvent repris dans l'en-tête. Une phrase du cours coche l'inverse.
+       « CONTRAINTES » en capitales est un titre ; « 1.1 Qu'est-ce qu'une
+       contrainte ? » est une partie, pas le titre du document. */
     const plat = sansAccents(lignes.join(" | "));
     let meilleure = candidates[0];
     let meilleurScore = -Infinity;
@@ -416,13 +487,19 @@ const OCR = (function () {
           (plat.split(sansAccents(ligne)).length - 1) * 10   // repris ailleurs
         + (rang >= 0 && rang < 5 ? 6 : 0)                    // haut de page
         + (/^[A-ZÀ-Ý]/.test(ligne) ? 3 : -6)                 // commence par une majuscule
+        + (CAPITALES.test(ligne) ? 9 : 0)                     // un intertitre s'écrit en capitales
         + (ligne.includes(",") ? -8 : 0)                     // une virgule trahit une phrase
+        + (/\?$/.test(ligne) ? -9 : 0)                       // une question ouvre une partie
+        + (TITRE_NUMEROTE.test(ligne) ? -7 : 0)              // « 1.1 … » numérote une partie
         + (mots <= 8 ? 3 : -2)                               // un titre est court
         + Math.min(ligne.length, 45) / 30;
       if (score > meilleurScore) { meilleurScore = score; meilleure = ligne; }
     });
-    return meilleure;
+    return nettoyerTitre(meilleure);
   }
+
+  /** Une ligne tout en capitales : trois lettres majuscules, aucune minuscule. */
+  const CAPITALES = /^[^a-zà-ÿ]*[A-ZÀ-Ý][^a-zà-ÿ]*$/;
 
   /**
    * Découpe en phrases lisibles. Une fiche se lit en un coup d'œil : on écarte
@@ -440,6 +517,7 @@ const OCR = (function () {
         && !BRUIT_APP.test(p)
         && !/[:;]$/.test(p)                            // « … sont : » annonce une liste
         && p.split("=").length <= 2                    // deux égalités : c'est une ligne de calcul
+        && partLisible(p).part >= 0.85                 // une phrase qui se lit, mot après mot
         && /^[A-ZÀ-Ý0-9«"]/.test(p));                  // une phrase, pas un bout de phrase
   }
 
@@ -653,13 +731,22 @@ const OCR = (function () {
 
   function estTitre(ligne) {
     if (INTITULES.test(ligne)) return true;
-    if (TITRE_NUMEROTE.test(ligne) && !/[.!?]$/.test(ligne)) return true;
-    return ligne.split(" ").length <= 7 && !/[.!?,;:]$/.test(ligne)
+    if (TITRE_NUMEROTE.test(ligne) && !/[.!]$/.test(ligne) && !/[;,]/.test(ligne)) return true;
+    /* Sans numéro, il faut que la ligne ressemble vraiment à un titre :
+       courte, capitalisée, et sans ponctuation interne — « Les habitants
+       doivent s'adapter : maisons isolées, vêtements » est une phrase. */
+    return ligne.split(" ").length <= 7 && !/[.!?,;:]/.test(ligne)
       && /^[A-ZÀ-Ý]/.test(ligne) && ligne.length >= 8;
   }
 
+  /** Le titre lisible d'une partie : sans numéro, sans deux-points final. */
   function nettoyerTitre(ligne) {
-    return ligne.replace(new RegExp(`^(?:${NUMERO})`), "").replace(/\s*:\s*$/, "").trim();
+    return String(ligne || "")
+      .replace(new RegExp(`^(?:${NUMERO})`), "")
+      .replace(/\s*[:\-–—]\s*$/, "")
+      .replace(/^[\s:;,.\-–—]+/, "")
+      .trim()
+      .slice(0, 70);
   }
 
   /** Découpe le document en parties titrées, comme le cours lui-même. */
@@ -759,5 +846,5 @@ const OCR = (function () {
   }
 
   // Exposés pour le banc d'essai (tests/qualite-lecture.js), pas pour l'app.
-  return { charger, lire, structurer, SOURCES, __preparerImage: preparerImage, __texteFiable: texteFiable };
+  return { charger, lire, structurer, qualiteTexte, SOURCES, __preparerImage: preparerImage, __texteFiable: texteFiable };
 })();

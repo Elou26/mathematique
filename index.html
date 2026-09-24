@@ -342,6 +342,15 @@
     <article class="fiche" id="fiche-resume" hidden aria-live="polite"></article>
   </section>
 
+  <!-- Vue : la fiche en pleine page — on la lit, on ne la règle pas -->
+  <section class="vue" id="vue-fiche" hidden>
+    <button class="retour" type="button" id="fiche-retour">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      <span id="fiche-retour-nom">Mes fiches</span>
+    </button>
+    <article class="page-fiche" id="page-fiche" aria-live="polite"></article>
+  </section>
+
   <!-- Vue : Générer par l'IA — la demande écrite -->
   <section class="vue" id="vue-ia" hidden>
     <button class="retour" type="button" data-onglet="accueil">

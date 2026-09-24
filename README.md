@@ -289,6 +289,17 @@ Mesuré par `tests/qualite-lecture.js` sur quatre pages (nettes et dégradées) 
 retrouvés, 1 % de bruit** — contre 97 % et jusqu'à 72 % de bruit sur les photos avant ces deux
 étapes.
 
+**Enfin un verdict** (`qualiteTexte()`), parce qu'une photo floue ne rend pas *rien* : elle rend
+du texte qui ne veut rien dire, et une fiche bâtie dessus est pire qu'une absence de fiche. On
+compte la part de mots qui existent vraiment — des lettres, l'élision comprise (`l'altitude`), les
+mots outils, les nombres — contre le reste : `nn]`, `US>`, `j=`, les suites sans voyelle. Sous
+60 % de mots plausibles, ou sous 55 % de confiance avec moins de trois quarts de mots sûrs, la
+lecture est **refusée** : le message dit ce qui cloche (« 51 % des mots lus n'en sont pas »),
+propose de reprendre la photo à plat et laisse la main. Entre les deux, la fiche est construite
+mais annoncée comme incertaine. La même mesure filtre **chaque phrase** : une phrase dont plus de
+15 % des mots n'existent pas n'entre pas dans la fiche, même quand la page est globalement bien
+lue.
+
 Tesseract ne rend que du **texte brut** : la mise en fiche est faite par des règles
 (`OCR.structurer()`), pas par une IA —
 
@@ -311,6 +322,17 @@ Tesseract ne rend que du **texte brut** : la mise en fiche est faite par des rè
 Les lignes courtes (titres, numéros, navigation), le titre lui-même et les intitulés sans
 ponctuation finale sont exclus de la prose : mêlés au texte, ils fabriquaient des phrases qui
 n'existent pas dans le cours. Les égalités sont posées à plat, en pastilles.
+
+**Les scories de lecture sont retirées avant tout le reste** (`retirerScories()`) : une marge, un
+trait ou un numéro de page ressortent en « É », « 1 > », « US > », « nn] 4 », collés au début ou à
+la fin de la ligne. Recopiés tels quels dans un titre, ils rendent la fiche illisible ; la fin de
+ligne n'est rognée que s'il reste au moins douze lettres, pour ne jamais manger un vrai mot. Le
+**titre du document** se choisit ensuite au score : une ligne reprise ailleurs (× 10), en capitales
+(+ 9), en haut de page (+ 6) l'emporte ; une question (− 9), une ligne numérotée « 1.1 … » (− 7) ou
+une virgule (− 8) la font perdre, parce que ce sont des parties, pas le titre. Un **titre de
+partie** ne contient aucune ponctuation interne : « Les habitants doivent s'adapter : maisons
+isolées, vêtements » est une phrase, elle reste dans le corps. L'espace fine du français est
+remise devant `; : ! ?`, que l'OCR avale.
 
 **Toute carte est une vraie question** : `ajouter()` refuse un recto de moins de trois mots ou qui
 ne se termine pas par un point d'interrogation, et le verso est remis en phrase (majuscule, point
@@ -342,6 +364,25 @@ dans la page.
 `node tests/lecture-reelle.js` fait la **vraie** lecture : il imprime une page de cours avec le
 navigateur, la fait lire par le moteur embarqué (≈ 1 s), et vérifie le titre retenu, la matière
 devinée, les cartes tirées du texte — et qu'aucune requête ne sort du site.
+`node tests/page-fiche.js` couvre la fiche en pleine page — sommaire, parties numérotées, repères
+et exemples, retour à l'onglet d'où l'on vient — et le refus d'une lecture illisible : message
+motivé, aucune fiche fabriquée, chemin manuel offert.
+
+## La fiche en pleine page
+
+Une fiche se relit sur une page à elle (`#vue-fiche`), pas au milieu d'un formulaire : c'est là
+qu'on arrive en touchant une fiche dans *Mes fiches*, et juste après avoir lu une photo. En tête,
+un bandeau marine porte la matière, le titre, la provenance, le nombre de cartes et la progression.
+Vient l'accroche — ce que vaut la lecture —, puis le **sommaire** quand la fiche a plus d'une
+partie : chaque entrée fait défiler jusqu'à sa partie. Le corps reprend les parties numérotées du
+document, chacune avec son paragraphe et ses points, puis les repères (la chasse fixe est réservée
+à ce qui se calcule), les exemples du cours et les pièges. Un repli montre le **texte brut lu sur
+la page**, pour vérifier d'un coup d'œil ce que le moteur a compris. En bas, trois gestes : se
+tester, réviser les cartes, ajouter une page photographiée.
+
+Le texte y est plus grand qu'ailleurs (13,5 px contre 12), les marges plus larges : c'est une page
+de lecture. L'onglet du bas reste allumé sur *Mes fiches* quand on vient de là, sur *Accueil*
+sinon, et le bouton de retour ramène exactement d'où l'on vient.
 
 ## Page « Créer résumé »
 
