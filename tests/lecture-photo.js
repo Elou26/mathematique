@@ -94,9 +94,15 @@ function verifier(nom, condition, vu) {
     await page.click('#scan-analyser'); await page.waitForTimeout(1200);
     verifier('les images sont bien envoyées', (await page.evaluate(() => window.__images)) === 2,
       await page.evaluate(() => window.__images));
-    verifier("l'invite exige des sections titrées",
-      /sections titr[ée]es|3 à 8 sections/.test(await page.evaluate(() => window.__invite || '')),
-      'consigne sans sections');
+    verifier("l'invite exige un chapitre découpé en notions titrées",
+      /3 à 8 notions titr[ée]es/.test(await page.evaluate(() => window.__invite || '')),
+      'consigne sans notions');
+    verifier("l'invite réclame le lexique de chaque notion",
+      /LEXIQUE .les mots à connaître/.test(await page.evaluate(() => window.__invite || '')),
+      'consigne sans lexique');
+    verifier("l'invite répartit les cartes sur les notions",
+      /RÉPARTIS-LES sur toutes les notions/.test(await page.evaluate(() => window.__invite || '')),
+      'consigne sans répartition');
     verifier("l'invite exige au moins 10 cartes",
       /au moins 10/.test(await page.evaluate(() => window.__invite || '')), 'consigne sans minimum');
     verifier("l'invite exige les termes exacts du document",

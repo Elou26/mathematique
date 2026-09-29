@@ -576,9 +576,25 @@ const OCR = (function () {
     return /[.!?)]$/.test(majuscule) ? majuscule : `${majuscule}.`;
   }
 
-  function fabriquerCartes(lignes, titre) {
+  /**
+   * Le terme tel qu'il entre au lexique : sans numéro, sans article, capitalisé.
+   * « une oasis » → « Oasis », « 2.1 Les milieux froids » → « Milieux froids ».
+   */
+  function termeLexique(brut) {
+    const propre = String(brut || "")
+      .replace(/^[«»"']+|[»"'.:]+$/g, "")
+      .replace(new RegExp(`^(?:${NUMERO})`), "")
+      .replace(ARTICLES, "")
+      .replace(/^[\s.)\-–—]+/, "")
+      .trim();
+    if (propre.length < 2) return "";
+    return propre.charAt(0).toUpperCase() + propre.slice(1);
+  }
+
+  function fabriquerCartes(lignes, titre, partieDeLigne) {
     const cartes = [];
     const vues = new Set();
+    let partie = null;       // la notion de la ligne en cours de lecture
     const brutTitre = String(titre || "").slice(0, 44).replace(/\s+$/, "");
     // « … sur CONTRAINTES ? » crie au milieu d'une phrase : on rend sa casse au titre.
     const casse = CAPITALES.test(brutTitre) && brutTitre.length > 3
@@ -591,7 +607,7 @@ const OCR = (function () {
       : ARTICLES.test(casse) ? casse.charAt(0).toLowerCase() + casse.slice(1)
       : `le chapitre « ${casse} »`;
 
-    const ajouter = (recto, verso) => {
+    const ajouter = (recto, verso, terme) => {
       const r = recto.replace(/\s+/g, " ").trim();
       const v = enReponse(verso);
       // Une question digne de ce nom : au moins trois mots et une forme interrogative.
@@ -600,10 +616,16 @@ const OCR = (function () {
       const cle = sansAccents(r);
       if (vues.has(cle)) return;
       vues.add(cle);
-      cartes.push({ recto: r, verso: v });
+      const carte = { recto: r, verso: v };
+      if (partie !== null && partie >= 0) carte.partie = partie;
+      // Un terme défini entre aussi au lexique de sa notion.
+      const mot = termeLexique(terme);
+      if (mot && mot.length <= 48) carte.terme = mot;
+      cartes.push(carte);
     };
 
     lignes.forEach((ligne, rang) => {
+      partie = partieDeLigne ? partieDeLigne(rang) : null;
       if (INTITULES_EXEMPLE.test(ligne)) return;     // un exemple n'est pas une carte
 
       // « Définition : une suite arithmétique est… », numéro éventuel compris
@@ -615,7 +637,7 @@ const OCR = (function () {
         const sujet = sujetDefini(corps);
 
         if (/^d[ée]finition|vocabulaire/.test(brut) && sujet) {
-          ajouter(questionDefinition(sujet), corps);
+          ajouter(questionDefinition(sujet), corps, sujet);
         } else if (/^(propri[ée]t|th[ée]or[èe]me|r[èe]gle|corollaire|lemme)/.test(brut)) {
           ajouter(chapitre
             ? `Quelle ${brut.replace(/s$/, "")} le cours énonce-t-il sur ${chapitre} ?`
@@ -625,7 +647,7 @@ const OCR = (function () {
             ? `Quelle ${brut} retenir pour ${chapitre} ?`
             : `Quelle ${brut} le cours donne-t-il ?`, corps);
         } else if (sujet) {
-          ajouter(questionDefinition(sujet), corps);
+          ajouter(questionDefinition(sujet), corps, sujet);
         }
         return;
       }
@@ -637,7 +659,7 @@ const OCR = (function () {
         const court = terme.split(" ").length <= 5;
         const sansVerbe = !VERBES_DEFINITION.test(` ${terme} `) && !/\b(donc|ainsi|alors|par)\b/i.test(terme);
         if (court && sansVerbe && /[a-zà-ÿ]{3}/i.test(terme)) {
-          ajouter(questionDefinition(terme), deuxPoints[2]);
+          ajouter(questionDefinition(terme), deuxPoints[2], terme);
           return;
         }
       }
@@ -670,7 +692,7 @@ const OCR = (function () {
         const terme = defini[2].trim();
         if (terme.split(" ").length > 7) return;
         // L'article du cours est conservé : inventer « le » se trompe une fois sur deux.
-        ajouter(questionDefinition(`${article}${terme}`.trim()), phrase);
+        ajouter(questionDefinition(`${article}${terme}`.trim()), phrase, terme);
       });
     });
 
@@ -750,7 +772,10 @@ const OCR = (function () {
   const TITRE_NUMEROTE = new RegExp(`^(?:${NUMERO})(.{3,70})$`);
 
   function estTitre(ligne) {
-    if (INTITULES.test(ligne)) return true;
+    /* « Définition » seul ouvre une partie ; « Définition : une toundra est
+       une plaine gelée… » est du contenu, pas un titre — sans quoi la
+       définition remplacerait le vrai titre de la partie. */
+    if (INTITULES.test(ligne)) return ligne.length <= 30;
     if (TITRE_NUMEROTE.test(ligne) && !/[.!]$/.test(ligne) && !/[;,]/.test(ligne)) return true;
     /* Sans numéro, il faut que la ligne ressemble vraiment à un titre :
        courte, capitalisée, et sans ponctuation interne — « Les habitants
@@ -769,6 +794,22 @@ const OCR = (function () {
       .slice(0, 70);
   }
 
+  /**
+   * À quelle partie appartient chaque ligne. Le tableau renvoyé a la longueur
+   * de `lignes` : à chaque rang, le numéro brut de la partie (-1 avant la
+   * première). C'est ce qui permet de rattacher une carte à sa notion.
+   */
+  function partiesDesLignes(lignes, titre) {
+    const platTitre = sansAccents(titre);
+    const appartenance = [];
+    let courante = -1;
+    lignes.forEach((ligne, rang) => {
+      if (estTitre(ligne) && sansAccents(ligne) !== platTitre) courante++;
+      appartenance[rang] = courante;
+    });
+    return appartenance;
+  }
+
   /** Découpe le document en parties titrées, comme le cours lui-même. */
   function repererSections(lignes, titre) {
     const platTitre = sansAccents(titre);
@@ -778,7 +819,7 @@ const OCR = (function () {
     lignes.forEach((ligne) => {
       if (estTitre(ligne)) {
         if (sansAccents(ligne) === platTitre) return;      // le titre du cours n'est pas une partie
-        courante = { titre: nettoyerTitre(ligne), lignes: [] };
+        courante = { titre: nettoyerTitre(ligne), lignes: [], brut: sections.length };
         sections.push(courante);
         return;
       }
@@ -793,6 +834,9 @@ const OCR = (function () {
           titre: section.titre,
           texte: utiles[0] || corps.slice(0, 300),
           points: sansRedites(utiles.slice(1)).slice(0, 4),
+          // Chaque notion porte ses propres repères : c'est ce qu'on révise avec elle.
+          reperes: sansRedites(repererFormules(section.lignes)).slice(0, 4),
+          brut: section.brut,
         };
       })
       .filter((section) => section.titre.length > 2 && (section.texte.length > 15 || section.points.length))
@@ -813,7 +857,41 @@ const OCR = (function () {
   function structurer(texte, confiance) {
     const lignes = lignesUtiles(texte);
     const titre = devinerTitre(lignes);
-    const cartes = fabriquerCartes(lignes, titre);
+
+    /* ————— Le chapitre et ses notions ————————————————————————————
+       Une fiche n'est pas un bloc : c'est un chapitre découpé en notions,
+       et chaque notion porte son lexique, ses repères et ses cartes. On
+       révise une notion, pas « la fiche » — c'est ce qui rend le travail
+       ciblé plutôt que flou.
+       ———————————————————————————————————————————————————————————— */
+    const sectionsBrutes = repererSections(lignes, titre);
+    const rangDeBrut = new Map();
+    sectionsBrutes.forEach((section, rang) => rangDeBrut.set(section.brut, rang));
+    const appartenance = partiesDesLignes(lignes, titre);
+    const cartes = fabriquerCartes(lignes, titre, (rang) => {
+      const brut = appartenance[rang];
+      return rangDeBrut.has(brut) ? rangDeBrut.get(brut) : null;
+    });
+
+    // Le lexique d'une notion, ce sont les termes que ses cartes définissent.
+    const sections = sectionsBrutes.map((section, rang) => {
+      const lexique = [];
+      const vus = new Set();
+      cartes.forEach((carte) => {
+        if (carte.partie !== rang || !carte.terme) return;
+        const cle = sansAccents(carte.terme);
+        if (vus.has(cle)) return;
+        vus.add(cle);
+        lexique.push({ terme: carte.terme, definition: carte.verso });
+      });
+      return {
+        titre: section.titre,
+        texte: section.texte,
+        points: section.points,
+        reperes: section.reperes,
+        lexique: lexique.slice(0, 8),
+      };
+    });
 
     // Quatre phrases claires valent mieux que six pavés : on garde l'ordre du cours.
     const platTitre = sansAccents(titre);
@@ -839,7 +917,6 @@ const OCR = (function () {
       .sort((a, b) => a.rang - b.rang)
       .map((entree) => entree.phrase);
 
-    const sections = repererSections(lignes, titre);
     const exemples = repererExemples(lignes);
 
     const formules = sansRedites(repererFormules(lignes)).slice(0, 6);

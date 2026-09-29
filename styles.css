@@ -1251,6 +1251,138 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .page-fiche-actions .bouton-principal { margin-top: 0; }
 .page-fiche-actions .bouton-secondaire { margin-top: 10px; }
 
+/* ————— Le parcours du chapitre ————————————————————————————————
+   Un chapitre se révise notion par notion : chacune porte sa jauge de
+   maîtrise, son lexique et ses deux gestes (réviser, se tester).
+   ———————————————————————————————————————————————————————————— */
+.page-fiche-reprise {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--marine);
+  border-radius: 14px;
+  background: var(--blanc);
+  text-align: left;
+  cursor: pointer;
+}
+.page-fiche-reprise-titre { display: block; font-size: 14px; font-weight: 700; color: var(--marine); }
+.page-fiche-reprise-detail { display: block; margin-top: 2px; font-size: 12px; color: var(--gris-texte); }
+
+.page-fiche-objectifs {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--bordure);
+  border-radius: 14px;
+  background: var(--blanc);
+}
+.page-fiche-objectifs h3 {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gris-texte);
+}
+.page-fiche-objectifs ul { margin: 0; padding-left: 18px; }
+.page-fiche-objectifs li { font-size: 13.5px; line-height: 1.6; margin-bottom: 5px; }
+
+.page-fiche-sommaire li button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--marine);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.sommaire-note { flex: none; font-size: 12px; font-weight: 700; color: var(--gris-texte); }
+
+.notion { padding: 16px 0 4px; }
+.notion + .notion { border-top: 1px dashed var(--bordure); }
+.notion-entete { display: flex; align-items: flex-start; gap: 8px; }
+.notion-numero {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 7px;
+  background: var(--bleu-pastel);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--marine);
+}
+.notion-titre { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.35; color: var(--marine); }
+
+.notion-jauge {
+  margin-top: 10px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--gris-fond);
+  overflow: hidden;
+}
+.notion-jauge-remplie {
+  width: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--marine);
+  transition: width 0.5s ease;
+}
+.notion-etat { margin: 6px 0 0; font-size: 11.5px; color: var(--gris-texte); }
+
+.notion-texte { margin: 10px 0 0; font-size: 13.5px; line-height: 1.65; color: var(--noir); }
+.notion-points { margin: 8px 0 0; padding-left: 18px; }
+.notion-points li { font-size: 13.5px; line-height: 1.6; margin-bottom: 5px; }
+.notion-reperes { margin: 10px 0 0; padding-left: 0; list-style: none; }
+.notion-reperes li {
+  padding: 7px 10px;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  background: var(--gris-fond);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+
+/* Le lexique : le mot, puis sa définition — c'est ce que les cartes testent. */
+.lexique { margin: 12px 0 0; }
+.lexique dt {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--marine);
+}
+.lexique dd {
+  margin: 2px 0 10px;
+  padding-left: 10px;
+  border-left: 2px solid var(--bleu-pastel);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--noir);
+}
+.lexique--tout dd { margin-bottom: 12px; }
+
+.notion-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.bouton-notion {
+  flex: 1 1 auto;
+  padding: 9px 12px;
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  background: var(--blanc);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--marine);
+  cursor: pointer;
+}
+.bouton-notion--test { background: var(--bleu-pastel); border-color: var(--bleu-pastel); }
+
+.carte-reprise { margin: 6px 0 0; font-size: 11.5px; font-weight: 600; color: var(--marine); }
+
 /* ————— Atelier « Générer par l'IA » ————————————————————————— */
 .precision {
   margin-top: 14px;

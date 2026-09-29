@@ -14,6 +14,7 @@ const COURS = [
   'Chapitre 6',
   'Suites arithmétiques et géométriques',
   'I. Suites arithmétiques',
+  'Une suite arithmétique avance toujours du même pas, appelé la raison.',
   '1) Définition',
   'Exemple : Considérons une suite numérique Un où la différence entre un terme et son précédent reste constante et égale à 5.',
   'Si le premier terme est égal à 3, les premiers termes successifs sont :',
@@ -114,6 +115,15 @@ async function ouvrirScan(ctx) {
     verifier('la fiche garde la trace du moteur',
       rangee.length === 1 && rangee[0].contenu && rangee[0].contenu.moteur === 'ocr' && rangee[0].cartes.length >= 1,
       JSON.stringify(rangee).slice(0, 140));
+    const notions = (rangee[0] && rangee[0].contenu.sections) || [];
+    verifier('le chapitre est découpé en notions',
+      notions.length >= 2, `${notions.length} notion(s)`);
+    verifier('une notion porte son lexique',
+      notions.some((notion) => (notion.lexique || []).length >= 1),
+      JSON.stringify(notions.map((n) => (n.lexique || []).map((e) => e.terme))));
+    verifier('les cartes sont rattachées à leur notion',
+      rangee[0].cartes.some((carte) => typeof carte.partie === 'number'),
+      JSON.stringify(rangee[0].cartes.map((c) => c.partie)));
 
     verifier('aucune erreur console', erreurs.length === 0, erreurs.join(' || '));
     await ctx.close();

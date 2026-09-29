@@ -110,9 +110,9 @@ function verifier(nom, condition, vu) {
     verifier('le sommaire liste les parties',
       (await page.$$eval('.page-fiche-sommaire li', (n) => n.length)) === 3,
       await page.$$eval('.page-fiche-sommaire li', (n) => n.length));
-    verifier('les parties sont numérotées et titrées',
-      (await page.$$eval('.page-fiche-corps .fiche-partie', (n) => n.length)) === 3,
-      await page.$$eval('.page-fiche-corps .fiche-partie', (n) => n.length));
+    verifier('les notions sont numérotées et titrées',
+      (await page.$$eval('.page-fiche-corps .notion', (n) => n.length)) === 3,
+      await page.$$eval('.page-fiche-corps .notion', (n) => n.length));
     const corps = await page.innerText('.page-fiche-corps');
     verifier('les repères du cours y sont', /Densité = habitants/.test(corps), corps.slice(0, 80));
     verifier('les exemples du cours y sont', /les Alpes/.test(corps), corps.slice(0, 80));

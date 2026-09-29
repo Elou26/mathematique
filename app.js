@@ -192,14 +192,18 @@
 
   function detailFiche(fiche) {
     const matiere = MATIERES[fiche.matiere];
+    const notions = notionsDeLaFiche(fiche).length;
+    const parcours = notions ? ` · ${notions} notion${notions > 1 ? "s" : ""}` : "";
     const cartes = fiche.cartes && fiche.cartes.length ? ` · ${fiche.cartes.length} cartes` : "";
-    return `${matiere ? matiere.nom : "Fiche"} · ${SOURCES_FICHE[fiche.source] || "Sujet libre"}${cartes}`;
+    return `${matiere ? matiere.nom : "Fiche"} · ${SOURCES_FICHE[fiche.source] || "Sujet libre"}${parcours}${cartes}`;
   }
 
   /* ————— Vue « Mes fiches » : une catégorie par matière ————————— */
 
   function carteFiche(fiche) {
     const jours = joursEntre(fiche.creee, new Date());
+    // La notion la plus fragile s'annonce dès la liste : on sait par où reprendre.
+    const reprise = notionsDeLaFiche(fiche).length > 1 ? notionLaPlusFaible(fiche) : null;
     const carte = document.createElement("article");
     carte.className = "carte-cours";
     carte.innerHTML = `
@@ -213,6 +217,8 @@
         <div class="barre-progression-remplie"></div>
       </div>
       <p class="barre-legende">${detailFiche(fiche)} · ${fiche.progression} % maîtrisé</p>
+      ${reprise ? `<p class="carte-reprise">À reprendre : ${echapper(reprise.titre)}${
+        reprise.maitrise === null ? "" : ` (${reprise.maitrise} %)`}</p>` : ""}
       <div class="carte-actions">
         <button class="bouton-reviser" type="button" data-fiche="reviser">Réviser maintenant</button>
         <button class="bouton-texte" type="button" data-fiche="ouvrir">Lire la fiche</button>
@@ -312,25 +318,39 @@
    * Réviser une fiche : quiz sur son contenu quand le document a été lu,
    * sinon sur son titre. Claude écrit, les banques locales dépannent.
    */
-  function reviserFiche(fiche) {
+  function reviserFiche(fiche, partie) {
+    const notions = notionsDeLaFiche(fiche);
+    const notion = typeof partie === "number" ? notions[partie] : null;
+
     etatQuiz.source = "sujet";
-    etatQuiz.sujet = fiche.titre;
+    etatQuiz.sujet = notion ? `${fiche.titre} — ${texteBrut(notion.titre)}` : fiche.titre;
     etatQuiz.matiereTheme = fiche.matiere === "autre" ? null : fiche.matiere;
     etatQuiz.ficheId = fiche.id;
+    etatQuiz.partie = notion ? partie : null;
     etatQuiz.complement = `Fiche « ${fiche.titre} » en ${MATIERES[fiche.matiere].nom}`
+      + (notion ? `, notion « ${texteBrut(notion.titre)} »` : "")
       + (niveauChoisi ? `, profil ${libelleNiveau().toLowerCase()}.` : ".");
 
     // Le document a été lu : les questions portent sur ses termes, pas sur le thème en général.
     if (fiche.contenu && fiche.contenu.lu) {
-      const reperes = []
-        .concat(pointsDeLaFiche(fiche.contenu), fiche.contenu.formules || [])
+      /* Sur une notion, on ne donne QUE cette notion : le quiz reste dessus
+         au lieu de se disperser sur tout le chapitre. */
+      const contenuVise = notion
+        ? [].concat(notion.texte || [], notion.points || [], notion.reperes || [])
+        : [].concat(pointsDeLaFiche(fiche.contenu), fiche.contenu.formules || []);
+      const reperes = contenuVise
         .map(texteBrut)
         .filter((ligne) => ligne.length > 10)
         .slice(0, 14);
-      const termes = (fiche.cartes || []).map((carte) => texteBrut(carte.recto)).slice(0, 14);
+      const lexique = notion
+        ? (notion.lexique || []).map((entree) => `${texteBrut(entree.terme)} : ${texteBrut(entree.definition)}`)
+        : lexiqueDeLaFiche(fiche).map((entree) => `${texteBrut(entree.terme)} : ${texteBrut(entree.definition)}`);
+      const termes = lexique.length
+        ? lexique.slice(0, 14)
+        : cartesDeLaFiche(fiche, notion ? partie : undefined).map((carte) => texteBrut(carte.recto)).slice(0, 14);
 
       if (reperes.length) {
-        etatQuiz.complement += "\n\nPose au moins 10 questions, uniquement sur le contenu de cette fiche,"
+        etatQuiz.complement += "\n\nPose au moins 10 questions, uniquement sur ce contenu,"
           + " en reprenant ses termes exacts (mots, dates, notations) :\n- " + reperes.join("\n- ");
         if (termes.length) {
           etatQuiz.complement += "\n\nTermes à faire réviser :\n- " + termes.join("\n- ");
@@ -1125,18 +1145,25 @@
     "Lis ces pages (texte imprimé comme manuscrit) et réponds uniquement avec un objet JSON de cette forme :",
     '{"lisible": true, "titre": "Titre de chapitre, court", "matiere": "<<<MATIERES>>>",',
     ' "resume": {"accroche": "deux phrases qui situent le chapitre et disent à quoi il sert",',
-    '            "sections": [{"titre": "Titre de la partie, comme dans le document",',
-    '                          "texte": "le paragraphe qui explique cette partie",',
-    '                          "points": ["les éléments à retenir de cette partie, 0 à 6"]}],',
+    '            "objectifs": ["ce que l\'élève doit savoir faire après ce chapitre, 2 à 4"],',
+    '            "sections": [{"titre": "Titre de la notion, comme dans le document",',
+    '                          "texte": "le paragraphe qui explique cette notion",',
+    '                          "points": ["les éléments à retenir de cette notion, 0 à 6"],',
+    '                          "lexique": [{"terme": "le mot à connaître", "definition": "sa définition, en une phrase"}],',
+    '                          "reperes": ["les formules, dates ou chiffres de cette notion, 0 à 4"]}],',
     '            "formules": ["toutes les formules, dates ou repères du document, 0 à 12"],',
     '            "exemples": ["chaque exemple du document, énoncé puis résolution, 0 à 6"],',
     '            "pieges": ["erreurs classiques que ce document permet d\'éviter, 0 à 4"]},',
-    ' "flashcards": [{"recto": "le terme ou la question", "verso": "sa définition, en une phrase"}]}',
+    ' "flashcards": [{"recto": "le terme ou la question", "verso": "sa définition, en une phrase",',
+    '                 "partie": 0, "terme": "le mot du lexique sur lequel porte la carte"}]}',
     "",
-    "LE RÉSUMÉ — un travail complet, structuré et fidèle :",
-    "- découpe-le en 3 à 8 sections titrées, dans l'ordre du document ; reprends les titres",
+    "LE RÉSUMÉ — un chapitre découpé en notions, comme une fiche de révision :",
+    "- découpe-le en 3 à 8 notions titrées, dans l'ordre du document ; reprends les titres",
     "  du document quand il en a (« Définition », « Caractéristiques », « Répartition »…) ;",
-    "- chaque section a un paragraphe qui explique, et des points qui listent ce qui se retient ;",
+    "- chaque notion a un paragraphe qui explique, des points qui listent ce qui se retient,",
+    "  son LEXIQUE (les mots à connaître de cette notion, avec leur définition) et ses REPÈRES",
+    "  (ses formules, ses dates, ses chiffres) — c'est sur cette notion-là que l'élève sera",
+    "  interrogé, alors tout ce qui la concerne doit s'y trouver ;",
     "- REPRENDS LES TERMES DU DOCUMENT, exactement : le vocabulaire, les noms propres, les",
     "  dates, les unités, les notations (variables, indices). N'en reformule aucun, ne les",
     "  remplace pas par des synonymes : l'élève sera interrogé sur ces mots-là ;",
@@ -1149,6 +1176,8 @@
     "LES FLASHCARDS — au moins 10, une par terme à connaître :",
     "- 10 à 18 cartes ; s'il y a moins de 10 termes dans le document, prends aussi les dates,",
     "  les formules, les valeurs des exemples et les méthodes ;",
+    "- RÉPARTIS-LES sur toutes les notions : chaque notion a ses cartes, et « partie » donne",
+    "  le rang de la notion (0 pour la première), « terme » le mot du lexique qu'elle teste ;",
     "- recto : LE TERME du document (« Espace à fortes contraintes », « Doctrine Truman »,",
     "  « Raison d'une suite ») ou une question précise sur lui ;",
     "- verso : sa définition telle que le document la donne, en une phrase ;",
@@ -1189,6 +1218,13 @@
         titre: nettoyer(s.titre, 90),
         texte: nettoyer(s.texte, 900),
         points: listeNettoyee(s.points, 6, 320),
+        // Le lexique de la notion : c'est lui qui nourrit les cartes et le quiz.
+        lexique: (Array.isArray(s.lexique) ? s.lexique : [])
+          .filter((entree) => entree && typeof entree === "object")
+          .map((entree) => ({ terme: nettoyer(entree.terme, 60), definition: nettoyer(entree.definition, 300) }))
+          .filter((entree) => entree.terme.length > 1 && entree.definition.length > 2)
+          .slice(0, 8),
+        reperes: listeNettoyee(s.reperes, 4, 200),
       }))
       .filter((s) => s.titre.length > 2 && (s.texte.length > 10 || s.points.length))
       .slice(0, 10);
@@ -1196,7 +1232,15 @@
     const points = listeNettoyee(brut.points, 12, 400);
     const cartes = (Array.isArray(donnees.flashcards) ? donnees.flashcards : [])
       .filter((c) => c && typeof c === "object")
-      .map((c) => ({ recto: nettoyer(c.recto, 200), verso: nettoyer(c.verso, 300) }))
+      .map((c) => {
+        const carte = { recto: nettoyer(c.recto, 200), verso: nettoyer(c.verso, 300) };
+        // La notion d'où vient la carte : c'est ce qui permet de réviser notion par notion.
+        const partie = Number(c.partie);
+        if (Number.isInteger(partie) && partie >= 0 && partie < sections.length) carte.partie = partie;
+        const terme = nettoyer(c.terme, 60);
+        if (terme.length > 1) carte.terme = terme;
+        return carte;
+      })
       .filter((c) => c.recto.length > 2 && c.verso.length > 0)
       .slice(0, 24);
 
@@ -1208,6 +1252,7 @@
       contenu: {
         lu: true,
         accroche: nettoyer(brut.accroche, 400) || "Fiche tirée de ton document.",
+        objectifs: listeNettoyee(brut.objectifs, 4, 200),
         sections,
         points,
         formules: listeNettoyee(brut.formules, 10),
@@ -1726,6 +1771,7 @@
       afficherVue("flashcards");
       if (enregistree && cartesDeLaFiche(enregistree).length) {
         etatCartes.ficheId = enregistree.id;
+        etatCartes.partie = null;
         lancerCartes(null);
       } else {
         toast("Pas de cartes pour cette fiche : lance plutôt un quiz.");
@@ -1904,21 +1950,71 @@
       </section>`;
   }
 
+  /** Une notion du parcours : son titre, sa maîtrise, son contenu et ses deux gestes. */
+  function blocNotion(fiche, notion, rang) {
+    const note = maitriseNotion(fiche, rang);
+    const cartes = cartesDeLaFiche(fiche, rang);
+    const etat = note === null ? "Pas encore testée" : `${note} % maîtrisé`;
+    const lexique = (notion.lexique || []).slice(0, 8);
+
+    return `
+      <section class="notion" id="partie-${rang + 1}">
+        <header class="notion-entete">
+          <span class="notion-numero">${rang + 1}</span>
+          <h3 class="notion-titre">${echapper(notion.titre)}</h3>
+        </header>
+        <div class="notion-jauge" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+             aria-valuenow="${note === null ? 0 : note}" aria-label="Maîtrise de ${echapper(notion.titre)}">
+          <div class="notion-jauge-remplie" data-part="${note === null ? 0 : note}"></div>
+        </div>
+        <p class="notion-etat">${etat}${cartes.length ? ` · ${cartes.length} carte${cartes.length > 1 ? "s" : ""}` : ""}</p>
+
+        ${notion.texte ? `<p class="notion-texte">${echapper(notion.texte)}</p>` : ""}
+        ${(notion.points || []).length
+          ? `<ul class="notion-points">${notion.points.map((point) => `<li>${echapper(point)}</li>`).join("")}</ul>`
+          : ""}
+
+        ${lexique.length ? `
+          <dl class="lexique">
+            ${lexique.map((entree) => `
+              <dt>${echapper(entree.terme)}</dt>
+              <dd>${echapper(entree.definition)}</dd>`).join("")}
+          </dl>` : ""}
+
+        ${(notion.reperes || []).length
+          ? `<ul class="notion-reperes">${notion.reperes.map((repere) => `<li>${echapper(repere)}</li>`).join("")}</ul>`
+          : ""}
+
+        <div class="notion-actions">
+          ${cartes.length
+            ? `<button class="bouton-notion" type="button" data-notion="cartes" data-rang="${rang}">Réviser les cartes</button>`
+            : ""}
+          <button class="bouton-notion bouton-notion--test" type="button" data-notion="quiz" data-rang="${rang}">Me tester</button>
+        </div>
+      </section>`;
+  }
+
   function rendrePageFiche(fiche) {
     const hote = $("#page-fiche");
     if (!hote) return;
     const contenu = contenuDeLaFiche(fiche);
     const matiere = MATIERES[fiche.matiere];
     const cartes = cartesDeLaFiche(fiche);
-    const sections = (contenu && contenu.sections) || [];
+    const notions = notionsDeLaFiche(fiche);
+    const lexique = lexiqueDeLaFiche(fiche);
     const points = (contenu && contenu.points) || [];
-    const parties = sectionsFiche(sections, "partie")
-      || sectionFiche("L'essentiel", points, "fiche-section--points");
+    const faible = notionLaPlusFaible(fiche);
     const meta = [
       SOURCES_FICHE[fiche.source] || "Sujet libre",
-      `${cartes.length} carte${cartes.length > 1 ? "s" : ""}`,
+      notions.length ? `${notions.length} notion${notions.length > 1 ? "s" : ""}` : null,
+      cartes.length ? `${cartes.length} carte${cartes.length > 1 ? "s" : ""}` : null,
       `révisée le ${formatDate.format(new Date(fiche.derniereRevision))}`,
-    ].join(" · ");
+    ].filter(Boolean).join(" · ");
+
+    // Sans notions (fiche ancienne ou chapitre du catalogue), on garde la mise en page d'avant.
+    const corps = notions.length
+      ? notions.map((notion, rang) => blocNotion(fiche, notion, rang)).join("")
+      : sectionFiche("L'essentiel", points, "fiche-section--points");
 
     hote.innerHTML = `
       <header class="page-fiche-entete">
@@ -1932,22 +2028,51 @@
         <p class="page-fiche-meta">${fiche.progression} % maîtrisé</p>
       </header>
 
+      ${faible && notions.length > 1 ? `
+        <button class="page-fiche-reprise" type="button" data-page="reprendre" data-rang="${faible.rang}">
+          <span class="page-fiche-reprise-titre">Reprendre par ${echapper(faible.titre)}</span>
+          <span class="page-fiche-reprise-detail">${faible.maitrise === null
+            ? "notion jamais testée"
+            : `notion la plus fragile · ${faible.maitrise} %`}</span>
+        </button>` : ""}
+
       ${contenu && contenu.accroche ? `<p class="page-fiche-avis">${contenu.accroche}</p>` : ""}
 
-      ${sections.length > 1 ? `
-        <nav class="page-fiche-sommaire" aria-label="Sommaire de la fiche">
-          <h3>Sommaire</h3>
-          <ol>${sections.map((section, rang) =>
-            `<li><button type="button" data-ancre="partie-${rang + 1}">${echapper(section.titre)}</button></li>`).join("")}</ol>
+      ${(contenu && (contenu.objectifs || []).length) ? `
+        <section class="page-fiche-objectifs">
+          <h3>Ce que tu dois savoir</h3>
+          <ul>${contenu.objectifs.map((objectif) => `<li>${echapper(objectif)}</li>`).join("")}</ul>
+        </section>` : ""}
+
+      ${notions.length > 1 ? `
+        <nav class="page-fiche-sommaire" aria-label="Parcours du chapitre">
+          <h3>Parcours du chapitre</h3>
+          <ol>${notions.map((notion, rang) => {
+            const note = maitriseNotion(fiche, rang);
+            return `<li><button type="button" data-ancre="partie-${rang + 1}">
+              <span>${echapper(notion.titre)}</span>
+              <span class="sommaire-note">${note === null ? "—" : `${note} %`}</span>
+            </button></li>`;
+          }).join("")}</ol>
         </nav>` : ""}
 
-      ${parties ? `<div class="page-fiche-corps">
-        ${parties}
+      ${corps ? `<div class="page-fiche-corps">
+        ${corps}
         ${blocPageFiche(contenu.libelleFormules || "Formules clés", contenu.formules, "page-fiche-bloc--reperes")}
         ${blocPageFiche("Exemples du cours", contenu.exemples)}
         ${blocPageFiche("Pièges fréquents", contenu.pieges)}
       </div>` : `<p class="page-fiche-vide">Cette fiche n'a pas encore de contenu lu. Photographie ta page :
-        le texte, les parties et les cartes en sortiront.</p>`}
+        le texte, les notions et les cartes en sortiront.</p>`}
+
+      ${lexique.length ? `
+        <details class="reglages">
+          <summary>Lexique du chapitre (${lexique.length} termes)</summary>
+          <dl class="lexique lexique--tout">
+            ${lexique.map((entree) => `
+              <dt>${echapper(entree.terme)}</dt>
+              <dd>${echapper(entree.definition)}</dd>`).join("")}
+          </dl>
+        </details>` : ""}
 
       ${contenu && contenu.texte ? `
         <details class="reglages">
@@ -1956,8 +2081,8 @@
         </details>` : ""}
 
       <div class="page-fiche-actions">
-        <button class="bouton-principal" type="button" data-page="tester">Me tester sur cette fiche</button>
-        ${cartes.length ? `<button class="bouton-secondaire" type="button" data-page="cartes">Réviser en flashcards (${cartes.length})</button>` : ""}
+        <button class="bouton-principal" type="button" data-page="tester">Me tester sur tout le chapitre</button>
+        ${cartes.length ? `<button class="bouton-secondaire" type="button" data-page="cartes">Réviser les ${cartes.length} cartes</button>` : ""}
         <button class="bouton-secondaire" type="button" data-page="photo">Ajouter une page photographiée</button>
       </div>
     `;
@@ -1969,12 +2094,31 @@
       });
     });
 
+    // Réviser une notion : les cartes de cette notion, le quiz sur elle seule.
+    $$("[data-notion]", hote).forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        const rang = Number(bouton.dataset.rang);
+        if (bouton.dataset.notion === "quiz") { reviserFiche(fiche, rang); return; }
+        etatCartes.ficheId = fiche.id;
+        etatCartes.partie = rang;
+        afficherVue("flashcards");
+        lancerCartes(null);
+      });
+    });
+
     $$("[data-page]", hote).forEach((bouton) => {
       bouton.addEventListener("click", () => {
         const action = bouton.dataset.page;
+        if (action === "reprendre") {
+          const rang = Number(bouton.dataset.rang);
+          const cible = document.getElementById(`partie-${rang + 1}`);
+          if (cible) cible.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
         if (action === "tester") { reviserFiche(fiche); return; }
         if (action === "cartes") {
           etatCartes.ficheId = fiche.id;
+          etatCartes.partie = null;
           afficherVue("flashcards");
           lancerCartes(null);
           return;
@@ -1986,20 +2130,100 @@
     requestAnimationFrame(() => {
       const jauge = $(".page-fiche-jauge-remplie", hote);
       if (jauge) jauge.style.width = `${fiche.progression}%`;
+      $$(".notion-jauge-remplie", hote).forEach((barre) => {
+        barre.style.width = `${barre.dataset.part}%`;
+      });
     });
   }
 
   function initPageFiche() {
     const retour = $("#fiche-retour");
     if (retour) retour.addEventListener("click", () => afficherVue(retourFiche));
+
+    // Une notion notée pendant une séance : la page la montre à jour au retour.
+    aRafraichir.push(() => {
+      const ouverte = trouverFiche(fichePageId);
+      if (ouverte) rendrePageFiche(ouverte);
+    });
   }
 
-  /** Les cartes d'une fiche : celles lues sur le document, sinon une banque. */
-  function cartesDeLaFiche(fiche) {
+  /* ————— Un chapitre, ses notions ————————————————————————————————
+     Une fiche ne se révise pas d'un bloc : elle se révise notion par
+     notion. Chaque notion porte son lexique, ses repères, ses cartes et
+     sa maîtrise — et c'est la plus faible qu'on propose de reprendre.
+     ———————————————————————————————————————————————————————————— */
+
+  /** Les notions d'une fiche, dans l'ordre du document. */
+  function notionsDeLaFiche(fiche) {
+    const contenu = contenuDeLaFiche(fiche);
+    return (contenu && Array.isArray(contenu.sections) ? contenu.sections : []);
+  }
+
+  /** La maîtrise d'une notion, en pourcentage ; null tant qu'elle n'a pas été testée. */
+  function maitriseNotion(fiche, rang) {
+    const table = fiche && fiche.maitrise;
+    const valeur = table ? table[String(rang)] : null;
+    return typeof valeur === "number" ? valeur : null;
+  }
+
+  /** Après une séance sur une notion : on garde le score et on recalcule la fiche. */
+  function noterNotion(ficheId, rang, pourcentage) {
+    const fiche = trouverFiche(ficheId);
+    if (!fiche || typeof rang !== "number" || typeof pourcentage !== "number") return;
+    fiche.maitrise = fiche.maitrise || {};
+    fiche.maitrise[String(rang)] = Math.round(pourcentage);
+
+    // La progression du chapitre, c'est la moyenne de ses notions — les
+    // notions jamais testées comptent pour zéro : rien n'est acquis d'avance.
+    const notions = notionsDeLaFiche(fiche);
+    if (notions.length) {
+      const somme = notions.reduce((total, _, i) => total + (maitriseNotion(fiche, i) || 0), 0);
+      fiche.progression = Math.round(somme / notions.length);
+    }
+    majBibliotheque();
+  }
+
+  /** La notion la plus fragile : celle par laquelle reprendre. */
+  function notionLaPlusFaible(fiche) {
+    const notions = notionsDeLaFiche(fiche);
+    if (!notions.length) return null;
+    let rang = null;
+    let pire = Infinity;
+    notions.forEach((notion, i) => {
+      const note = maitriseNotion(fiche, i);
+      const valeur = note === null ? -1 : note;     // jamais testée = la plus urgente
+      if (valeur < pire) { pire = valeur; rang = i; }
+    });
+    return rang === null ? null : { rang, titre: notions[rang].titre, maitrise: pire < 0 ? null : pire };
+  }
+
+  /** Le lexique du chapitre : les termes de chaque notion, sans doublon. */
+  function lexiqueDeLaFiche(fiche) {
+    const entrees = [];
+    const vus = new Set();
+    notionsDeLaFiche(fiche).forEach((notion, rang) => {
+      (notion.lexique || []).forEach((entree) => {
+        const cle = normaliser(entree.terme);
+        if (!cle || vus.has(cle)) return;
+        vus.add(cle);
+        entrees.push({ ...entree, partie: rang });
+      });
+    });
+    return entrees;
+  }
+
+  /**
+   * Les cartes d'une fiche : celles lues sur le document, sinon une banque.
+   * Avec un rang de notion, on ne garde que les cartes de cette notion.
+   */
+  function cartesDeLaFiche(fiche, partie) {
     if (!fiche) return [];
     if (fiche.cartes && fiche.cartes.length) {
-      return fiche.cartes.map((carte) => ({ recto: carte.recto, verso: carte.verso }));
+      return fiche.cartes
+        .filter((carte) => typeof partie !== "number" || carte.partie === partie)
+        .map((carte) => ({ recto: carte.recto, verso: carte.verso, partie: carte.partie }));
     }
+    if (typeof partie === "number") return [];
     const banqueId = banqueDeLaFiche(fiche);
     return banqueId ? (FLASHCARDS[banqueId] || []).slice() : [];
   }
@@ -2102,6 +2326,7 @@
             return;
           }
           etatCartes.ficheId = gardee.id;
+          etatCartes.partie = null;
           afficherVue("flashcards");
           lancerCartes(null);
         });
@@ -2346,6 +2571,7 @@
       questions, index: 0, score: 0,
       mode: etatQuiz.mode, coursId: null, sansFin: false,
       ficheId: etatQuiz.ficheId || null,
+      partie: typeof etatQuiz.partie === "number" ? etatQuiz.partie : null,
       tirer: () => null, demandeIA,
     };
     $("#quiz-quitter").textContent = "Quitter le quiz";
@@ -2888,7 +3114,11 @@
     const pourcentage = Math.round((score / total) * 100);
     const rates = questions.filter((q) => !q.reussie);
     // Une fiche révisée : on note la date et le meilleur score, la file suit.
-    if (partieQuiz.ficheId) marquerRevisee(partieQuiz.ficheId, pourcentage);
+    if (partieQuiz.ficheId) {
+      marquerRevisee(partieQuiz.ficheId, pourcentage);
+      // Testé sur une notion : c'est cette notion-là qui progresse.
+      if (typeof partieQuiz.partie === "number") noterNotion(partieQuiz.ficheId, partieQuiz.partie, pourcentage);
+    }
     const dejaRangee = Boolean(partieQuiz.ficheId);
     const sujetLibre = etatQuiz.source === "sujet" ? etatQuiz.sujet.trim() : "";
     const message = pourcentage === 100 ? "Sans faute — le chapitre est solide."
@@ -3061,6 +3291,7 @@
       partieQuiz = {
         questions, index: 0, score: 0, mode: etatQuiz.mode, coursId, sansFin, tirer,
         ficheId: etatQuiz.ficheId || null,
+        partie: typeof etatQuiz.partie === "number" ? etatQuiz.partie : null,
       };
       $("#quiz-quitter").textContent = sansFin ? "Terminer et voir mon score" : "Quitter le quiz";
       $("#jeu-quiz").hidden = false;
@@ -3140,7 +3371,11 @@
     brancherPuces("#puces-quiz-mode .puce", "mode", (valeur) => { etatQuiz.mode = valeur; majResumeQuiz(); });
     majResumeQuiz();
 
-    form.addEventListener("submit", (evt) => { evt.preventDefault(); lancerQuiz(); });
+    form.addEventListener("submit", (evt) => {
+      evt.preventDefault();
+      etatQuiz.partie = null;              // depuis le formulaire : tout le chapitre
+      lancerQuiz();
+    });
     $("#quiz-suivant").addEventListener("click", questionSuivante);
     $("#quiz-stop").addEventListener("click", () => { if (controleurIA) controleurIA.abort(); });
     $("#quiz-quitter").addEventListener("click", () => {
@@ -3154,7 +3389,7 @@
 
   /* ————— Page « FlashCards » ————————————————————————————————————— */
 
-  const etatCartes = { matiere: "toutes", ficheId: null, ordre: "melange" };
+  const etatCartes = { matiere: "toutes", ficheId: null, ordre: "melange", partie: null };
   let paquet = null;
 
   function afficherCarte() {
@@ -3205,6 +3440,14 @@
     const ratees = paquet.ratees.size;
     const duPremierCoup = total - ratees;
 
+    /* Un paquet fini est une révision : la fiche avance, et si le paquet
+       portait sur une notion, c'est cette notion qui est notée. */
+    const pourcentage = total ? Math.round((duPremierCoup / total) * 100) : 0;
+    if (etatCartes.ficheId && !paquet.partiel) {
+      marquerRevisee(etatCartes.ficheId, pourcentage);
+      if (typeof paquet.partie === "number") noterNotion(etatCartes.ficheId, paquet.partie, pourcentage);
+    }
+
     $("#jeu-cartes").hidden = true;
     const bilan = $("#bilan-cartes");
     bilan.innerHTML = `
@@ -3238,7 +3481,7 @@
       toast(fiches.length ? "Choisis une fiche." : "Ta bibliothèque est vide : crée d'abord une fiche.");
       return;
     }
-    const source = cartesDeLaFiche(fiche);
+    const source = cartesDeLaFiche(fiche, typeof etatCartes.partie === "number" ? etatCartes.partie : undefined);
     let cartes = source.map((carte, i) => ({ ...carte, id: `${fiche.id}-${i}`, repassee: false }));
     if (seulement) cartes = cartes.filter((c) => seulement.has(c.id));
     if (!cartes.length) { toast("Pas encore de cartes pour cette fiche : lance plutôt un quiz."); return; }
@@ -3253,7 +3496,11 @@
     clearTimeout(minuteurCartes);
     minuteurCartes = setTimeout(() => {
       $("#chargement-cartes").hidden = true;
-      paquet = { file: cartes, total: cartes.length, sues: new Set(), ratees: new Set() };
+      paquet = {
+        file: cartes, total: cartes.length, sues: new Set(), ratees: new Set(),
+        partie: typeof etatCartes.partie === "number" ? etatCartes.partie : null,
+        partiel: Boolean(seulement),        // un rejeu des ratées ne renote pas la notion
+      };
       $("#jeu-cartes").hidden = false;
       afficherCarte();
     }, 700);
@@ -3272,7 +3519,11 @@
 
     brancherPuces("#puces-cartes-ordre .puce", "ordre", (valeur) => { etatCartes.ordre = valeur; });
 
-    form.addEventListener("submit", (evt) => { evt.preventDefault(); lancerCartes(null); });
+    form.addEventListener("submit", (evt) => {
+      evt.preventDefault();
+      etatCartes.partie = null;            // depuis le formulaire : tout le paquet
+      lancerCartes(null);
+    });
 
     $("#carte-flip").addEventListener("click", () => {
       const carte = $("#carte-flip");

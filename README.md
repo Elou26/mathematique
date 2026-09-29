@@ -372,12 +372,47 @@ dans la page.
 `node tests/lecture-reelle.js` fait la **vraie** lecture : il imprime une page de cours avec le
 navigateur, la fait lire par le moteur embarqué (≈ 1 s), et vérifie le titre retenu, la matière
 devinée, les cartes tirées du texte — et qu'aucune requête ne sort du site.
+`node tests/parcours.js` parcourt le chapitre : les notions et leur maîtrise à l'affichage, la
+notion à reprendre, un paquet de cartes limité à une notion qui note cette notion et fait avancer
+la moyenne du chapitre, et un quiz de notion dont la consigne ne déborde pas sur les autres.
 `node tests/questions-cartes.js` lit une leçon aux parties numérotées, sans navigateur, et vérifie
 la formulation de chaque carte : aucun numéro recopié, aucun titre en capitales, le bon tour pour
 un pluriel, l'article du cours conservé et les réponses remises en phrase.
 `node tests/page-fiche.js` couvre la fiche en pleine page — sommaire, parties numérotées, repères
 et exemples, retour à l'onglet d'où l'on vient — et le refus d'une lecture illisible : message
 motivé, aucune fiche fabriquée, chemin manuel offert.
+
+## Le chapitre et ses notions
+
+Une fiche ne se révise pas d'un bloc. Comme sur les applications de révision (Parkeur et les
+autres), un **chapitre** est découpé en **notions**, et c'est la notion qui est l'unité de travail :
+
+| Ce que porte une notion | À quoi ça sert |
+| --- | --- |
+| `titre`, `texte`, `points` | ce qu'il faut comprendre, dans l'ordre du document |
+| `lexique` : `[{terme, definition}]` | les mots à connaître — ce sont eux que les cartes testent |
+| `reperes` : formules, dates, chiffres | ce qui se retient par cœur, gardé avec sa notion |
+| `maitrise` (0 à 100 %, par notion) | ce qui reste à travailler |
+
+Les **cartes portent leur notion** (`carte.partie`) et le terme qu'elles testent (`carte.terme`).
+C'est ce lien qui permet de réviser *une* notion : ses cartes, son quiz, sa maîtrise. Côté lecture
+sur l'appareil, `partiesDesLignes()` rattache chaque ligne du document à sa partie, et le lexique
+d'une notion se déduit de ses propres cartes — le lexique et les cartes ne peuvent donc pas se
+contredire. Côté Claude, l'invite réclame la même forme : notions titrées, lexique par notion,
+repères par notion, et des cartes **réparties sur toutes les notions** plutôt qu'entassées sur la
+première.
+
+**La progression du chapitre est la moyenne de ses notions**, celles jamais testées comptant pour
+zéro : rien n'est acquis d'avance, et le pourcentage dit vraiment où en est l'élève. Après un
+paquet de cartes ou un quiz portant sur une notion, c'est cette notion-là qui est notée
+(`noterNotion()`) ; un rejeu des seules cartes ratées ne renote rien, il fausserait la mesure.
+
+**La notion la plus fragile est celle qu'on propose de reprendre** (`notionLaPlusFaible()`) : elle
+est annoncée sur la carte de la liste *Mes fiches* et en tête de la fiche, avant même le sommaire.
+Une notion jamais testée passe devant une notion à 20 % — commencer vaut mieux que peaufiner.
+
+**Le quiz d'une notion ne voit que cette notion** : `reviserFiche(fiche, rang)` n'envoie que son
+texte, ses points, ses repères et son lexique. Sans rang, le quiz porte sur tout le chapitre.
 
 ## La fiche en pleine page
 
