@@ -1359,7 +1359,24 @@
 
   /** Coupe et échappe : ce que Claude renvoie est affiché, jamais interprété. */
   function nettoyer(texte, max = 240) {
-    return echapper(String(texte == null ? "" : texte).replace(/\s+/g, " ").trim().slice(0, max));
+    return echapper(couperNet(String(texte == null ? "" : texte).replace(/\s+/g, " ").trim(), max));
+  }
+
+  /**
+   * Une phrase coupée en plein milieu ne veut plus rien dire — et c'est ce
+   * qu'on lit ensuite dans la fiche. On coupe à la dernière fin de phrase
+   * avant la limite ; à défaut, au dernier mot entier, suivi de points de
+   * suspension pour que la coupe se voie.
+   */
+  function couperNet(texte, max) {
+    if (texte.length <= max) return texte;
+    const morceau = texte.slice(0, max);
+    const fin = Math.max(
+      morceau.lastIndexOf(". "), morceau.lastIndexOf("! "), morceau.lastIndexOf("? "),
+      morceau.lastIndexOf("."), morceau.lastIndexOf("!"), morceau.lastIndexOf("?"));
+    if (fin > max * 0.45) return morceau.slice(0, fin + 1).trim();
+    const espace = morceau.lastIndexOf(" ");
+    return `${(espace > 0 ? morceau.slice(0, espace) : morceau).trim()}…`;
   }
 
   function listeNettoyee(valeur, maximum, max = 240) {
@@ -2148,8 +2165,9 @@
           : ""}
 
         <div class="notion-actions">
-          ${cartes.length
-            ? `<button class="bouton-notion" type="button" data-notion="cartes" data-rang="${rang}">Réviser les cartes</button>`
+          ${cartes.length || sampleClaude
+            ? `<button class="bouton-notion" type="button" data-notion="cartes" data-rang="${rang}">${
+                cartes.length ? "Réviser les cartes" : "Préparer mes cartes"}</button>`
             : ""}
           <button class="bouton-notion bouton-notion--test" type="button" data-notion="quiz" data-rang="${rang}">Me tester</button>
         </div>
@@ -2244,7 +2262,9 @@
 
       <div class="page-fiche-actions">
         <button class="bouton-principal" type="button" data-page="tester">Me tester sur tout le chapitre</button>
-        ${cartes.length ? `<button class="bouton-secondaire" type="button" data-page="cartes">Réviser les ${cartes.length} cartes</button>` : ""}
+        <button class="bouton-secondaire" type="button" data-page="cartes">${
+          cartes.length ? `Réviser les ${cartes.length} cartes` : "Préparer mes cartes"}</button>
+        ${sampleClaude && cartes.length ? `<button class="bouton-texte" type="button" data-page="refaire-cartes">Refaire les cartes</button>` : ""}
         <button class="bouton-secondaire" type="button" data-page="photo">Ajouter une page photographiée</button>
       </div>
     `;
@@ -2278,11 +2298,11 @@
           return;
         }
         if (action === "tester") { reviserFiche(fiche); return; }
-        if (action === "cartes") {
+        if (action === "cartes" || action === "refaire-cartes") {
           etatCartes.ficheId = fiche.id;
           etatCartes.partie = null;
           afficherVue("flashcards");
-          lancerCartes(null);
+          lancerCartes(null, { refaire: action === "refaire-cartes" });
           return;
         }
         afficherVue("scan");
@@ -2716,6 +2736,144 @@
       .filter(Boolean);
 
     return questions.length ? questions.slice(0, 20) : null;
+  }
+
+  /* ————— Des cartes écrites comme le quiz ————————————————————————
+     Les cartes tirées par règles disent parfois n'importe quoi. Quand
+     l'IA est joignable, elle écrit le paquet à partir de la fiche elle-
+     même, exactement comme elle écrit le quiz — et le paquet est gardé
+     avec la fiche, pour ne pas le refaire à chaque séance.
+     ———————————————————————————————————————————————————————————— */
+
+  const CONSIGNE_CARTES = [
+    "Tu es professeur et tu prépares le paquet de flashcards de révision d'un élève francophone,",
+    "à partir de SA fiche. Une flashcard : une question au recto, la réponse au verso.",
+    "",
+    "Chapitre : « <<<TITRE>>> » (<<<MATIERE>>>). Profil de l'élève : <<<PROFIL>>>.",
+    "",
+    "Contenu de la fiche, notion par notion :",
+    "<<<CONTENU>>>",
+    "",
+    "Réponds uniquement avec un objet JSON de cette forme :",
+    '{"cartes": [{"recto": "la question", "verso": "la réponse, en une phrase",',
+    '             "partie": 0, "terme": "le mot du cours sur lequel porte la carte"}]}',
+    "",
+    "Règles :",
+    "- 10 à 18 cartes, RÉPARTIES sur toutes les notions ; « partie » est le rang de la notion",
+    "  (0 pour la première), et il y a au moins une carte par notion ;",
+    "- une carte par terme à connaître : les définitions d'abord, puis les dates, les formules,",
+    "  les valeurs des exemples et les méthodes ;",
+    "- le recto est une VRAIE question, qui se comprend seule une semaine plus tard :",
+    '  « Qu\'est-ce qu\'une contrainte naturelle ? », « Que signifie « densité » ? »,',
+    '  « En quelle année commence la guerre froide ? », « Comment calcule-t-on la raison ? » ;',
+    '- INTERDIT : « Définition ? », « Propriété ? », « Que dit le cours ? », un mot seul suivi',
+    "  d'un point d'interrogation, ou une question qui renvoie à « cette » notion sans la nommer ;",
+    "- le verso répond vraiment, en une phrase complète, jamais par oui ou non, et REPREND LES",
+    "  TERMES DU DOCUMENT sans les reformuler ;",
+    "- n'invente rien qui ne soit pas dans la fiche ;",
+    "- tout est en français, calé sur le niveau de l'élève ;",
+    "- aucun texte en dehors du JSON.",
+  ].join("\n");
+
+  /** La fiche mise à plat pour l'IA : ses notions, leur lexique, leurs repères. */
+  function contenuPourIA(fiche) {
+    const notions = notionsDeLaFiche(fiche);
+    if (!notions.length) {
+      const contenu = contenuDeLaFiche(fiche);
+      const points = (contenu && contenu.points) || [];
+      return points.map(texteBrut).slice(0, 12).map((point) => `- ${point}`).join("\n");
+    }
+    return notions.map((notion, rang) => {
+      const morceaux = [`Notion ${rang} — ${texteBrut(notion.titre)}`];
+      if (notion.texte) morceaux.push(texteBrut(notion.texte));
+      (notion.points || []).slice(0, 6).forEach((point) => morceaux.push(`- ${texteBrut(point)}`));
+      (notion.lexique || []).slice(0, 8).forEach((entree) => {
+        morceaux.push(`- ${texteBrut(entree.terme)} : ${texteBrut(entree.definition)}`);
+      });
+      (notion.reperes || []).slice(0, 4).forEach((repere) => morceaux.push(`- ${texteBrut(repere)}`));
+      return morceaux.join("\n");
+    }).join("\n\n").slice(0, 6000);
+  }
+
+  /** Vérifie la forme des cartes rendues par l'IA avant d'en faire un paquet. */
+  function validerCartesIA(donnees, notions) {
+    if (!donnees || !Array.isArray(donnees.cartes)) return null;
+    const cartes = donnees.cartes
+      .filter((carte) => carte && typeof carte === "object")
+      .map((carte) => {
+        const propre = { recto: nettoyer(carte.recto, 200), verso: nettoyer(carte.verso, 300) };
+        const partie = Number(carte.partie);
+        if (Number.isInteger(partie) && partie >= 0 && partie < notions) propre.partie = partie;
+        const terme = nettoyer(carte.terme, 60);
+        if (terme.length > 1) propre.terme = terme;
+        return propre;
+      })
+      // Une question digne de ce nom : trois mots et un point d'interrogation.
+      .filter((carte) => carte.recto.split(" ").length >= 3 && /\?$/.test(carte.recto)
+        && carte.verso.length > 3)
+      .slice(0, 24);
+    return cartes.length >= 4 ? cartes : null;
+  }
+
+  /**
+   * Demande le paquet à l'IA et le range avec la fiche. Renvoie true si des
+   * cartes ont été écrites, false s'il faut se rabattre sur les cartes locales.
+   */
+  async function ecrireCartesAvecIA(fiche) {
+    const contenu = contenuPourIA(fiche);
+    if (!contenu || contenu.length < 40) return false;
+
+    const invite = CONSIGNE_CARTES
+      .replace("<<<TITRE>>>", texteBrut(fiche.titre))
+      .replace("<<<MATIERE>>>", MATIERES[fiche.matiere] ? MATIERES[fiche.matiere].nom : "matière libre")
+      .replace("<<<PROFIL>>>", niveauChoisi ? libelleNiveau().toLowerCase() : "non précisé")
+      .replace("<<<CONTENU>>>", contenu);
+
+    controleurIA = new AbortController();
+    $("#form-cartes").hidden = true;
+    $("#jeu-cartes").hidden = true;
+    $("#bilan-cartes").hidden = true;
+    $("#chargement-cartes").hidden = false;
+    $("#cartes-stop").hidden = false;
+    $("#cartes-progres").textContent = "Écriture de tes cartes…";
+    messageCartes("");
+
+    try {
+      const donnees = await sampleClaude.json(invite, {
+        modelTier: "default",
+        cache: false,
+        signal: controleurIA.signal,
+        onText: ({ text }) => {
+          $("#cartes-progres").textContent = `Écriture de tes cartes… (${text.length} caractères)`;
+        },
+      });
+
+      const cartes = validerCartesIA(donnees, notionsDeLaFiche(fiche).length || 99);
+      if (!cartes) throw { code: "invalid_json", message: "forme inattendue" };
+
+      fiche.cartes = cartes;
+      fiche.cartesIA = true;
+      majBibliotheque();
+      return true;
+    } catch (erreur) {
+      const code = erreur && erreur.code ? erreur.code : "upstream_error";
+      if (code === "cancelled") { messageCartes("Écriture arrêtée."); return false; }
+      messageCartes(MESSAGES_IA[code] || MESSAGES_IA.upstream_error, REPLIS_LOCAUX.has(code) ? null : "erreur");
+      if (REPLIS_LOCAUX.has(code) && code !== "rate_limited") { sampleClaude = null; afficherMoteurIA(); }
+      return false;
+    } finally {
+      controleurIA = null;
+      $("#chargement-cartes").hidden = true;
+      $("#cartes-stop").hidden = true;
+    }
+  }
+
+  function messageCartes(texte, ton) {
+    const ligne = $("#cartes-message");
+    if (!ligne) return;
+    ligne.textContent = texte || "";
+    ligne.className = `ia-message${ton ? " ia-message--" + ton : ""}`;
+    ligne.hidden = !texte;
   }
 
   /** Démarre une partie avec des questions déjà écrites (pas de tirage local). */
@@ -3661,12 +3819,31 @@
   }
 
   let minuteurCartes;
-  function lancerCartes(seulement) {
+  /**
+   * Lance une séance sur une fiche. Comme pour le quiz, l'IA écrit le paquet
+   * à partir de la fiche quand elle est joignable ; les cartes tirées par
+   * règles restent le repli. `refaire` force une nouvelle écriture.
+   */
+  async function lancerCartes(seulement, { refaire = false } = {}) {
     const fiche = trouverFiche(etatCartes.ficheId);
     if (!fiche) {
       toast(fiches.length ? "Choisis une fiche." : "Ta bibliothèque est vide : crée d'abord une fiche.");
       return;
     }
+    messageCartes("");
+
+    // Un rejeu des ratées reprend le paquet en place : on ne le réécrit pas.
+    const aEcrire = !seulement && sampleClaude && (refaire || !fiche.cartesIA)
+      && (contenuDeLaFiche(fiche) || cartesDeLaFiche(fiche).length === 0);
+    if (aEcrire) {
+      const ecrit = await ecrireCartesAvecIA(fiche);
+      if (!ecrit && !cartesDeLaFiche(fiche).length) {
+        $("#form-cartes").hidden = false;
+        messageCartes("Je n'ai pas pu écrire les cartes de cette fiche. Lance plutôt un quiz.", "erreur");
+        return;
+      }
+    }
+
     const source = cartesDeLaFiche(fiche, typeof etatCartes.partie === "number" ? etatCartes.partie : undefined);
     let cartes = source.map((carte, i) => ({ ...carte, id: `${fiche.id}-${i}`, repassee: false }));
     if (seulement) cartes = cartes.filter((c) => seulement.has(c.id));
@@ -3733,6 +3910,8 @@
       $("#bilan-cartes").hidden = true;
       form.hidden = false;
     });
+
+    $("#cartes-stop").addEventListener("click", () => { if (controleurIA) controleurIA.abort(); });
   }
 
   /* ————— Toast ————————————————————————————————————————————————— */

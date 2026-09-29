@@ -324,6 +324,14 @@ Mesuré par `tests/qualite-lecture.js` sur quatre pages (nettes et dégradées) 
 retrouvés, 1 % de bruit** — contre 97 % et jusqu'à 72 % de bruit sur les photos avant ces deux
 étapes.
 
+**Jamais une phrase coupée.** Un résumé dont les phrases s'arrêtent au milieu ne veut plus rien
+dire, et c'est pourtant ce que produit un `slice()`. Deux gardes : `couperNet()` (app.js) tronque à
+la dernière fin de phrase avant la limite, à défaut au dernier mot entier suivi de « … », et
+`debutLisible()` (ocr.js) fait de même sur le texte brut. Une notion reçoit **deux ou trois phrases
+entières** plutôt qu'une seule, et les phrases déjà données comme définition dans le lexique en
+sont retirées : l'élève ne lit pas deux fois la même chose. L'accroche, enfin, annonce ce qui
+suit — « Ce chapitre couvre 3 notions : … » — au lieu de commenter la lecture.
+
 **Enfin un verdict** (`qualiteTexte()`), parce qu'une photo floue ne rend pas *rien* : elle rend
 du texte qui ne veut rien dire, et une fiche bâtie dessus est pire qu'une absence de fiche. On
 compte la part de mots qui existent vraiment — des lettres, l'élision comprise (`l'altitude`), les
@@ -407,6 +415,9 @@ dans la page.
 `node tests/lecture-reelle.js` fait la **vraie** lecture : il imprime une page de cours avec le
 navigateur, la fait lire par le moteur embarqué (≈ 1 s), et vérifie le titre retenu, la matière
 devinée, les cartes tirées du texte — et qu'aucune requête ne sort du site.
+`node tests/cartes-ia.js` éprouve l'écriture des cartes avec un faux runtime : l'invite part bien
+des notions et du lexique, les cartes mal formées sont écartées, le paquet est gardé avec la fiche,
+une notion ne sort que ses cartes, et sans IA la séance démarre quand même sur les cartes locales.
 `node tests/interface.js` se met à la place de l'élève : il parcourt les neuf vues et échoue si
 une marque y apparaît, vérifie que l'accueil propose un seul geste pour commencer, que les trois
 entraînements ouvrent un vrai paquet et que la survie s'arrête bien à la 3ᵉ erreur, et qu'aucun
@@ -534,8 +545,25 @@ toucher (rotation 3D CSS), puis deux verdicts : *À revoir* (la carte repasse un
 paquet) ou *Je savais*. Le bilan compte les cartes sues du premier coup et propose de rejouer
 uniquement celles qui ont été ratées.
 
-`cartesDeLaFiche()` sert d'abord les cartes lues sur le document photographié (`fiche.cartes`),
-et retombe sur les paquets de secours de `FLASHCARDS` (`data.js`) quand la fiche n'en a pas.
+### Les cartes s'écrivent comme le quiz
+
+Le quiz part de la fiche et l'IA le rédige ; les cartes faisaient autrement, tirées par règles —
+et ça se voyait. Elles suivent maintenant le même chemin (`ecrireCartesAvecIA()`) :
+
+1. `contenuPourIA()` met la fiche à plat, **notion par notion** : titre, paragraphe, points,
+   lexique, repères.
+2. `CONSIGNE_CARTES` demande 10 à 18 cartes **réparties sur toutes les notions**, une par terme à
+   connaître, avec le rang de la notion (`partie`) et le mot testé (`terme`). Elle interdit
+   explicitement les rectos creux (« Définition ? », un mot suivi d'un point d'interrogation) et
+   impose de reprendre les termes du document sans les reformuler.
+3. `validerCartesIA()` jette ce qui n'est pas une vraie question (moins de trois mots, pas de
+   point d'interrogation, verso vide) et garde au plus 24 cartes.
+4. Le paquet est **rangé avec la fiche** (`fiche.cartes`, `fiche.cartesIA`) : il n'est écrit
+   qu'une fois, sert aussi aux séances par notion, et *Refaire les cartes* le réécrit.
+
+Sans IA joignable, ou si la réponse est inexploitable, on garde les cartes tirées par règles, et à
+défaut les paquets de `FLASHCARDS` (`data.js`) : `cartesDeLaFiche()` sert les trois dans cet ordre.
+La séance ne démarre jamais sur un paquet vide sans le dire.
 
 ## Ergonomie des formulaires
 

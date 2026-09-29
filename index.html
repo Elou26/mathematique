@@ -521,8 +521,10 @@
 
     <div class="chargement" id="chargement-cartes" hidden>
       <span class="spinner" aria-hidden="true"></span>
-      <p class="chargement-texte">Préparation du paquet…</p>
+      <p class="chargement-texte" id="cartes-progres">Préparation du paquet…</p>
     </div>
+    <button class="bouton-texte" type="button" id="cartes-stop" hidden>Arrêter</button>
+    <p class="ia-message" id="cartes-message" hidden aria-live="polite"></p>
 
     <div class="jeu" id="jeu-cartes" hidden>
       <div class="jeu-entete">

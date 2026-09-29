@@ -511,7 +511,7 @@ const OCR = (function () {
       .split(/(?<=[.!?:])\s+(?=[A-ZÀ-Ý0-9])/)
       .map((p) => nettoyerLigne(p))
       .filter((p) =>
-        p.length >= 30 && p.length <= 180
+        p.length >= 30 && p.length <= 220
         && p.split(" ").length >= 5
         && /[a-zà-ÿ]{3}/i.test(p)
         && !BRUIT_APP.test(p)
@@ -839,18 +839,55 @@ const OCR = (function () {
     return sections
       .map((section) => {
         const corps = section.lignes.join(" ").replace(/\s+/g, " ").trim();
-        const utiles = phrases(corps);
+        /* On rend les phrases entières, dans l'ordre du cours : c'est
+           `structurer()` qui en fait un paragraphe, une fois le lexique
+           connu — une définition ne doit pas être dite deux fois. */
         return {
           titre: section.titre,
-          texte: utiles[0] || corps.slice(0, 300),
-          points: sansRedites(utiles.slice(1)).slice(0, 4),
+          phrases: sansRedites(phrases(corps)),
+          secours: debutLisible(corps, 300),
           // Chaque notion porte ses propres repères : c'est ce qu'on révise avec elle.
           reperes: sansRedites(repererFormules(section.lignes)).slice(0, 4),
           brut: section.brut,
         };
       })
-      .filter((section) => section.titre.length > 2 && (section.texte.length > 15 || section.points.length))
+      .filter((section) => section.titre.length > 2 && (section.phrases.length || section.secours.length > 15))
       .slice(0, 8);
+  }
+
+  /**
+   * L'intro de la fiche : ce que le chapitre couvre, dit avec ses propres
+   * notions. On n'invente rien — on annonce ce qui suit, ce qui manquait
+   * pour s'y retrouver d'un coup d'œil. La qualité de lecture s'y ajoute
+   * quand la photo était difficile.
+   */
+  function accroche(sections, confiance) {
+    const titres = sections.map((section) => section.titre).filter(Boolean);
+    const doute = typeof confiance === "number" && confiance < 70
+      ? " Photo difficile à lire : vérifie les termes et les formules."
+      : "";
+    if (titres.length >= 2) {
+      const liste = titres.length > 3
+        ? `${titres.slice(0, 3).join(", ")}…`
+        : `${titres.slice(0, -1).join(", ")} et ${titres[titres.length - 1]}`;
+      return `Ce chapitre couvre ${titres.length} notions : ${liste}.${doute}`;
+    }
+    if (titres.length === 1) return `Ce chapitre porte sur ${titres[0]}.${doute}`;
+    return `Texte lu sur ton document : relis-le avant de réviser.${doute}`;
+  }
+
+  /**
+   * Le début d'un texte, arrêté à une fin de phrase — jamais au milieu d'un
+   * mot. C'est ce qu'on affiche quand aucune phrase nette n'a été trouvée.
+   */
+  function debutLisible(texte, max) {
+    const propre = String(texte || "").replace(/\s+/g, " ").trim();
+    if (propre.length <= max) return propre;
+    const morceau = propre.slice(0, max);
+    const fin = Math.max(morceau.lastIndexOf("."), morceau.lastIndexOf("!"), morceau.lastIndexOf("?"));
+    if (fin > 40) return morceau.slice(0, fin + 1).trim();
+    const espace = morceau.lastIndexOf(" ");
+    return espace > 40 ? `${morceau.slice(0, espace).trim()}…` : morceau.trim();
   }
 
   /** Retire les redites : une phrase déjà contenue dans une autre ne sert à rien. */
@@ -894,10 +931,19 @@ const OCR = (function () {
         vus.add(cle);
         lexique.push({ terme: carte.terme, definition: carte.verso });
       });
+      /* Une phrase déjà donnée comme définition dans le lexique ne se répète
+         pas dans le paragraphe : l'élève lirait deux fois la même chose. */
+      const plats = lexique.map((entree) => sansAccents(entree.definition));
+      const restantes = section.phrases.filter((phrase) => {
+        const plat = sansAccents(phrase);
+        return !plats.some((definition) => plat.includes(definition) || definition.includes(plat));
+      });
+      const base = restantes.length ? restantes : section.phrases;
+
       return {
         titre: section.titre,
-        texte: section.texte,
-        points: section.points,
+        texte: base.slice(0, 3).join(" ") || section.secours,
+        points: base.slice(3, 7),
         reperes: section.reperes,
         lexique: lexique.slice(0, 8),
       };
@@ -937,9 +983,7 @@ const OCR = (function () {
       contenu: {
         lu: true,
         moteur: "ocr",
-        accroche: typeof confiance === "number" && confiance < 70
-          ? "Photo difficile à lire : le texte comporte sans doute des erreurs. Reprends-la à plat et bien éclairée, ou corrige à la main."
-          : "Texte lu sur ton document, sans IA : relis-le avant de réviser.",
+        accroche: accroche(sections, confiance),
         sections,
         points: points.length ? points : lignes.filter((l) => l.length > 30).slice(0, 6),
         formules,
