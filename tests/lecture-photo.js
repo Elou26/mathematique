@@ -81,8 +81,10 @@ function verifier(nom, condition, vu) {
     await page.click('#ouvrir-creation'); await page.waitForTimeout(200);
     await page.click('[data-creation="scan"]'); await page.waitForTimeout(300);
 
-    verifier('le moteur annonce la lecture par Claude',
-      /Claude lit tes pages/.test(await page.innerText('#scan-moteur')), await page.innerText('#scan-moteur'));
+    verifier('le moteur annonce la lecture par l\'IA',
+      /L'IA lit tes pages/.test(await page.innerText('#scan-moteur')), await page.innerText('#scan-moteur'));
+    verifier('aucune marque n\'est citée',
+      !/claude/i.test(await page.innerText('#scan-moteur')), await page.innerText('#scan-moteur'));
 
     await page.setInputFiles('#scan-galerie', ['/tmp/page-cours.png', '/tmp/page-cours.png']);
     await page.waitForTimeout(400);
@@ -202,10 +204,10 @@ function verifier(nom, condition, vu) {
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
     await page.click('#ouvrir-creation'); await page.click('[data-creation="scan"]'); await page.waitForTimeout(400);
     verifier('déconnecté : le message renvoie à la connexion',
-      /connecte-toi à claude\.ai/i.test(await page.innerText('#scan-moteur')), await page.innerText('#scan-moteur'));
+      /connecte-toi/i.test(await page.innerText('#scan-moteur')), await page.innerText('#scan-moteur'));
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
     verifier('déconnecté : la raison est sous les yeux',
-      /connecte-toi à claude\.ai/i.test(await page.innerText('#scan-raison')), await page.innerText('#scan-raison'));
+      /connecte-toi/i.test(await page.innerText('#scan-raison')), await page.innerText('#scan-raison'));
     await ctx.close();
   }
 

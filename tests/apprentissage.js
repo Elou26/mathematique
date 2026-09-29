@@ -38,16 +38,23 @@ function verifier(nom, condition, vu) {
   await page.reload(); await page.waitForTimeout(600);
 
   // 1. L'accueil ouvre sur ce qui est dû.
+  const salut = await page.innerText('#bloc-salut');
+  verifier('l\'accueil dit ce qui attend l\'élève',
+    /2 fiches à revoir aujourd'hui/.test(salut), salut.replace(/\n+/g, ' / '));
+  verifier('un seul geste est proposé pour commencer',
+    /Réviser maintenant/.test(salut), salut.replace(/\n+/g, ' / '));
   const bloc = await page.innerText('#bloc-aujourdhui');
-  verifier('l\'accueil ouvre sur les révisions dues', /À revoir aujourd'hui/.test(bloc), bloc.split('\n')[0]);
-  verifier('les deux fiches dues sont comptées',
-    (await page.innerText('.aujourdhui-compte')) === '2', await page.innerText('.aujourdhui-compte'));
+  verifier('la file du jour est affichée', /Ta file du jour/.test(bloc), bloc.split('\n')[0]);
+  verifier('l\'avancement du jour est chiffré',
+    /0 sur 2 faites/.test(bloc), bloc.replace(/\n+/g, ' / '));
   // palier 2 → J+7 ; revue il y a 9 jours → deux jours de retard
   verifier('le retard est dit', /en retard de 2 jours/.test(bloc), bloc.replace(/\n+/g, ' / '));
   verifier('la plus en retard passe devant',
     (await page.$$eval('[data-revoir]', (n) => n.map((b) => b.dataset.revoir)))[0] === 'f1',
     (await page.$$eval('[data-revoir]', (n) => n.map((b) => b.dataset.revoir))).join(','));
-  verifier('la série est réelle', /3 jours d'affilée/.test(bloc), bloc.replace(/\n+/g, ' / '));
+  verifier('la série est réelle',
+    /3 jours d'affilée/.test(await page.innerText('#bloc-salut')),
+    await page.innerText('#bloc-salut'));
 
   // 2. Réviser depuis l'accueil lance le quiz de cette fiche.
   await page.click('[data-revoir="f1"]'); await page.waitForTimeout(1800);
@@ -86,8 +93,10 @@ function verifier(nom, condition, vu) {
   // 5. L'accueil reflète la révision qui vient d'être faite.
   await page.click('.barre-bas [data-onglet="accueil"]'); await page.waitForTimeout(500);
   const apres = await page.innerText('#bloc-aujourdhui');
-  verifier('le compte du jour a avancé', /1 révision aujourd'hui/.test(apres), apres.replace(/\n+/g, ' / '));
-  verifier('la série a grandi', /4 jours d'affilée/.test(apres), apres.replace(/\n+/g, ' / '));
+  verifier('le compte du jour a avancé', /1 sur 2 faites/.test(apres), apres.replace(/\n+/g, ' / '));
+  verifier('la série a grandi',
+    /4 jours d'affilée/.test(await page.innerText('#bloc-salut')),
+    await page.innerText('#bloc-salut'));
 
   // 6. Les cartes : trois niveaux, et une carte ratée revient dans la séance.
   await page.evaluate(() => { document.querySelectorAll('.vue').forEach((v) => { v.hidden = v.id !== 'vue-flashcards'; }); });

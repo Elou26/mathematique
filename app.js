@@ -36,7 +36,7 @@
   const CLE_FICHES = "mathematique.fiches";
   const SOURCES_FICHE = {
     scan: "Depuis une photo",
-    ia: "Écrite avec Claude",
+    ia: "Écrite par l'IA",
     texte: "Depuis tes notes",
     cours: "Depuis ton cours",
     libre: "Sujet libre",
@@ -171,7 +171,9 @@
     ecrireBibliotheque();
     rendreDossiers();
     rendreEcheances($("#liste-echeances"));
+    rendreSalut();
     rendreAujourdhui();
+    rendreEntrainements($("#liste-entrainements"));
     majCloche();
     majProfil();
     aRafraichir.forEach((rafraichir) => rafraichir());
@@ -275,7 +277,27 @@
     if (!conteneur) return;
     conteneur.textContent = "";
 
-    matieresAffichees().forEach((cle) => {
+    /* Les matières où l'élève a déjà travaillé passent devant : un mur de
+       dossiers vides, c'est six clics avant de retrouver sa fiche. */
+    const cles = matieresAffichees();
+    const remplies = cles.filter((cle) => fiches.some((f) => f.matiere === cle));
+    const vides = cles.filter((cle) => !remplies.includes(cle));
+
+    const entete = $("#cours-etat");
+    if (entete) {
+      const dues = fiches.length ? echeancesFiches().filter((e) => e.etat === "aujourdhui").length : 0;
+      entete.textContent = fiches.length
+        ? `${fiches.length} fiche${fiches.length > 1 ? "s" : ""}${dues ? ` · ${dues} à revoir aujourd'hui` : " · tout est à jour"}`
+        : "Aucune fiche pour l'instant. Touche une matière pour en créer une.";
+    }
+
+    [].concat(remplies, vides).forEach((cle, rang) => {
+      if (rang === remplies.length && remplies.length && vides.length) {
+        const separateur = document.createElement("p");
+        separateur.className = "dossiers-separateur";
+        separateur.textContent = "Pas encore de fiche ici";
+        conteneur.appendChild(separateur);
+      }
       const matiere = MATIERES[cle];
       const liste = fiches.filter((f) => f.matiere === cle);
       const moyenne = liste.length
@@ -290,7 +312,9 @@
           <span class="dossier-emoji" aria-hidden="true">${matiere.emoji}</span>
           <span class="ligne-texte">
             <span class="ligne-nom">${matiere.nom}</span>
-            <span class="ligne-detail">${liste.length} fiche${liste.length > 1 ? "s" : ""} · ${moyenne} %</span>
+            <span class="ligne-detail">${liste.length
+              ? `${liste.length} fiche${liste.length > 1 ? "s" : ""} · ${moyenne} % maîtrisé`
+              : "toucher pour créer une fiche"}</span>
           </span>
           <svg class="matiere-chevron" aria-hidden="true"><use href="#i-fleche"></use></svg>
         </button>
@@ -371,9 +395,46 @@
     const moyenne = total
       ? Math.round(fiches.reduce((somme, f) => somme + (f.progression || 0), 0) / total)
       : 0;
+    // Une notion est acquise à partir de 80 % : c'est ce qui se voit dans un contrôle.
+    let acquises = 0;
+    let cartes = 0;
+    fiches.forEach((fiche) => {
+      notionsDeLaFiche(fiche).forEach((_, rang) => {
+        if ((maitriseNotion(fiche, rang) || 0) >= 80) acquises++;
+      });
+      cartes += cartesDeLaFiche(fiche).length;
+    });
+
     if ($("#stat-cours")) $("#stat-cours").textContent = total;
     if ($("#stat-moyenne")) $("#stat-moyenne").textContent = `${moyenne} %`;
     if ($("#stat-serie")) $("#stat-serie").textContent = serieJours();
+    if ($("#stat-notions")) $("#stat-notions").textContent = acquises;
+    if ($("#stat-cartes")) $("#stat-cartes").textContent = cartes;
+    if ($("#stat-record")) $("#stat-record").textContent = recordSurvie() || "—";
+    if ($("#profil-initiales")) $("#profil-initiales").textContent = initialesDe(prenom);
+  }
+
+  /** Le prénom se saisit dans le profil, et sert partout ailleurs. */
+  function initPrenom() {
+    const champ = $("#profil-prenom");
+    if (!champ) return;
+    champ.value = prenom;
+    champ.addEventListener("input", () => {
+      prenom = champ.value.trim().slice(0, 24);
+      ecrirePrenom(prenom);
+      if ($("#profil-initiales")) $("#profil-initiales").textContent = initialesDe(prenom);
+      rendreSalut();
+    });
+  }
+
+  /** Le meilleur score en mode survie, gardé sur l'appareil. */
+  const CLE_RECORD = "mathematique.record";
+  function recordSurvie() {
+    try { return Number(localStorage.getItem(CLE_RECORD)) || 0; } catch (erreur) { return 0; }
+  }
+  function noterRecordSurvie(score) {
+    if (score <= recordSurvie()) return;
+    try { localStorage.setItem(CLE_RECORD, String(score)); } catch (erreur) { /* mémoire seule */ }
   }
 
   /* ————— Liste des défis ——————————————————————————————————————— */
@@ -396,16 +457,53 @@
     return li;
   }
 
-  function rendreDefis(conteneur) {
+  /* ————— S'entraîner ————————————————————————————————————————————
+     Trois séances courtes sur ses propres cartes, tirées de toutes les
+     fiches. Rien n'est simulé : pas de points fictifs, pas d'adversaire
+     inventé — ce qui est annoncé est ce qui se passe.
+     ———————————————————————————————————————————————————————————— */
+
+  function rendreEntrainements(conteneur) {
     if (!conteneur) return;
     conteneur.textContent = "";
-    DEFIS.forEach((d) => {
+    const stock = cartesDeToutesLesFiches().length;
+    ENTRAINEMENTS.forEach((mode) => {
+      const assez = stock > 0;
       conteneur.appendChild(ligne({
         pastille: '<svg aria-hidden="true"><use href="#i-epee"></use></svg>',
-        nom: d.nom,
-        detail: `${d.detail} · +${d.xp} XP`,
-        onClick: () => toast(`Défi accepté : ${d.nom}`),
+        nom: mode.nom,
+        detail: assez ? mode.detail : "il te faut d'abord des cartes",
+        onClick: () => lancerEntrainement(mode),
       }));
+    });
+  }
+
+  /** Toutes les cartes de toutes les fiches, chacune sachant d'où elle vient. */
+  function cartesDeToutesLesFiches() {
+    const toutes = [];
+    fiches.forEach((fiche) => {
+      cartesDeLaFiche(fiche).forEach((carte, rang) => {
+        toutes.push({ ...carte, id: `${fiche.id}-${rang}`, chapitre: fiche.titre });
+      });
+    });
+    return toutes;
+  }
+
+  function lancerEntrainement(mode) {
+    const toutes = cartesDeToutesLesFiches();
+    if (!toutes.length) {
+      toast("Crée d'abord une fiche : tes cartes en sortiront.");
+      afficherVue("scan");
+      return;
+    }
+    const cartes = melanger(toutes).slice(0, mode.taille);
+    etatCartes.ficheId = null;
+    etatCartes.partie = null;
+    afficherVue("flashcards");
+    ouvrirPaquet(cartes, {
+      survie: mode.survie || null,
+      nom: mode.nom,
+      rejouer: () => lancerEntrainement(mode),     // un nouveau tirage, pas le même paquet
     });
   }
 
@@ -493,6 +591,52 @@
      jour devant, au lieu de la cacher derrière la cloche.
      ———————————————————————————————————————————————————————————— */
 
+  /* ————— L'état de la journée ————————————————————————————————————
+     La première chose qu'on lit en ouvrant l'app : où on en est, et le
+     geste qui suit. Un élève ouvre son appli entre deux cours — il ne
+     doit pas avoir à chercher par quoi commencer.
+     ———————————————————————————————————————————————————————————— */
+
+  function rendreSalut() {
+    const bloc = $("#bloc-salut");
+    if (!bloc) return;
+
+    const heure = new Date().getHours();
+    const moment = heure < 5 ? "Bonne nuit" : heure < 18 ? "Salut" : "Bonsoir";
+    const nom = prenom ? ` ${echapper(prenom)}` : "";
+    const dues = fiches.length ? echeancesFiches().filter((e) => e.etat === "aujourdhui") : [];
+    const serie = serieJours();
+
+    let phrase;
+    let action = "";
+    if (!fiches.length) {
+      phrase = "Prends ton premier cours en photo : fiche, cartes et quiz en sortent.";
+      action = `<button class="bouton-principal" type="button" data-salut="creer">Créer ma première fiche</button>`;
+    } else if (dues.length) {
+      phrase = `${dues.length} fiche${dues.length > 1 ? "s" : ""} à revoir aujourd'hui.`;
+      action = `<button class="bouton-principal" type="button" data-salut="reviser">Réviser maintenant</button>`;
+    } else {
+      phrase = "Tout est à jour. Un tour de cartes pour entretenir ?";
+      action = `<button class="bouton-principal" type="button" data-salut="entrainement">Lancer un entraînement</button>`;
+    }
+
+    bloc.innerHTML = `
+      <p class="salut-titre">${moment}${nom} 👋</p>
+      <p class="salut-phrase">${phrase}</p>
+      ${serie > 1 ? `<p class="salut-serie">🔥 ${serie} jours d'affilée — ne casse pas la série.</p>` : ""}
+      ${action}`;
+
+    $$("[data-salut]", bloc).forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        const quoi = bouton.dataset.salut;
+        if (quoi === "creer") { afficherVue("scan"); return; }
+        if (quoi === "entrainement") { lancerEntrainement(ENTRAINEMENTS[0]); return; }
+        const premiere = dues[0];
+        if (premiere) reviserFiche(premiere.fiche);
+      });
+    });
+  }
+
   function rendreAujourdhui() {
     const bloc = $("#bloc-aujourdhui");
     if (!bloc) return;
@@ -502,30 +646,30 @@
     const echeances = echeancesFiches();
     const dues = echeances.filter((e) => e.etat === "aujourdhui");
     const faites = revisionsDuJour();
-    const serie = serieJours();
     const objectif = Math.max(dues.length + faites, 1);
     const part = Math.round((faites / objectif) * 100);
 
+    /* La salutation dit déjà où on en est : ce bloc ne répète ni le compte
+       ni la série, il montre la file et rien d'autre. */
     const entete = `
       <div class="aujourdhui-entete">
-        <h2 class="aujourdhui-titre">${dues.length ? "À revoir aujourd'hui" : "Révisions du jour"}</h2>
-        ${dues.length ? `<span class="aujourdhui-compte">${dues.length}</span>` : ""}
+        <h2 class="aujourdhui-titre">Ta file du jour</h2>
       </div>
-      <p class="aujourdhui-detail">${faites
-        ? `${faites} révision${faites > 1 ? "s" : ""} aujourd'hui`
-        : "Pas encore de révision aujourd'hui"}${serie > 1 ? ` · ${serie} jours d'affilée 🔥` : ""}</p>
+      <p class="aujourdhui-detail">${faites} sur ${dues.length + faites} ${
+        dues.length + faites > 1 ? "faites" : "faite"}</p>
       <div class="barre-progression" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${part}"
            aria-label="Avancement des révisions du jour">
         <div class="barre-progression-remplie" style="width:${part}%"></div>
       </div>`;
 
+    // Rien à revoir : la salutation propose déjà la suite, le bloc s'efface.
     if (!dues.length) {
       const prochaine = echeances[0];
+      if (!faites) { bloc.hidden = true; return; }
       bloc.innerHTML = `${entete}
         <p class="aujourdhui-vide">Tout est à jour.${prochaine
           ? ` Prochaine : « ${echapper(prochaine.fiche.titre)} » ${prochaine.reste === 1 ? "demain" : `dans ${prochaine.reste} jours`}.`
-          : ""}</p>
-        <button class="bouton-secondaire" type="button" data-aujourdhui="hasard">Revoir une fiche au hasard</button>`;
+          : ""}</p>`;
     } else {
       bloc.innerHTML = `${entete}
         <ul class="aujourdhui-liste">
@@ -615,6 +759,24 @@
   }
 
   /* ————— Niveau de l'utilisateur ————————————————————————————————— */
+
+  /* Le prénom vient de l'élève : on n'en invente pas, et il reste sur l'appareil. */
+  const CLE_PRENOM = "mathematique.prenom";
+  let prenom = "";
+
+  function lirePrenom() {
+    try { return localStorage.getItem(CLE_PRENOM) || ""; } catch (erreur) { return ""; }
+  }
+
+  function ecrirePrenom(valeur) {
+    try { localStorage.setItem(CLE_PRENOM, valeur); } catch (erreur) { /* mémoire seule */ }
+  }
+
+  function initialesDe(nom) {
+    const propre = String(nom || "").trim();
+    if (!propre) return "?";
+    return propre.split(/[\s-]+/).slice(0, 2).map((mot) => mot.charAt(0).toUpperCase()).join("");
+  }
 
   const CLE_NIVEAU = "mathematique.niveau";
   let niveauChoisi = null;
@@ -780,20 +942,20 @@
     bloc.textContent = "";
 
     if (!programme) {
-      titre.textContent = "Thèmes de ton programme";
+      titre.textContent = "Chapitres de ton programme";
       const vide = document.createElement("div");
       vide.className = "themes-vide";
       vide.innerHTML = `
-        <p class="themes-vide-texte">Indique ton profil pour afficher les thèmes de ton programme,
-        matière par matière.</p>
-        <button class="bouton-principal" type="button" id="themes-choisir-niveau">Choisir mon profil</button>
+        <p class="themes-vide-texte">Dis-nous où tu en es dans tes études : tu auras les chapitres
+        de ton programme, matière par matière.</p>
+        <button class="bouton-principal" type="button" id="themes-choisir-niveau">Choisir ma classe</button>
       `;
       bloc.appendChild(vide);
       $("#themes-choisir-niveau").addEventListener("click", ouvrirEcranNiveau);
       return;
     }
 
-    titre.textContent = `Thèmes · ${libelleNiveau()}`;
+    titre.textContent = `Chapitres · ${libelleNiveau()}`;
 
     const carrousel = document.createElement("div");
     carrousel.className = "carrousel";
@@ -812,7 +974,7 @@
       carte.innerHTML = `
         <span class="matiere-emoji" aria-hidden="true">${MATIERES[matiere].emoji}</span>
         <span class="matiere-nom">${MATIERES[matiere].nom}</span>
-        <span class="matiere-compte">${programme[matiere].length} thèmes</span>
+        <span class="matiere-compte">${programme[matiere].length} chapitres</span>
         <svg class="matiere-chevron" aria-hidden="true"><use href="#i-fleche"></use></svg>
       `;
       carrousel.appendChild(carte);
@@ -1391,7 +1553,7 @@
     $("#chargement-scan").hidden = true;
     $("#scan-stop").hidden = true;
     messageScan("");
-    $("#scan-sous-texte").textContent = "Photographie ta page : fiche et flashcards en sortent.";
+    $("#scan-sous-texte").textContent = "Photographie ta page : fiche, cartes et quiz en sortent.";
     rendrePagesScan();
     afficherMoteurScan();
   }
@@ -1406,13 +1568,13 @@
 
   /** Pourquoi la lecture est possible — ou non. */
   function raisonLecture() {
-    if (!claudeResolu) return { etat: "attente", texte: "Connexion à Claude…" };
-    if (peutLirePhotos()) return { etat: "prete", texte: "✳︎ Claude lit tes pages et écrit la fiche." };
+    if (!claudeResolu) return { etat: "attente", texte: "Connexion…" };
+    if (peutLirePhotos()) return { etat: "prete", texte: "✳︎ L'IA lit tes pages et écrit la fiche." };
     const secours = "Ton appareil peut la lire lui-même, gratuitement : fiche plus brute.";
     if (!sampleClaude) {
       return {
         etat: "sans-claude",
-        texte: `Connecte-toi à claude.ai pour une fiche rédigée par Claude. ${secours}`,
+        texte: `Connecte-toi pour que l'IA rédige ta fiche. ${secours}`,
       };
     }
     return {
@@ -1450,7 +1612,7 @@
     $("#chargement-scan").hidden = false;
     $("#scan-stop").hidden = false;
     $("#scan-balayage").hidden = false;
-    $("#scan-progres").textContent = "Claude lit tes pages…";
+    $("#scan-progres").textContent = "Lecture de tes pages…";
     messageScan("");
     etapesScan(["cadrage", "lecture"]);
 
@@ -1469,7 +1631,7 @@
         signal: controleurScan.signal,
         onText: ({ text }) => {
           aCommence = true;
-          $("#scan-progres").textContent = `Claude rédige ta fiche… (${text.length} caractères)`;
+          $("#scan-progres").textContent = `Rédaction de ta fiche… (${text.length} caractères)`;
         },
       });
 
@@ -1496,7 +1658,7 @@
       if (code === "images_unavailable") {
         limitesClaude = null;
         afficherMoteurScan();
-        messageScan("Les photos ne peuvent pas être envoyées depuis cette page : indique le thème à la main.", "erreur");
+        messageScan("Les photos ne peuvent pas être envoyées depuis cette page : écris le chapitre toi-même.", "erreur");
         ouvrirEtapeManuelle();
         return;
       }
@@ -1520,7 +1682,7 @@
     const pages = `${fiche.pages.length} page${fiche.pages.length > 1 ? "s" : ""}`;
     apercu.innerHTML = `
       <header class="fiche-entete">
-        <p class="fiche-etiquette">${parAppareil ? "Lue sur ton appareil" : "Lue par Claude"} · ${pages}</p>
+        <p class="fiche-etiquette">${parAppareil ? "Lue sur ton appareil" : "Lue par l'IA"} · ${pages}</p>
         <h3 class="fiche-titre">${echapper(lecture.titre)}</h3>
         <p class="fiche-soustexte">${lecture.matiere ? MATIERES[lecture.matiere].nom + " · " : ""}${lecture.cartes.length} flashcards prêtes</p>
       </header>
@@ -1543,7 +1705,7 @@
     $("#outil-cartes-detail").textContent = lecture.cartes.length
       ? `${lecture.cartes.length} cartes`
       : "aucune carte";
-    $("#scan-sous-texte").textContent = "Lu. Vérifie le titre, puis choisis.";
+    $("#scan-sous-texte").textContent = "C'est lu. Vérifie le titre, puis choisis.";
     rendreSuggestionsScan(null);
     $("#scan-resultat").hidden = false;
     $("#scan-resultat").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1554,7 +1716,7 @@
     fiche.lecture = null;
     $("#scan-fiche-lue").hidden = true;
     $("#outil-cartes-detail").textContent = "Recto-verso";
-    $("#scan-sous-texte").textContent = "Indique le thème, puis choisis.";
+    $("#scan-sous-texte").textContent = "Écris le chapitre, puis choisis.";
     rendreSuggestionsScan(fiche.matiere);
     $("#scan-resultat").hidden = false;
     $("#scan-resultat").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1604,7 +1766,7 @@
       if (qualite.verdict === "mauvais") {
         messageScan(`Cette photo est trop mal lue pour en tirer une fiche fiable`
           + `${qualite.motif ? ` (${qualite.motif})` : ""}. Reprends-la à plat, bien éclairée, `
-          + `en cadrant la page entière — ou indique le thème à la main.`, "erreur");
+          + `en cadrant la page entière — ou écris le chapitre toi-même.`, "erreur");
         etapesScan(["cadrage"]);
         ouvrirEtapeManuelle();
         return;
@@ -1622,7 +1784,7 @@
 
       if (!propre) {
         messageScan("J'ai lu du texte, mais pas de quoi en tirer une fiche fiable. "
-          + "Reprends la photo bien à plat, ou indique le thème à la main.", "erreur");
+          + "Reprends la photo bien à plat, ou écris le chapitre toi-même.", "erreur");
         etapesScan(["cadrage"]);
         ouvrirEtapeManuelle();
         return;
@@ -1651,17 +1813,17 @@
       if (code === "cancelled") { messageScan("Lecture arrêtée."); }
       else if (code === "bloque") {
         messageScan("Le téléchargement du moteur s'est arrêté en chemin : cette page n'arrive pas à "
-          + "le récupérer (réseau lent, ou blocage du navigateur). Indique le thème à la main — "
+          + "le récupérer (réseau lent, ou blocage du navigateur). Écris le chapitre toi-même — "
           + "et dis-le-moi, c'est réparable.", "erreur");
       }
       else if (code === "moteur_absent") {
         messageScan("Le moteur de lecture n'a pas pu être chargé sur cette page "
-          + "(connexion ou blocage du navigateur). Indique le thème à la main.", "erreur");
+          + "(connexion ou blocage du navigateur). Écris le chapitre toi-même.", "erreur");
       } else if (code === "illisible") {
         messageScan("Presque rien n'a été lu sur cette photo. Reprends-la à plat, bien éclairée, "
-          + "ou indique le thème à la main.", "erreur");
+          + "ou écris le chapitre toi-même.", "erreur");
       } else {
-        messageScan("La lecture a échoué sur cet appareil. Indique le thème à la main.", "erreur");
+        messageScan("La lecture a échoué sur cet appareil. Écris le chapitre toi-même.", "erreur");
       }
       if (code !== "cancelled") ouvrirEtapeManuelle();
     } finally {
@@ -1677,7 +1839,7 @@
     if (!fiche.pages.length) { toast("Prends d'abord ta page en photo."); return; }
 
     if (!claudeResolu && attenteClaude) {
-      $("#scan-progres").textContent = "Connexion à Claude…";
+      $("#scan-progres").textContent = "Connexion…";
       $("#chargement-scan").hidden = false;
       attenteClaude.then(() => { $("#chargement-scan").hidden = true; lancerLecture(); });
       return;
@@ -1717,7 +1879,7 @@
   function exploiterFiche(outil) {
     const sujet = $("#scan-sujet").value.trim();
     if (sujet.length < 3) {
-      toast("Indique le thème de ta fiche pour continuer.");
+      toast("Dis de quoi parle ta fiche pour continuer.");
       $("#scan-sujet").focus();
       return;
     }
@@ -2285,7 +2447,7 @@
     fiche.innerHTML = `
       <header class="fiche-entete">
         <p class="fiche-etiquette">${contenu.lu
-          ? (contenu.moteur === "ocr" ? "Fiche lue sur ton document" : "Fiche écrite par Claude")
+          ? (contenu.moteur === "ocr" ? "Fiche lue sur ton document" : "Fiche écrite par l'IA")
           : LONGUEURS[etatResume.longueur].libelle}</p>
         <h3 class="fiche-titre">${echapper(titre)}</h3>
         <p class="fiche-soustexte">${sousTitre}</p>
@@ -2504,8 +2666,8 @@
     if (!ligne) return;
     if (!claudeResolu) { ligne.hidden = true; return; }
     ligne.textContent = sampleClaude
-      ? "✳︎ Les questions sont écrites par Claude, à la demande."
-      : "Claude n'est pas joignable ici : les questions viennent des chapitres déjà connus.";
+      ? "✳︎ Les questions sont écrites par l'IA, à la demande."
+      : "L'IA n'est pas joignable ici : les questions viennent des chapitres déjà prêts.";
     ligne.classList.toggle("ia-moteur--actif", Boolean(sampleClaude));
     ligne.hidden = false;
   }
@@ -2580,18 +2742,18 @@
   }
 
   const MESSAGES_IA = {
-    not_granted: "Tu n'as pas autorisé cette page à utiliser Claude : je pioche dans les chapitres connus.",
-    sampling_disabled: "Claude n'est pas disponible sur ce compte : je pioche dans les chapitres connus.",
-    not_declared: "Claude n'est pas disponible ici : je pioche dans les chapitres connus.",
-    capability_disabled: "Claude n'est pas disponible ici : je pioche dans les chapitres connus.",
-    capability_removed: "Cette version de l'application ne sait pas appeler Claude : je pioche dans les chapitres connus.",
+    not_granted: "Tu n'as pas autorisé cette page à utiliser l'IA : je pioche dans les chapitres déjà prêts.",
+    sampling_disabled: "L'IA n'est pas disponible sur ce compte : je pioche dans les chapitres déjà prêts.",
+    not_declared: "L'IA n'est pas disponible ici : je pioche dans les chapitres déjà prêts.",
+    capability_disabled: "L'IA n'est pas disponible ici : je pioche dans les chapitres déjà prêts.",
+    capability_removed: "Cette version de l'application ne sait pas appeler l'IA : je pioche dans les chapitres déjà prêts.",
     rate_limited: "Trop de demandes d'un coup. Réessaie dans un moment.",
     session_expired: "Ta session a expiré : reconnecte-toi puis réessaie.",
-    refused: "Claude a décliné cette demande. Reformule-la autrement.",
-    empty_completion: "Claude n'a rien écrit. Demande un peu moins à la fois.",
-    invalid_json: "La réponse de Claude n'était pas exploitable. Réessaie, ou précise ta demande.",
+    refused: "Cette demande a été déclinée. Reformule-la autrement.",
+    empty_completion: "Rien n'a été écrit. Demande un peu moins à la fois.",
+    invalid_json: "La réponse n'était pas exploitable. Réessaie, ou précise ta demande.",
     prompt_too_large: "Ta demande est trop longue : résume-la.",
-    upstream_error: "La connexion à Claude a échoué. Réessaie dans un instant.",
+    upstream_error: "La connexion a échoué. Réessaie dans un instant.",
   };
   const REPLIS_LOCAUX = new Set(["not_granted", "sampling_disabled", "not_declared",
     "capability_disabled", "capability_removed", "rate_limited"]);
@@ -2627,7 +2789,7 @@
     $(zone.form).hidden = true;
     $(zone.chargement).hidden = false;
     $(zone.stop).hidden = false;
-    $(zone.progres).textContent = "Claude rédige ton quiz…";
+    $(zone.progres).textContent = "Rédaction de ton quiz…";
     messageIA("", null, origine);
     $("#indispo-quiz").hidden = true;
     $("#jeu-quiz").hidden = true;
@@ -2648,7 +2810,7 @@
         signal: controleurIA.signal,
         onText: ({ text }) => {
           aCommence = true;
-          $(zone.progres).textContent = `Claude rédige ton quiz… (${text.length} caractères)`;
+          $(zone.progres).textContent = `Rédaction de ton quiz… (${text.length} caractères)`;
         },
       });
 
@@ -2657,7 +2819,7 @@
 
       const titre = String(donnees.titre || "").trim();
       afficherVue("quiz");
-      demarrerPartie(questions, `${titre || "Quiz sur mesure"} · écrit par Claude`, demande);
+      demarrerPartie(questions, `${titre || "Quiz sur mesure"} · écrit par l'IA`, demande);
       return true;
     } catch (erreur) {
       const code = erreur && erreur.code ? erreur.code : "upstream_error";
@@ -2768,7 +2930,7 @@
   /** La demande part vers le moteur de quiz, telle qu'elle a été écrite. */
   function lancerDemandeIA() {
     if (!claudeResolu && attenteClaude) {
-      $("#ia-progres").textContent = "Connexion à Claude…";
+      $("#ia-progres").textContent = "Connexion…";
       $("#form-ia").hidden = true;
       $("#chargement-ia").hidden = false;
       attenteClaude.then(() => {
@@ -2989,8 +3151,8 @@
       <p class="bilan-message"><strong>« ${echapper(sujet)} »</strong> ne correspond à aucune banque de questions déjà
       présente dans l'application.</p>
       <p class="bilan-pourcentage">${sampleClaude
-        ? "Claude peut l'écrire à la demande : lance la génération ci-dessous."
-        : "Claude n'est pas joignable dans cette vue. Autorise-le, ou choisis un chapitre déjà prêt."}</p>
+        ? "L'IA peut l'écrire à la demande : lance la génération ci-dessous."
+        : "L'IA n'est pas joignable dans cette vue. Autorise-la, ou choisis un chapitre déjà prêt."}</p>
       <ul class="demande">
         <li><span class="demande-cle">Sujet</span><span class="demande-valeur">${echapper(sujet)}</span></li>
         <li><span class="demande-cle">Complément</span><span class="demande-valeur">${complement ? echapper(complement) : "—"}</span></li>
@@ -3005,7 +3167,7 @@
               <span class="bilan-explication">${detailFiche(f)}</span></li>`).join("")}
       </ul>` : ""}
       <div class="bilan-actions">
-        ${sampleClaude ? '<button class="bouton-principal" type="button" data-indispo="claude">Demander à Claude</button>' : ""}
+        ${sampleClaude ? `<button class="bouton-principal" type="button" data-indispo="claude">Demander à l'IA</button>` : ""}
         ${proches.length ? `<button class="${sampleClaude ? "bouton-secondaire" : "bouton-principal"}" type="button" data-indispo="cours">Choisir une fiche</button>` : ""}
         <button class="bouton-secondaire" type="button" data-indispo="sujet">Modifier le sujet</button>
       </div>
@@ -3224,7 +3386,7 @@
     if (etatQuiz.source === "sujet" && !claudeResolu && attenteClaude) {
       $("#form-quiz").hidden = true;
       $("#chargement-quiz").hidden = false;
-      $("#quiz-progres").textContent = "Connexion à Claude…";
+      $("#quiz-progres").textContent = "Connexion…";
       attenteClaude.then(() => { $("#chargement-quiz").hidden = true; lancerQuiz(); });
       return;
     }
@@ -3416,6 +3578,7 @@
 
   function verdictCarte(verdict) {
     const carte = paquet.file.shift();
+    paquet.vues += 1;
 
     if (verdict === "su") {
       paquet.sues.add(carte.id);
@@ -3431,45 +3594,68 @@
       }
     }
 
+    // Survie : la séance s'arrête à la nᵉ erreur, comme annoncé.
+    if (paquet.survie && paquet.ratees.size >= paquet.survie) { bilanCartes(); return; }
     if (paquet.file.length) afficherCarte();
     else bilanCartes();
   }
 
   function bilanCartes() {
-    const total = paquet.total;
+    const survie = Boolean(paquet.survie);
+    // Un entraînement libre ne vient d'aucune fiche : ses boutons ne parlent pas de chapitre.
+    const libre = !etatCartes.ficheId;
+    const nomSeance = paquet.nom ? `« ${paquet.nom} »` : "l'entraînement";
+    // En survie, on compte ce qu'on a tenu ; ailleurs, ce qu'on savait déjà.
+    const total = survie ? paquet.vues : paquet.total;
     const ratees = paquet.ratees.size;
-    const duPremierCoup = total - ratees;
+    const duPremierCoup = Math.max(total - ratees, 0);
 
     /* Un paquet fini est une révision : la fiche avance, et si le paquet
-       portait sur une notion, c'est cette notion qui est notée. */
+       portait sur une notion, c'est cette notion qui est notée. Un
+       entraînement libre ne vise aucune fiche : il compte pour la série. */
     const pourcentage = total ? Math.round((duPremierCoup / total) * 100) : 0;
     if (etatCartes.ficheId && !paquet.partiel) {
       marquerRevisee(etatCartes.ficheId, pourcentage);
       if (typeof paquet.partie === "number") noterNotion(etatCartes.ficheId, paquet.partie, pourcentage);
+    } else if (!etatCartes.ficheId && !paquet.partiel) {
+      noterRevision();
+      majBibliotheque();
     }
+    if (survie) noterRecordSurvie(duPremierCoup);
 
     $("#jeu-cartes").hidden = true;
     const bilan = $("#bilan-cartes");
     bilan.innerHTML = `
-      <p class="bilan-score">${duPremierCoup} / ${total}</p>
-      <p class="bilan-pourcentage">cartes sues du premier coup</p>
+      <p class="bilan-score">${survie ? duPremierCoup : `${duPremierCoup} / ${total}`}</p>
+      <p class="bilan-pourcentage">${survie
+        ? `cartes enchaînées${recordSurvie() > duPremierCoup ? ` · record : ${recordSurvie()}` : " · nouveau record !"}`
+        : "cartes sues du premier coup"}</p>
       <p class="bilan-message">${ratees
         ? `${ratees} carte${ratees > 1 ? "s" : ""} à replacer dans ta révision espacée.`
         : "Paquet maîtrisé — prochaine révision dans quelques jours."}</p>
       <div class="bilan-actions">
-        ${ratees ? '<button class="bouton-principal" type="button" data-cartes="ratees">Rejouer les cartes ratées</button>' : ""}
-        <button class="${ratees ? "bouton-secondaire" : "bouton-principal"}" type="button" data-cartes="tout">Rejouer tout le paquet</button>
-        <button class="bouton-secondaire" type="button" data-cartes="chapitre">Changer de chapitre</button>
+        ${ratees ? `<button class="bouton-principal" type="button" data-cartes="ratees">Rejouer les ${ratees} carte${ratees > 1 ? "s" : ""} ratée${ratees > 1 ? "s" : ""}</button>` : ""}
+        <button class="${ratees ? "bouton-secondaire" : "bouton-principal"}" type="button" data-cartes="tout">${
+          libre ? `Relancer ${nomSeance}` : "Rejouer tout le paquet"}</button>
+        <button class="bouton-secondaire" type="button" data-cartes="chapitre">${
+          libre ? "Revenir à l'accueil" : "Changer de chapitre"}</button>
       </div>
     `;
     bilan.hidden = false;
 
     const idsRates = new Set(paquet.ratees);
+    const rejouer = paquet.rejouer;
     $$("[data-cartes]", bilan).forEach((bouton) => {
       bouton.addEventListener("click", () => {
         const action = bouton.dataset.cartes;
-        if (action === "chapitre") { bilan.hidden = true; $("#form-cartes").hidden = false; }
-        else lancerCartes(action === "ratees" ? idsRates : null);
+        if (action === "chapitre") {
+          bilan.hidden = true;
+          if (libre) { afficherVue("accueil"); return; }
+          $("#form-cartes").hidden = false;
+          return;
+        }
+        if (action === "tout" && rejouer) { bilan.hidden = true; rejouer(); return; }
+        lancerCartes(action === "ratees" ? idsRates : null);
       });
     });
   }
@@ -3487,8 +3673,15 @@
     if (!cartes.length) { toast("Pas encore de cartes pour cette fiche : lance plutôt un quiz."); return; }
     if (etatCartes.ordre === "melange") cartes = melanger(cartes);
 
-    const form = $("#form-cartes");
-    form.hidden = true;
+    ouvrirPaquet(cartes, { partiel: Boolean(seulement) });
+  }
+
+  /**
+   * Ouvre une séance de cartes. `survie` arrête la séance à la nᵉ erreur ;
+   * `partiel` marque un rejeu, qui ne renote pas la notion.
+   */
+  function ouvrirPaquet(cartes, { survie = null, partiel = false, nom = "", rejouer = null } = {}) {
+    $("#form-cartes").hidden = true;
     $("#bilan-cartes").hidden = true;
     $("#jeu-cartes").hidden = true;
     $("#chargement-cartes").hidden = false;
@@ -3499,7 +3692,7 @@
       paquet = {
         file: cartes, total: cartes.length, sues: new Set(), ratees: new Set(),
         partie: typeof etatCartes.partie === "number" ? etatCartes.partie : null,
-        partiel: Boolean(seulement),        // un rejeu des ratées ne renote pas la notion
+        partiel, survie, nom, rejouer, vues: 0,
       };
       $("#jeu-cartes").hidden = false;
       afficherCarte();
@@ -3559,7 +3752,9 @@
   function init() {
     fiches = lireBibliotheque();
     journal = lireJournal();
-    rendreDefis($("#liste-defis"));
+    prenom = lirePrenom();
+    rendreEntrainements($("#liste-entrainements"));
+    initPrenom();
 
     // Cloche + onglets du bas + logo → changement de vue.
     $$("[data-onglet]").forEach((el) => {
@@ -3577,8 +3772,6 @@
     initPageFiche();
     initQuiz();
     initCartes();
-
-    $("#bouton-affronter").addEventListener("click", () => toast("Invitation envoyée à un ami 🤺"));
 
     // Bouton « Changer de niveau » du profil.
     $("#changer-niveau").addEventListener("click", ouvrirEcranNiveau);

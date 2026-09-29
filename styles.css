@@ -171,18 +171,21 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .vue { animation: apparition .18s ease both; }
 @keyframes apparition { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
+/* Un élève lit sur un téléphone, souvent en marchant : on ne descend pas
+   sous 13 px pour du texte courant, et les titres respirent. */
 .titre-categorie {
-  margin: 22px 0 10px;
-  font-size: 14px;
+  margin: 24px 0 10px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--noir);
 }
 .vue > .titre-categorie:first-child { margin-top: 2px; }
-.titre-categorie--grand { font-size: 16px; }
+.titre-categorie--grand { font-size: 20px; letter-spacing: -0.01em; }
 
 .sous-texte {
-  margin: -4px 0 14px;
-  font-size: 12px;
+  margin: -2px 0 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
   color: var(--gris-texte);
 }
 
@@ -795,6 +798,7 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   color: var(--gris-texte);
 }
 
+/* Les séances d'entraînement, en liste tapable */
 .liste-defis {
   list-style: none;
   margin: 0;
@@ -832,33 +836,15 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .ligne-texte { flex: 1; min-width: 0; }
 .ligne-nom {
   display: block;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--noir);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ligne-detail { display: block; font-size: 12px; color: var(--gris-texte); }
+.ligne-detail { display: block; font-size: 12.5px; line-height: 1.45; color: var(--gris-texte); }
 .ligne-fleche { width: 16px; height: 16px; flex: none; color: var(--bleu-grise); }
-
-.bouton-affronter {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  margin-top: 12px;
-  padding: 12px 16px;
-  border-radius: 50px;
-  background: var(--marine);
-  color: var(--blanc);
-  font-size: 14px;
-  font-weight: 600;
-  animation: apparition .22s ease both;
-}
-.bouton-affronter svg { width: 18px; height: 18px; }
-.bouton-affronter:active { background: var(--marine-fonce); transform: scale(.985); }
 
 /* ————— Page « Créer résumé » ——————————————————————————————— */
 .retour {
@@ -1657,6 +1643,24 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
 .bouton-verdict:active { transform: scale(.98); }
 
 /* ————— Accueil : la révision du jour ————————————————————————— */
+/* ————— L'état de la journée ————————————————————————————————————
+   Le premier bloc de l'accueil : où on en est, et le geste qui suit.
+   ———————————————————————————————————————————————————————————— */
+.salut { margin: 2px 0 18px; }
+.salut-titre { margin: 0; font-size: 22px; font-weight: 800; color: var(--noir); line-height: 1.2; }
+.salut-phrase { margin: 6px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--gris-texte); }
+.salut-serie { margin: 8px 0 0; font-size: 13px; font-weight: 600; color: var(--marine); }
+.salut .bouton-principal { margin-top: 14px; }
+
+.dossiers-separateur {
+  margin: 22px 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bleu-grise);
+}
+
 .aujourdhui {
   margin-bottom: 20px;
   padding: 14px;
@@ -1668,7 +1672,7 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
 .aujourdhui[hidden] { display: none; }
 
 .aujourdhui-entete { display: flex; align-items: center; gap: 8px; }
-.aujourdhui-titre { margin: 0; font-size: 14px; font-weight: 700; color: var(--noir); }
+.aujourdhui-titre { margin: 0; font-size: 15px; font-weight: 700; color: var(--noir); }
 .aujourdhui-compte {
   display: grid;
   place-items: center;
@@ -1681,9 +1685,9 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
   font-size: 12px;
   font-weight: 700;
 }
-.aujourdhui-detail { margin: 4px 0 10px; font-size: 12px; color: var(--gris-texte); }
+.aujourdhui-detail { margin: 4px 0 10px; font-size: 13px; color: var(--gris-texte); }
 .aujourdhui .barre-progression { margin-top: 0; }
-.aujourdhui-vide { margin: 12px 0 0; font-size: 12px; color: var(--noir); }
+.aujourdhui-vide { margin: 12px 0 0; font-size: 13px; line-height: 1.5; color: var(--noir); }
 .aujourdhui .bouton-secondaire, .aujourdhui .bouton-texte { margin-top: 10px; }
 
 .aujourdhui-liste { list-style: none; margin: 12px 0 0; padding: 0; }
@@ -1865,7 +1869,14 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
   font-weight: 700;
 }
 .profil-nom { margin: 0; font-size: 16px; font-weight: 700; }
-.profil-detail { margin: 2px 0 0; font-size: 12px; color: var(--gris-texte); }
+.profil-detail { margin: 6px 0 0; font-size: 12.5px; color: var(--gris-texte); }
+
+/* Le prénom se saisit sur place : personne n'est nommé à sa place. */
+.carte-profil-texte { flex: 1; min-width: 0; }
+.champ-libelle--discret { margin: 0 0 4px; font-size: 11px; font-weight: 600; color: var(--gris-texte); }
+.champ-texte--prenom { padding: 8px 10px; font-size: 15px; font-weight: 700; }
+.stats + .stats { margin-top: 10px; }
+.vue#vue-profil .bouton-secondaire { margin-top: 16px; }
 
 .stats {
   display: grid;

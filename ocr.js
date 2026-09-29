@@ -528,6 +528,15 @@ const OCR = (function () {
      ———————————————————————————————————————————————————————————— */
 
   const VERBES_DEFINITION = /\s(?:est|sont|se d[ée]finit|d[ée]signe|s'appelle|correspond)\s/i;
+  /* « une telle suite », « cette valeur », « ce nombre » : ce n'est pas un
+     terme du cours, c'est un renvoi à la phrase d'avant. Une carte là-dessus
+     ne veut plus rien dire une semaine après. */
+  const TERME_VAGUE = new RegExp(
+    "^(?:l'|la |le |les |un |une |des |du |de la )?"
+    + "(?:tel|telle|tels|telles|ce|cet|cette|ces|autre|autres|m[êe]me|m[êe]mes|chaque|tout|toute|"
+    + "tous|toutes|certain|certains|premier|premi[èe]re|dernier|derni[èe]re|nombre|valeur|exemple|"
+    + "chose|cas|r[ée]sultat|suivant|suivante|pr[ée]c[ée]dent|pr[ée]c[ée]dente)"
+    + FIN_MOT, "i");
   const ARTICLES = /^(?:l'|la |le |les |un |une |des |du |de la )/i;
 
   /**
@@ -542,6 +551,7 @@ const OCR = (function () {
       .replace(/^[\s.)\-–—]+/, "")
       .trim();
     if (propre.length < 3) return "";
+    if (TERME_VAGUE.test(propre)) return "";
 
     if (!ARTICLES.test(propre)) {
       // Un terme nu se cite tel quel : lui inventer un article se trompe de genre

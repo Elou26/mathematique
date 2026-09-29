@@ -145,18 +145,18 @@
   <!-- Vue : Accueil -->
   <section class="vue vue--active" id="vue-accueil">
 
+    <!-- Où en est la journée : la première chose qu'on lit en ouvrant l'app -->
+    <section class="salut" id="bloc-salut" aria-live="polite"></section>
+
     <!-- Ce qui est dû aujourd'hui passe avant tout le reste -->
     <section class="aujourdhui" id="bloc-aujourdhui" hidden aria-live="polite"></section>
-
-    <h2 class="titre-categorie" id="titre-themes">Thèmes de ta classe</h2>
-    <div class="themes" id="bloc-themes"><!-- carrousel + dépliant, injectés par app.js --></div>
 
     <h2 class="titre-categorie">Créer une fiche</h2>
     <button class="carte-scan" type="button" id="ouvrir-creation">
       <span class="carte-scan-icone" aria-hidden="true"><svg><use href="#i-camera"></use></svg></span>
       <span class="carte-scan-texte">
         <span class="carte-scan-titre">Nouvelle fiche</span>
-        <span class="carte-scan-detail">Prends ta fiche en photo, ou écris ton texte à la main.</span>
+        <span class="carte-scan-detail">Photographie ton cours, ou écris ton texte toi-même.</span>
       </span>
       <span class="carte-scan-puces" aria-hidden="true">
         <svg><use href="#i-fichier"></use></svg>
@@ -165,15 +165,14 @@
       </span>
     </button>
 
-    <h2 class="titre-categorie titre-categorie--grand">Défis</h2>
+    <h2 class="titre-categorie">S'entraîner</h2>
     <div class="bloc-social">
-      <p class="panneau-legende">Défis de la semaine</p>
-      <ul class="liste-defis" id="liste-defis"></ul>
-      <button class="bouton-affronter" type="button" id="bouton-affronter">
-        <svg aria-hidden="true"><use href="#i-epee"></use></svg>
-        Affronter un ami
-      </button>
+      <p class="panneau-legende">Quelques minutes sur tes propres cartes</p>
+      <ul class="liste-defis" id="liste-entrainements"></ul>
     </div>
+
+    <h2 class="titre-categorie" id="titre-themes">Chapitres de ton programme</h2>
+    <div class="themes" id="bloc-themes"><!-- carrousel + dépliant, injectés par app.js --></div>
   </section>
 
   <!-- Vue : Photographier un cours — leçon, devoir ou contrôle -->
@@ -183,8 +182,8 @@
       Accueil
     </button>
 
-    <h2 class="titre-categorie titre-categorie--grand" id="scan-titre-page">Photographier mon cours</h2>
-    <p class="sous-texte" id="scan-sous-texte">Photographie ta page : fiche et flashcards en sortent.</p>
+    <h2 class="titre-categorie titre-categorie--grand" id="scan-titre-page">Photographier ma page</h2>
+    <p class="sous-texte" id="scan-sous-texte">Photographie ta page : fiche, cartes et quiz en sortent.</p>
     <p class="ia-moteur" id="scan-moteur" hidden></p>
 
     <!-- Cadrage -->
@@ -237,7 +236,7 @@
 
     <div class="chargement" id="chargement-scan" hidden>
       <span class="spinner" aria-hidden="true"></span>
-      <p class="chargement-texte" id="scan-progres">Claude lit tes pages…</p>
+      <p class="chargement-texte" id="scan-progres">Lecture de tes pages…</p>
     </div>
     <button class="bouton-texte" type="button" id="scan-stop" hidden>Arrêter</button>
     <p class="ia-message" id="scan-message" hidden aria-live="polite"></p>
@@ -246,10 +245,10 @@
     <div class="scan-resultat" id="scan-resultat" hidden>
       <article class="fiche fiche--lue" id="scan-fiche-lue" hidden></article>
 
-      <label class="champ-libelle" for="scan-sujet">Thème de la fiche</label>
+      <label class="champ-libelle" for="scan-sujet">De quoi parle ta page ?</label>
       <input class="champ-texte" id="scan-sujet" type="text" maxlength="80" autocomplete="off"
              placeholder="Ex. : Dérivées et taux de variation">
-      <div class="puces puces--filtres" id="scan-suggestions" role="group" aria-label="Thèmes de ton programme"></div>
+      <div class="puces puces--filtres" id="scan-suggestions" role="group" aria-label="Chapitres de ton programme"></div>
 
       <p class="etiquette">Qu'est-ce que tu veux en faire ?</p>
       <div class="outils">
@@ -399,7 +398,7 @@
 
     <div class="chargement" id="chargement-ia" hidden>
       <span class="spinner" aria-hidden="true"></span>
-      <p class="chargement-texte" id="ia-progres">Claude rédige ton quiz…</p>
+      <p class="chargement-texte" id="ia-progres">Rédaction de ton quiz…</p>
     </div>
     <button class="bouton-texte" type="button" id="ia-stop" hidden>Arrêter</button>
     <p class="ia-message" id="ia-message" hidden aria-live="polite"></p>
@@ -413,7 +412,7 @@
     </button>
 
     <h2 class="titre-categorie titre-categorie--grand">Créer un quiz</h2>
-    <p class="sous-texte">Un QCM corrigé, à partir d'une de tes fiches ou de n'importe quel sujet libre.</p>
+    <p class="sous-texte">Un QCM corrigé, sur une de tes fiches ou sur le sujet de ton choix.</p>
 
     <form id="form-quiz" novalidate>
       <p class="etiquette">Sur quoi veux-tu t'entraîner ?</p>
@@ -499,7 +498,7 @@
     </button>
 
     <h2 class="titre-categorie titre-categorie--grand">FlashCards</h2>
-    <p class="sous-texte">La mémoire se teste, elle ne se relit pas.</p>
+    <p class="sous-texte">Se tester fixe mieux que relire. Trente secondes suffisent.</p>
 
     <form id="form-cartes" novalidate>
       <p class="etiquette">Matière</p>
@@ -570,33 +569,41 @@
   <!-- Vue : Révision espacée (cible de la cloche) -->
   <section class="vue" id="vue-revision" hidden>
     <h2 class="titre-categorie titre-categorie--grand">Révision espacée</h2>
-    <p class="sous-texte">Chaque fiche revient à J+1, J+3, J+7, J+15 puis J+30. Réussie, elle passe au palier suivant ; ratée, elle revient demain.</p>
+    <p class="sous-texte">Chaque fiche revient à J+1, J+3, J+7, J+15 puis J+30. Réussie, elle s'espace ; ratée, elle revient demain. C'est ce qui fait tenir jusqu'au contrôle.</p>
     <div class="liste-echeances" id="liste-echeances"></div>
   </section>
 
   <!-- Vue : Mes fiches — une catégorie par matière, vide au départ -->
   <section class="vue" id="vue-cours" hidden>
     <h2 class="titre-categorie titre-categorie--grand">Mes fiches</h2>
-    <p class="sous-texte">Une catégorie par matière. Touche-en une pour y créer ta fiche de révision.</p>
+    <p class="sous-texte" id="cours-etat">Une matière par dossier.</p>
     <div class="liste-cours" id="liste-tous-cours"></div>
   </section>
 
   <!-- Vue : Profil -->
   <section class="vue" id="vue-profil" hidden>
-    <h2 class="titre-categorie titre-categorie--grand">Profil</h2>
+    <h2 class="titre-categorie titre-categorie--grand">Mon profil</h2>
     <div class="carte-profil">
-      <div class="avatar" aria-hidden="true">EL</div>
-      <div>
-        <p class="profil-nom">Elouan</p>
+      <div class="avatar" id="profil-initiales" aria-hidden="true">?</div>
+      <div class="carte-profil-texte">
+        <label class="champ-libelle champ-libelle--discret" for="profil-prenom">Ton prénom</label>
+        <input class="champ-texte champ-texte--prenom" id="profil-prenom" type="text" maxlength="24"
+               autocomplete="given-name" placeholder="Comment on t'appelle ?">
         <p class="profil-detail" id="profil-niveau">Niveau non renseigné</p>
       </div>
     </div>
     <div class="stats">
-      <div class="stat"><span class="stat-valeur" id="stat-cours">0</span><span class="stat-nom">fiches créées</span></div>
+      <div class="stat"><span class="stat-valeur" id="stat-cours">0</span><span class="stat-nom">fiches</span></div>
       <div class="stat"><span class="stat-valeur" id="stat-serie">0</span><span class="stat-nom">jours d'affilée</span></div>
-      <div class="stat"><span class="stat-valeur" id="stat-moyenne">0%</span><span class="stat-nom">progression</span></div>
+      <div class="stat"><span class="stat-valeur" id="stat-moyenne">0 %</span><span class="stat-nom">maîtrisé</span></div>
     </div>
-    <button class="bouton-secondaire" type="button" id="changer-niveau">Changer de niveau</button>
+    <div class="stats">
+      <div class="stat"><span class="stat-valeur" id="stat-notions">0</span><span class="stat-nom">notions acquises</span></div>
+      <div class="stat"><span class="stat-valeur" id="stat-cartes">0</span><span class="stat-nom">cartes en stock</span></div>
+      <div class="stat"><span class="stat-valeur" id="stat-record">—</span><span class="stat-nom">record survie</span></div>
+    </div>
+    <button class="bouton-secondaire" type="button" data-onglet="revision">Voir mon planning de révision</button>
+    <button class="bouton-texte" type="button" id="changer-niveau">Changer de niveau</button>
   </section>
 </main>
 
@@ -604,19 +611,19 @@
 <div class="feuille-fond" id="feuille-fond" hidden></div>
 <div class="feuille" id="feuille-creation" hidden role="dialog" aria-modal="true" aria-labelledby="feuille-titre">
   <div class="feuille-poignee" aria-hidden="true"></div>
-  <h2 class="feuille-titre" id="feuille-titre">Option de création de fiche</h2>
+  <h2 class="feuille-titre" id="feuille-titre">Créer une fiche</h2>
 
   <div class="options-creation">
     <button class="option-creation" type="button" data-creation="scan">
       <span class="option-icone option-icone--violet" aria-hidden="true"><svg><use href="#i-scan"></use></svg></span>
-      <span class="option-nom">Avec ta fiche</span>
-      <span class="option-detail">Prends en photo ta fiche de révision</span>
+      <span class="option-nom">Photo</span>
+      <span class="option-detail">Ton cours, ton devoir, ton contrôle</span>
     </button>
 
     <button class="option-creation" type="button" data-creation="texte">
       <span class="option-icone option-icone--orange" aria-hidden="true"><svg><use href="#i-crayon"></use></svg></span>
-      <span class="option-nom">Rédiger</span>
-      <span class="option-detail">Colle ou écris ton texte toi-même</span>
+      <span class="option-nom">Écrire</span>
+      <span class="option-detail">Colle ou tape ton texte</span>
     </button>
   </div>
 

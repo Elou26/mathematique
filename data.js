@@ -67,10 +67,12 @@ const BANQUES = [
   { id: "conscience", matiere: "philo",   titre: "La conscience",                   chapitre: "Le sujet",             niveau: "Terminale", premierJour: "2026-09-01", derniereRevision: "2026-09-13", progression: 41, motsCles: ["conscience", "cogito", "inconscient", "descartes", "freud", "sartre", "mauvaise foi"] },
 ];
 
-const DEFIS = [
-  { id: "express", nom: "Duel express", detail: "10 questions · 5 min", xp: 150 },
-  { id: "marathon", nom: "Marathon de révision", detail: "30 questions · 10 min", xp: 300 },
-  { id: "survie", nom: "Mode survie", detail: "Jusqu'à 3 erreurs", xp: 220 },
+/* Trois façons de s'entraîner sur ses propres cartes, toutes réelles :
+   le paquet est tiré des fiches de l'élève, rien n'est simulé. */
+const ENTRAINEMENTS = [
+  { id: "express",  nom: "Express",  detail: "10 cartes tirées de toutes tes fiches", taille: 10 },
+  { id: "marathon", nom: "Marathon", detail: "30 cartes d'affilée",                   taille: 30 },
+  { id: "survie",   nom: "Survie",   detail: "ça s'arrête à la 3ᵉ erreur",            taille: 60, survie: 3 },
 ];
 
 /* Paliers de la révision espacée : la file est calculée à partir des

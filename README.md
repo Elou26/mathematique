@@ -71,12 +71,47 @@ bienvenue ; changer de niveau reconstruit le carrousel.
 
 ## Écran d'accueil
 
-- **Header** bleu pastel : logo + nom du site (16 px), cloche à droite → onglet *Révision espacée*.
-- **Créer une fiche** : une carte bleu marine ouvre la feuille d'options (voir ci-dessous).
-- ~~Outils IA~~ (14 px, gras) : 3 tuiles cliquables — Créer résumé, Créer quiz, FlashCards.
-- **Défis** (16 px, gras) : les défis de la semaine et le bouton « Affronter un ami ».
+L'ordre des blocs suit ce qu'un élève vient faire, pas l'organigramme de l'app :
+
+1. **La salutation** (`rendreSalut()`) : « Salut Sarah 👋 », l'état de la journée en une phrase,
+   et **un seul bouton** — *Créer ma première fiche* sans bibliothèque, *Réviser maintenant* s'il y
+   a des fiches dues, *Lancer un entraînement* si tout est à jour. La série s'affiche ici, une
+   fois seulement, quand elle dépasse un jour.
+2. **Ta file du jour** : l'avancement chiffré (« 0 sur 2 faites ») et les fiches dues, la plus en
+   retard devant. Le bloc disparaît quand il n'y a rien à revoir — la salutation dit déjà quoi faire.
+3. **Créer une fiche** : la carte marine qui ouvre photo ou saisie.
+4. **S'entraîner** : trois séances courtes sur ses propres cartes (voir ci-dessous).
+5. **Chapitres de ton programme** : le carrousel dépliant, matière par matière.
+
+- **Header** bleu pastel : logo + nom du site, cloche à droite → onglet *Révision espacée*.
 - **Barre du bas** bleu marine : accueil, fiches, profil ; icône bleu gris pastel,
   blanche + trait blanc sous l'onglet actif.
+
+**Aucune marque n'apparaît dans l'interface.** L'IA est nommée « l'IA », jamais par le nom du
+service qui la rend : `tests/interface.js` parcourt les neuf vues et échoue si un nom de marque
+s'y glisse, texte caché compris. Seuls les commentaires du code nomment l'API réellement appelée.
+
+**Le prénom vient de l'élève** (`#profil-prenom`, clé `mathematique.prenom`) : il se saisit dans
+le profil, sert à la salutation et aux initiales de l'avatar, et reste sur l'appareil. Tant qu'il
+n'est pas donné, l'app dit « Salut 👋 » — elle n'invente le nom de personne.
+
+## S'entraîner — trois séances, toutes réelles
+
+| Séance | Ce qu'elle fait |
+| --- | --- |
+| **Express** | 10 cartes tirées au hasard de **toutes** les fiches |
+| **Marathon** | 30 cartes d'affilée |
+| **Survie** | le paquet s'arrête à la 3ᵉ erreur ; le record est gardé (`mathematique.record`) |
+
+Tout part de `cartesDeToutesLesFiches()` : le paquet est fait des cartes de l'élève, et sa taille
+est plafonnée par ce qu'il possède vraiment — quatre cartes en stock donnent un paquet de quatre,
+jamais dix inventées. Une séance libre ne vise aucune fiche : elle ne note donc aucune notion,
+mais elle compte pour la série du jour. `ouvrirPaquet()` est le seul endroit qui ouvre une séance,
+qu'elle vienne d'une fiche, d'une notion ou d'un entraînement.
+
+Ce bloc remplace les anciens « Défis » : *Duel express*, *Marathon*, *Mode survie* et *Affronter
+un ami* affichaient des XP et une invitation qui n'existaient pas. Un adversaire demanderait un
+serveur ; tant qu'il n'y en a pas, l'app ne le promet pas.
 
 ## Onglet « Mes fiches » — une catégorie par matière
 
@@ -372,6 +407,10 @@ dans la page.
 `node tests/lecture-reelle.js` fait la **vraie** lecture : il imprime une page de cours avec le
 navigateur, la fait lire par le moteur embarqué (≈ 1 s), et vérifie le titre retenu, la matière
 devinée, les cartes tirées du texte — et qu'aucune requête ne sort du site.
+`node tests/interface.js` se met à la place de l'élève : il parcourt les neuf vues et échoue si
+une marque y apparaît, vérifie que l'accueil propose un seul geste pour commencer, que les trois
+entraînements ouvrent un vrai paquet et que la survie s'arrête bien à la 3ᵉ erreur, et qu'aucun
+prénom n'est inventé.
 `node tests/parcours.js` parcourt le chapitre : les notions et leur maîtrise à l'affichage, la
 notion à reprendre, un paquet de cartes limité à une notion qui note cette notion et fait avancer
 la moyenne du chapitre, et un quiz de notion dont la consigne ne déborde pas sur les autres.
@@ -519,7 +558,11 @@ catalogue : il sort en erreur si un cas échoue, et liste les thèmes appariés 
 
 ## Ce qui reste simulé
 
-Les trois outils IA utilisent un `setTimeout` en guise d'appel réseau et piochent dans les
-données locales. Pour brancher un vrai service, remplacer ce délai dans `genererResume()`,
-`lancerQuiz()` et `lancerCartes()` par l'appel API correspondant. Aucune donnée n'est
-persistée entre deux visites (pas de stockage local pour l'instant).
+Le repli hors ligne des trois outils utilise un `setTimeout` en guise d'appel réseau et pioche
+dans les données locales (`genererResume()`, `lancerQuizLocal()`, `ouvrirPaquet()`). La lecture
+d'une photo, elle, est réelle des deux côtés : l'IA quand elle est joignable, Tesseract sur
+l'appareil sinon.
+
+**Ce que l'app ne fait pas et ne prétend pas faire** : pas de compte, pas de camarades, pas de
+classement, pas de points. Tout tient sur l'appareil (`localStorage`), rien n'est envoyé nulle
+part en dehors de la lecture par l'IA, que l'élève déclenche lui-même.

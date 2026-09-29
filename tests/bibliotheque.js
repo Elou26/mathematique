@@ -18,12 +18,14 @@ function verifier(nom, condition, vu) {
   page.on('pageerror', (e) => erreurs.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') erreurs.push(m.text()); });
 
-  const ouvrir = async (i) => {
+  /* On ouvre par le nom : les matières déjà travaillées passent devant,
+     l'ordre des dossiers change donc avec le contenu. */
+  const ouvrir = async (nom) => {
     if (await page.$('.dossier--ouvert')) {
       await page.click('.dossier--ouvert .dossier-tete');
       await page.waitForTimeout(200);
     }
-    await page.locator('.dossier-tete').nth(i).click();
+    await page.locator(`.dossier-tete:has-text("${nom}")`).first().click();
     await page.waitForTimeout(250);
   };
 
@@ -36,10 +38,11 @@ function verifier(nom, condition, vu) {
   await page.waitForTimeout(300);
   const tetes = await page.$$eval('.dossier-tete', (n) => n.map((b) => b.innerText.replace(/\n/g, ' · ')));
   verifier('une catégorie par matière du profil', tetes.length >= 6, tetes.length);
-  verifier('aucun cours livré d\'avance', tetes.every((t) => / 0 fiche · 0 %$/.test(t)), tetes.join(' | '));
+  verifier('aucun cours livré d\'avance',
+    tetes.every((t) => /toucher pour créer une fiche$/.test(t)), tetes.join(' | '));
 
   // 2. Ouvrir une catégorie propose d'y créer une fiche.
-  await ouvrir(3);
+  await ouvrir("Histoire-Géo");
   const panneau = await page.innerText('.dossier--ouvert .dossier-contenu');
   verifier('la catégorie vide propose la création',
     /Aucune fiche en Histoire-Géo/.test(panneau) && /Créer une fiche de révision/.test(panneau), panneau.replace(/\n+/g, ' / '));
@@ -103,7 +106,7 @@ function verifier(nom, condition, vu) {
   // 5. La fiche irrigue les catégories, la file et le profil.
   await page.click('.barre-bas [data-onglet="cours"]');
   await page.waitForTimeout(300);
-  await ouvrir(3);
+  await ouvrir("Histoire-Géo");
   const rempli = await page.innerText('.dossier--ouvert .dossier-contenu');
   verifier('la fiche apparaît dans sa catégorie',
     /La guerre froide \(1947-1991\)/.test(rempli) && /Réviser maintenant/.test(rempli), rempli.replace(/\n+/g, ' / '));
@@ -115,7 +118,7 @@ function verifier(nom, condition, vu) {
 
   await page.click('.barre-bas [data-onglet="profil"]');
   await page.waitForTimeout(250);
-  verifier('le profil compte la fiche', /1\nfiches créées/.test(await page.innerText('.stats')),
+  verifier('le profil compte la fiche', /1\nfiches/.test(await page.innerText('.stats')),
     (await page.innerText('.stats')).replace(/\n+/g, ' · '));
 
   // 6. Les trois outils voient la fiche.
@@ -130,7 +133,7 @@ function verifier(nom, condition, vu) {
   // 7. « Réviser maintenant » relance un quiz sur la fiche.
   await page.click('.barre-bas [data-onglet="cours"]');
   await page.waitForTimeout(300);
-  await ouvrir(3);
+  await ouvrir("Histoire-Géo");
   await page.click('.dossier--ouvert [data-fiche="reviser"]');
   await page.waitForTimeout(1800);
   verifier('réviser une fiche lance un quiz', (await page.innerText('#quiz-question')).length > 5,
