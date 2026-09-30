@@ -22,7 +22,9 @@ python3 -m http.server 8000
 | --- | --- |
 | `styles.css` | Charte graphique : bleu marine `#1B2A6B`, bleu pastel `#CFE0F7`, fond gris clair `#F4F5F7` |
 | `app.js` | Navigation, bibliothèque de fiches, sélecteur partagé, moteurs résumé / quiz / flashcards |
-| `data.js` | Données : matières, catalogue des thèmes, paliers de révision, défis, banques de secours (questions rédigées et cartes) |
+| `data.js` | Données : matières, catalogue des chapitres, paliers de révision, séances d'entraînement, banques de secours (questions rédigées et cartes) |
+| `abonnement.js` | Version gratuite, mur de paiement, licence gardée sur l'appareil |
+| `serveur/` | Le serveur de paiement Stripe — la seule pièce qui connaît la clé secrète |
 | `generateurs.js` | Générateurs de questions : la banque des quiz ne s'épuise pas |
 | `ocr.js` | Lecture de secours sur l'appareil (Tesseract.js) + mise en fiche par règles |
 | `moteur/` | Tesseract.js, son cœur WebAssembly et le modèle français, servis depuis le site |
@@ -584,6 +586,64 @@ de servir un QCM hors sujet.
 `node tests/recherche-sujet.js` vérifie une série de cas attendus puis passe les 440 thèmes du
 catalogue : il sort en erreur si un cas échoue, et liste les thèmes appariés pour relecture.
 
+## Gratuit ou illimité — l'abonnement Stripe
+
+Une page statique **ne peut pas encaisser un paiement toute seule** : la clé secrète Stripe ne doit
+jamais s'y trouver, sinon n'importe qui peut lire les clients et créer des remboursements. Le
+travail est donc partagé en deux, et c'est le seul découpage possible :
+
+| Où | Quoi |
+| --- | --- |
+| `abonnement.js` (dans la page) | le compteur de fiches, le mur de paiement, la licence gardée sur l'appareil |
+| `serveur/` (à déployer) | la création de la session Stripe et la vérification de l'abonnement, avec la clé secrète |
+
+**Le serveur n'a pas de base de données** : c'est Stripe qui garde l'état de l'abonnement, on ne
+fait que le lui demander (`stripe.subscriptions.list`). La « licence » rendue à l'app est
+l'identifiant client (`cus_…`) ; le connaître ne donne rien d'autre que « actif » ou « non ».
+Détail des routes et du déploiement dans [`serveur/LISEZMOI.md`](serveur/LISEZMOI.md).
+
+### Le parcours, bout à bout
+
+1. L'élève dépasse les **3 fiches gratuites** → le mur s'ouvre **avant** la photo, pas après.
+2. *Payer avec Stripe* → `POST /paiement` → le serveur crée la session et renvoie son adresse →
+   la page ouvre Stripe (dans un onglet ; si le navigateur le refuse, elle affiche le lien).
+3. Stripe encaisse et renvoie sur `…?paiement=ok&session=cs_…`.
+4. Au démarrage, la page **vérifie cette session auprès du serveur** — jamais sur parole — puis
+   range la licence et nettoie l'adresse.
+5. Ensuite, elle revérifie **une fois par jour**. Une résiliation se répercute au plus tard le
+   lendemain ; hors ligne, l'accès tient jusqu'à l'échéance payée.
+6. Sur un autre téléphone : *J'ai déjà un abonnement* → coller la clé affichée dans le profil.
+
+### Les règles qu'on s'est données
+
+- **Pas de mur sans porte.** Tant que `CONFIG.api` est vide, **rien n'est limité** et le profil ne
+  parle pas d'abonnement : il serait malhonnête de bloquer quelqu'un qui n'a aucun moyen de payer.
+  Le jour où l'adresse du serveur est renseignée, la gratuité s'applique.
+- **Jamais de faux premium.** Une session non confirmée, une clé inconnue, un serveur injoignable :
+  l'app le dit et reste en version gratuite. `retenir()` n'écrit un abonnement que si le serveur a
+  répondu `actif`.
+- **La page ne voit jamais de clé secrète** : `tests/abonnement.js` échoue si un `sk_…` apparaît
+  dans le HTML rendu.
+- **Le retour de paiement est contraint** : le serveur n'accepte de renvoyer que vers une adresse
+  déclarée dans `ORIGINES_AUTORISEES`, sans quoi n'importe quel site pourrait se faire passer pour
+  l'app.
+
+### Pour l'allumer
+
+1. Déployer `serveur/` (voir son LISEZMOI) avec `STRIPE_CLE_SECRETE`, `STRIPE_PRIX` et
+   `ORIGINES_AUTORISEES`.
+2. Dans `abonnement.js`, renseigner `api: "https://ton-serveur"` — ou, sans toucher au fichier,
+   poser `window.MATHEMATIQUE_PAIEMENT = { api: "…" }` avant son chargement.
+3. Le prix affiché (`prix`, `periode`) et la taille de la gratuité (`gratuit.fiches`, 3 par défaut)
+   se règlent au même endroit.
+
+`node tests/serveur-paiement.js` éprouve le serveur avec un faux Stripe : session d'abonnement au
+bon tarif, retour contraint, licence active ou non, clé malformée refusée, CORS limité, et aucune
+donnée sensible dans les réponses.
+`node tests/abonnement.js` éprouve la page avec un faux serveur : pas de mur sans porte, mur au
+bon moment, paiement demandé au serveur, retour vérifié, session non payée sans effet, licence
+retrouvée sur un autre appareil.
+
 ## Ce qui reste simulé
 
 Le repli hors ligne des trois outils utilise un `setTimeout` en guise d'appel réseau et pioche
@@ -593,4 +653,5 @@ l'appareil sinon.
 
 **Ce que l'app ne fait pas et ne prétend pas faire** : pas de compte, pas de camarades, pas de
 classement, pas de points. Tout tient sur l'appareil (`localStorage`), rien n'est envoyé nulle
-part en dehors de la lecture par l'IA, que l'élève déclenche lui-même.
+part en dehors de la lecture par l'IA, que l'élève déclenche lui-même, et — si l'abonnement est
+branché — de l'appel au serveur de paiement, qui ne reçoit qu'un identifiant d'appareil.

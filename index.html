@@ -604,6 +604,8 @@
       <div class="stat"><span class="stat-valeur" id="stat-cartes">0</span><span class="stat-nom">cartes en stock</span></div>
       <div class="stat"><span class="stat-valeur" id="stat-record">—</span><span class="stat-nom">record survie</span></div>
     </div>
+    <section class="offre-etat" id="profil-abonnement"></section>
+
     <button class="bouton-secondaire" type="button" data-onglet="revision">Voir mon planning de révision</button>
     <button class="bouton-texte" type="button" id="changer-niveau">Changer de niveau</button>
   </section>
@@ -657,6 +659,38 @@
   <button class="bouton-texte" type="button" id="nom-annuler">Annuler</button>
 </div>
 
+<!-- ————— Feuille « Passer en illimité » ————— -->
+<div class="feuille" id="feuille-illimite" hidden role="dialog" aria-modal="true" aria-labelledby="illimite-titre">
+  <div class="feuille-poignee" aria-hidden="true"></div>
+  <h2 class="feuille-titre" id="illimite-titre">Passer en illimité</h2>
+  <p class="sous-texte" id="illimite-raison">Tes 3 fiches gratuites sont utilisées.</p>
+
+  <ul class="offre">
+    <li><svg aria-hidden="true"><use href="#i-coche"></use></svg>Autant de fiches que tu veux</li>
+    <li><svg aria-hidden="true"><use href="#i-coche"></use></svg>Résumé, cartes et quiz sur chacune</li>
+    <li><svg aria-hidden="true"><use href="#i-coche"></use></svg>Révision espacée sur tout ton programme</li>
+    <li><svg aria-hidden="true"><use href="#i-coche"></use></svg>Résiliable quand tu veux</li>
+  </ul>
+
+  <p class="offre-prix"><span id="illimite-prix">3,99 €</span> <span class="offre-periode" id="illimite-periode">par mois</span></p>
+
+  <button class="bouton-principal" type="button" id="illimite-payer">Payer avec Stripe</button>
+  <p class="mention" id="illimite-mention">Paiement chez Stripe : l'app ne voit jamais ta carte.</p>
+  <p class="ia-message" id="illimite-message" hidden aria-live="polite"></p>
+
+  <button class="bouton-texte" type="button" id="illimite-restaurer">J'ai déjà un abonnement</button>
+
+  <form id="form-licence" hidden novalidate>
+    <label class="champ-libelle" for="licence-cle">Ta clé d'abonnement</label>
+    <input class="champ-texte" id="licence-cle" type="text" autocomplete="off" spellcheck="false"
+           placeholder="cus_…">
+    <p class="mention">Elle est affichée dans ton profil, sur l'appareil qui a payé.</p>
+    <button class="bouton-secondaire" type="submit" id="licence-valider">Retrouver mon abonnement</button>
+  </form>
+
+  <button class="bouton-texte" type="button" id="illimite-fermer">Plus tard</button>
+</div>
+
 <!-- ————— Barre du bas ————— -->
 <nav class="barre-bas" aria-label="Navigation principale">
   <button class="onglet onglet--actif" type="button" data-onglet="accueil" aria-current="page">
@@ -679,6 +713,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="data.js"></script>
+<script src="abonnement.js"></script>
 <script src="ocr.js"></script>
 <script src="generateurs.js"></script>
 <script src="app.js"></script>

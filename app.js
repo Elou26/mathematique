@@ -73,6 +73,9 @@
       return deja;
     }
 
+    // Une fiche de plus : c'est ici que la version gratuite s'arrête.
+    if (!peutCreerUneFiche()) return null;
+
     const maintenant = new Date().toISOString();
     const fiche = {
       id: `f${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
@@ -173,6 +176,7 @@
     rendreEcheances($("#liste-echeances"));
     rendreSalut();
     rendreAujourdhui();
+    rendreAbonnement();
     rendreEntrainements($("#liste-entrainements"));
     majCloche();
     majProfil();
@@ -200,6 +204,201 @@
     return `${matiere ? matiere.nom : "Fiche"} · ${SOURCES_FICHE[fiche.source] || "Sujet libre"}${parcours}${cartes}`;
   }
 
+  /* ————— Gratuit ou illimité ————————————————————————————————————
+     La version gratuite laisse créer quelques fiches ; au-delà, il faut
+     un abonnement. Tout ce qui touche à l'argent vit dans abonnement.js
+     et dans serveur/ : ici, on ne fait qu'ouvrir la porte, ou pas.
+     ———————————————————————————————————————————————————————————— */
+
+  const OFFRE = typeof ABONNEMENT !== "undefined" ? ABONNEMENT : null;
+
+  function estIllimite() { return Boolean(OFFRE && OFFRE.estIllimite()); }
+
+  /** Ce que la gratuité laisse encore faire, à cet instant. */
+  function quotaFiches() {
+    if (!OFFRE) return { illimite: true, max: Infinity, reste: Infinity, atteint: false };
+    return OFFRE.quotaFiches(fiches.length);
+  }
+
+  /**
+   * La porte : peut-on créer une fiche de plus ? Sinon on ouvre le mur de
+   * paiement plutôt que de laisser l'élève buter sans comprendre.
+   */
+  function peutCreerUneFiche({ silencieux = false } = {}) {
+    const quota = quotaFiches();
+    if (!quota.atteint) return true;
+    if (!silencieux) ouvrirFeuilleIllimite(
+      `Tes ${quota.max} fiches gratuites sont utilisées. L'illimité les débloque toutes.`);
+    return false;
+  }
+
+  function ouvrirFeuilleIllimite(raison) {
+    const feuille = $("#feuille-illimite");
+    if (!feuille || !OFFRE) return;
+    const config = OFFRE.config();
+
+    $("#illimite-raison").textContent = raison
+      || `La version gratuite va jusqu'à ${config.gratuit.fiches} fiches. L'illimité les débloque toutes.`;
+    $("#illimite-prix").textContent = config.prix;
+    $("#illimite-periode").textContent = config.essai ? `${config.periode} · ${config.essai}` : config.periode;
+
+    // Sans serveur de paiement, on ne fait pas semblant : on le dit.
+    const pret = OFFRE.estConfigure();
+    $("#illimite-payer").disabled = !pret;
+    $("#illimite-payer").textContent = pret ? "Payer avec Stripe" : "Paiement bientôt disponible";
+    $("#illimite-mention").textContent = pret
+      ? "Paiement chez Stripe : l'app ne voit jamais ta carte."
+      : "Le paiement n'est pas encore branché sur cette version. Rien ne t'est débité.";
+    $("#illimite-restaurer").hidden = !pret;
+    $("#form-licence").hidden = true;
+    messageIllimite("");
+
+    $("#feuille-fond").hidden = false;
+    feuille.hidden = false;
+    document.body.classList.add("corps--bloque");
+  }
+
+  function fermerFeuilleIllimite() {
+    const feuille = $("#feuille-illimite");
+    if (!feuille) return;
+    feuille.hidden = true;
+    $("#feuille-fond").hidden = true;
+    document.body.classList.remove("corps--bloque");
+  }
+
+  function messageIllimite(texte, ton) {
+    const ligne = $("#illimite-message");
+    if (!ligne) return;
+    ligne.textContent = texte || "";
+    ligne.className = `ia-message${ton ? " ia-message--" + ton : ""}`;
+    ligne.hidden = !texte;
+  }
+
+  const ENNUIS_PAIEMENT = {
+    non_configure: "Le paiement n'est pas branché sur cette version.",
+    injoignable: "Le service de paiement n'est pas joignable depuis cette page. Réessaie, ou ouvre l'app depuis son adresse habituelle.",
+    delai: "Le service de paiement met trop de temps à répondre. Réessaie dans un instant.",
+    serveur: "Le service de paiement a répondu de travers. Réessaie dans un instant.",
+    introuvable: "Cette clé d'abonnement est inconnue.",
+  };
+
+  async function lancerPaiement() {
+    if (!OFFRE || !OFFRE.estConfigure()) return;
+    const bouton = $("#illimite-payer");
+    bouton.disabled = true;
+    messageIllimite("Ouverture du paiement sécurisé…");
+    try {
+      const url = await OFFRE.ouvrirPaiement({});
+      /* Une page publiée peut être empêchée de changer d'adresse : on tente
+         l'onglet, et si le navigateur le refuse on donne le lien à toucher. */
+      const onglet = window.open(url, "_blank", "noopener");
+      if (!onglet) {
+        messageIllimite("");
+        const ligne = $("#illimite-message");
+        ligne.innerHTML = `Ouvre le paiement ici : <a href="${echapper(url)}" target="_blank" rel="noopener">page de paiement Stripe</a>`;
+        ligne.className = "ia-message";
+        ligne.hidden = false;
+      } else {
+        messageIllimite("Le paiement s'est ouvert dans un autre onglet. Reviens ici une fois réglé.");
+      }
+    } catch (erreur) {
+      const code = (erreur && erreur.code) || "serveur";
+      messageIllimite(ENNUIS_PAIEMENT[code] || ENNUIS_PAIEMENT.serveur, "erreur");
+    } finally {
+      bouton.disabled = false;
+    }
+  }
+
+  async function retrouverAbonnement(cle) {
+    if (!OFFRE) return;
+    const propre = String(cle || "").trim();
+    if (propre.length < 6) { messageIllimite("Colle la clé affichée dans ton profil.", "erreur"); return; }
+    messageIllimite("Vérification…");
+    try {
+      const actif = await OFFRE.verifierLicence(propre);
+      if (!actif) { messageIllimite("Aucun abonnement actif pour cette clé.", "erreur"); return; }
+      fermerFeuilleIllimite();
+      majBibliotheque();
+      toast("Abonnement retrouvé : c'est illimité.");
+    } catch (erreur) {
+      const code = (erreur && erreur.code) || "serveur";
+      messageIllimite(ENNUIS_PAIEMENT[code] || ENNUIS_PAIEMENT.serveur, "erreur");
+    }
+  }
+
+  /** Au retour de Stripe : on confirme auprès du serveur, jamais sur parole. */
+  async function verifierRetourDePaiement() {
+    if (!OFFRE) return;
+    const session = OFFRE.sessionDeRetour();
+    if (!session) { OFFRE.rafraichir().then(majBibliotheque); return; }
+    OFFRE.nettoyerAdresse();
+    try {
+      const actif = await OFFRE.confirmerSession(session);
+      majBibliotheque();
+      toast(actif
+        ? "C'est bon : tes fiches sont illimitées."
+        : "Le paiement n'a pas été confirmé. Rien ne t'a été débité.");
+    } catch (erreur) {
+      toast("Paiement reçu, mais la confirmation n'a pas abouti. Réessaie depuis ton profil.");
+    }
+  }
+
+  /** Le bloc du profil : où on en est, et la clé pour retrouver son abonnement. */
+  function rendreAbonnement() {
+    const bloc = $("#profil-abonnement");
+    if (!bloc || !OFFRE) return;
+    const quota = quotaFiches();
+
+    // Tant qu'il n'y a pas d'offre à vendre, le profil n'en parle pas.
+    if (quota.sansOffre) { bloc.hidden = true; bloc.textContent = ""; return; }
+    bloc.hidden = false;
+
+    if (quota.illimite) {
+      const courant = OFFRE.etat();
+      const fin = courant.expire
+        ? `Prochain renouvellement le ${formatDate.format(new Date(courant.expire))}.`
+        : "";
+      bloc.innerHTML = `
+        <p class="offre-etiquette offre-etiquette--actif">Illimité</p>
+        <p class="offre-detail">Fiches, cartes et quiz sans compteur. ${fin}</p>
+        <label class="champ-libelle champ-libelle--discret" for="profil-licence">
+          Ta clé, pour retrouver l'abonnement sur un autre téléphone</label>
+        <input class="champ-texte" id="profil-licence" type="text" readonly value="${echapper(courant.cle)}">
+        <button class="bouton-texte" type="button" data-offre="oublier">Retirer l'abonnement de cet appareil</button>`;
+    } else {
+      bloc.innerHTML = `
+        <p class="offre-etiquette">Version gratuite</p>
+        <p class="offre-detail">${fiches.length} fiche${fiches.length > 1 ? "s" : ""} sur ${quota.max}.
+          ${quota.reste ? `Il t'en reste ${quota.reste}.` : "Tu les as toutes utilisées."}</p>
+        <button class="bouton-secondaire" type="button" data-offre="payer">Passer en illimité</button>`;
+    }
+
+    $$("[data-offre]", bloc).forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        if (bouton.dataset.offre === "payer") { ouvrirFeuilleIllimite(); return; }
+        OFFRE.oublier();
+        majBibliotheque();
+        toast("Abonnement retiré de cet appareil.");
+      });
+    });
+  }
+
+  function initIllimite() {
+    if (!$("#feuille-illimite")) return;
+    $("#illimite-fermer").addEventListener("click", fermerFeuilleIllimite);
+    $("#illimite-payer").addEventListener("click", lancerPaiement);
+    $("#illimite-restaurer").addEventListener("click", () => {
+      const form = $("#form-licence");
+      form.hidden = !form.hidden;
+      if (!form.hidden) $("#licence-cle").focus();
+    });
+    $("#form-licence").addEventListener("submit", (evenement) => {
+      evenement.preventDefault();
+      retrouverAbonnement($("#licence-cle").value);
+    });
+  }
+
+  /* ————— Vue « Mes fiches » : une catégorie par matière ————————— */
   /* ————— Vue « Mes fiches » : une catégorie par matière ————————— */
 
   function carteFiche(fiche) {
@@ -267,7 +466,9 @@
     creer.type = "button";
     creer.className = "bouton-principal";
     creer.textContent = "Créer une fiche de révision";
-    creer.addEventListener("click", () => ouvrirFeuilleCreation(cle));
+    creer.addEventListener("click", () => {
+      if (peutCreerUneFiche()) ouvrirFeuilleCreation(cle);
+    });
     contenu.appendChild(creer);
   }
 
@@ -1054,7 +1255,9 @@
         bouton.type = "button";
         bouton.className = "bouton-secondaire";
         bouton.textContent = "Créer une fiche";
-        bouton.addEventListener("click", () => ouvrirFeuilleCreation(null));
+        bouton.addEventListener("click", () => {
+          if (peutCreerUneFiche()) ouvrirFeuilleCreation(null);
+        });
         li.appendChild(texte);
         li.appendChild(bouton);
         conteneurListe.appendChild(li);
@@ -1268,13 +1471,17 @@
   function fermerLesFeuilles() {
     if (!$("#feuille-creation").hidden) fermerFeuilleCreation();
     if (!$("#feuille-nom").hidden) fermerFeuilleNom();
+    if ($("#feuille-illimite") && !$("#feuille-illimite").hidden) fermerFeuilleIllimite();
   }
 
   function initCreation() {
     const bouton = $("#ouvrir-creation");
     if (!bouton) return;
 
-    bouton.addEventListener("click", () => ouvrirFeuilleCreation(null));
+    bouton.addEventListener("click", () => {
+      // Mieux vaut le dire avant la photo qu'après l'avoir prise.
+      if (peutCreerUneFiche()) ouvrirFeuilleCreation(null);
+    });
     $("#feuille-fond").addEventListener("click", fermerLesFeuilles);
     $("#fermer-creation").addEventListener("click", fermerFeuilleCreation);
     $$("[data-creation]").forEach((tuile) => {
@@ -2444,7 +2651,11 @@
           source: etatResume.source === "cours" ? "cours" : "texte",
           banqueId: banque ? banque.id : null,
         });
-        if (!gardee) { toast("Donne un titre à ta fiche pour l'enregistrer."); return; }
+        if (!gardee) {
+          // Sans titre, ou parce que la gratuité s'arrête là : le mur l'a déjà dit.
+          if (!quotaFiches().atteint) toast("Donne un titre à ta fiche pour l'enregistrer.");
+          return;
+        }
         suite(gardee);
       },
     });
@@ -3951,11 +4162,15 @@
     initPageFiche();
     initQuiz();
     initCartes();
+    initIllimite();
 
     // Bouton « Changer de niveau » du profil.
     $("#changer-niveau").addEventListener("click", ouvrirEcranNiveau);
 
     afficherVue("accueil");
+
+    // Retour d'un paiement, ou simple revérification quotidienne.
+    verifierRetourDePaiement();
 
     // Première visite : on demande la classe avant tout le reste.
     appliquerNiveau(lireNiveau());

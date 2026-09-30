@@ -1369,6 +1369,68 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 
 .carte-reprise { margin: 6px 0 0; font-size: 11.5px; font-weight: 600; color: var(--marine); }
 
+/* ————— Gratuit ou illimité ——————————————————————————————————————
+   Le mur de paiement dit ce qu'on obtient, combien, et rien d'autre :
+   pas de compte à rebours, pas de prix barré.
+   ———————————————————————————————————————————————————————————— */
+.offre { list-style: none; margin: 14px 0 0; padding: 0; }
+.offre li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--noir);
+}
+.offre li svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 2px;
+  color: var(--marine);
+}
+
+.offre-prix {
+  margin: 16px 0 4px;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--noir);
+}
+.offre-periode { font-size: 14px; font-weight: 600; color: var(--gris-texte); }
+
+#feuille-illimite .mention { margin-top: 8px; }
+#feuille-illimite .ia-message { margin-top: 10px; }
+#form-licence { margin-top: 12px; }
+
+.offre-etat {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--bordure);
+  border-radius: 16px;
+  background: var(--blanc);
+}
+.offre-etiquette {
+  display: inline-block;
+  margin: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--gris-fond);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gris-texte);
+}
+.offre-etiquette--actif { background: var(--bleu-pastel); color: var(--marine); }
+.offre-detail { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--noir); }
+.offre-etat .bouton-secondaire { margin-top: 12px; }
+.offre-etat .bouton-texte { margin-top: 8px; }
+.offre-etat .champ-texte {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+
 /* ————— Atelier « Générer par l'IA » ————————————————————————— */
 .precision {
   margin-top: 14px;

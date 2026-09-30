@@ -1,0 +1,15 @@
+# Les clés Stripe ne doivent jamais partir dans le dépôt.
+.env
+.env.*
+!.env.exemple
+serveur/.env
+serveur/.env.*
+!serveur/.env.exemple
+
+# Dépendances du serveur de paiement
+node_modules/
+serveur/node_modules/
+
+# Divers
+.DS_Store
+*.log
