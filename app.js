@@ -227,20 +227,30 @@
   function peutCreerUneFiche({ silencieux = false } = {}) {
     const quota = quotaFiches();
     if (!quota.atteint) return true;
-    if (!silencieux) ouvrirFeuilleIllimite(
-      `Tes ${quota.max} fiches gratuites sont utilisées. L'illimité les débloque toutes.`);
+    if (!silencieux) ouvrirPageIllimite(
+      `Tes ${quota.max} fiches gratuites sont utilisées. L'illimité les débloque toutes.`,
+      vueCourante());
     return false;
   }
 
-  function ouvrirFeuilleIllimite(raison) {
-    const feuille = $("#feuille-illimite");
-    if (!feuille || !OFFRE) return;
+  let retourAbonnement = "accueil";       // d'où l'on vient, pour le bouton de retour
+
+  /** Ouvre la page de tarif. `raison` dit pourquoi on y arrive. */
+  function ouvrirPageIllimite(raison, depuis) {
+    const page = $("#vue-abonnement");
+    if (!page || !OFFRE) return;
     const config = OFFRE.config();
+    retourAbonnement = VUES.includes(depuis) ? depuis : "accueil";
 
     $("#illimite-raison").textContent = raison
-      || `La version gratuite va jusqu'à ${config.gratuit.fiches} fiches. L'illimité les débloque toutes.`;
+      || "Autant de fiches que tu veux, sur toutes tes matières.";
     $("#illimite-prix").textContent = config.prix;
-    $("#illimite-periode").textContent = config.essai ? `${config.periode} · ${config.essai}` : config.periode;
+    $("#illimite-periode").textContent = config.periode;
+    $("#illimite-note").textContent = config.essai
+      ? `${config.essai} · sans engagement, résiliable en un clic`
+      : "Sans engagement · résiliable en un clic";
+    const casGratuit = $("#comparatif-gratuit");
+    if (casGratuit) casGratuit.textContent = String(config.gratuit.fiches);
 
     // Sans serveur de paiement, on ne fait pas semblant : on le dit.
     const pret = OFFRE.estConfigure();
@@ -253,18 +263,10 @@
     $("#form-licence").hidden = true;
     messageIllimite("");
 
-    $("#feuille-fond").hidden = false;
-    feuille.hidden = false;
-    document.body.classList.add("corps--bloque");
+    afficherVue("abonnement");
   }
 
-  function fermerFeuilleIllimite() {
-    const feuille = $("#feuille-illimite");
-    if (!feuille) return;
-    feuille.hidden = true;
-    $("#feuille-fond").hidden = true;
-    document.body.classList.remove("corps--bloque");
-  }
+  function fermerPageIllimite() { afficherVue(retourAbonnement); }
 
   function messageIllimite(texte, ton) {
     const ligne = $("#illimite-message");
@@ -317,7 +319,7 @@
     try {
       const actif = await OFFRE.verifierLicence(propre);
       if (!actif) { messageIllimite("Aucun abonnement actif pour cette clé.", "erreur"); return; }
-      fermerFeuilleIllimite();
+      fermerPageIllimite();
       majBibliotheque();
       toast("Abonnement retrouvé : c'est illimité.");
     } catch (erreur) {
@@ -375,7 +377,7 @@
 
     $$("[data-offre]", bloc).forEach((bouton) => {
       bouton.addEventListener("click", () => {
-        if (bouton.dataset.offre === "payer") { ouvrirFeuilleIllimite(); return; }
+        if (bouton.dataset.offre === "payer") { ouvrirPageIllimite(null, "profil"); return; }
         OFFRE.oublier();
         majBibliotheque();
         toast("Abonnement retiré de cet appareil.");
@@ -384,8 +386,8 @@
   }
 
   function initIllimite() {
-    if (!$("#feuille-illimite")) return;
-    $("#illimite-fermer").addEventListener("click", fermerFeuilleIllimite);
+    if (!$("#vue-abonnement")) return;
+    $("#illimite-retour").addEventListener("click", fermerPageIllimite);
     $("#illimite-payer").addEventListener("click", lancerPaiement);
     $("#illimite-restaurer").addEventListener("click", () => {
       const form = $("#form-licence");
@@ -922,7 +924,17 @@
 
   /* ————— Navigation entre vues ———————————————————————————————— */
 
-  const VUES = ["accueil", "cours", "profil", "revision", "scan", "ia", "resume", "fiche", "quiz", "flashcards"];
+  const VUES = ["accueil", "cours", "profil", "revision", "scan", "ia", "resume", "fiche",
+    "quiz", "flashcards", "abonnement"];
+
+  /** La vue affichée en ce moment, pour y revenir ensuite. */
+  function vueCourante() {
+    const ouverte = VUES.find((v) => {
+      const vue = document.getElementById(`vue-${v}`);
+      return vue && !vue.hidden;
+    });
+    return ouverte || "accueil";
+  }
 
   function afficherVue(nom) {
     if (!VUES.includes(nom)) nom = "accueil";
@@ -937,7 +949,7 @@
 
     // La révision espacée n'a pas d'onglet dédié : on garde « Accueil » allumé.
     // Les vues ouvertes depuis l'accueil (cloche, outils IA) gardent « Accueil » allumé.
-    const OUVERTES_DEPUIS_ACCUEIL = ["revision", "scan", "ia", "resume", "quiz", "flashcards"];
+    const OUVERTES_DEPUIS_ACCUEIL = ["revision", "scan", "ia", "resume", "quiz", "flashcards", "abonnement"];
     // La fiche en pleine page garde allumé l'onglet d'où on l'a ouverte.
     const ongletActif = nom === "fiche"
       ? (retourFiche === "cours" ? "cours" : "accueil")
@@ -1471,7 +1483,6 @@
   function fermerLesFeuilles() {
     if (!$("#feuille-creation").hidden) fermerFeuilleCreation();
     if (!$("#feuille-nom").hidden) fermerFeuilleNom();
-    if ($("#feuille-illimite") && !$("#feuille-illimite").hidden) fermerFeuilleIllimite();
   }
 
   function initCreation() {

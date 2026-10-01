@@ -22,7 +22,7 @@ const ABONNEMENT = (function () {
      ———————————————————————————————————————————————————————————— */
   const CONFIG = {
     api: "",                                  // ex. « https://mathematique-paiement.vercel.app »
-    prix: "3,99 €",
+    prix: "9,90 €",
     periode: "par mois",
     essai: "",                                // ex. « 7 jours offerts »
     gratuit: { fiches: 3 },                   // ce que la version gratuite permet

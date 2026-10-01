@@ -1369,16 +1369,66 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 
 .carte-reprise { margin: 6px 0 0; font-size: 11.5px; font-weight: 600; color: var(--marine); }
 
-/* ————— Gratuit ou illimité ——————————————————————————————————————
-   Le mur de paiement dit ce qu'on obtient, combien, et rien d'autre :
-   pas de compte à rebours, pas de prix barré.
+/* ————— La page de tarif ——————————————————————————————————————
+   Elle dit ce qu'on obtient, combien, et rien d'autre : pas de compte à
+   rebours, pas de prix barré, pas de « plus que 2 places ».
    ———————————————————————————————————————————————————————————— */
-.offre { list-style: none; margin: 14px 0 0; padding: 0; }
+.tarif {
+  margin-top: 4px;
+  padding: 22px 18px 18px;
+  border-radius: 20px;
+  background: linear-gradient(160deg, var(--marine), #2b3f8f);
+  color: var(--blanc);
+  text-align: center;
+}
+.tarif-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.tarif-titre {
+  margin: 12px 0 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--blanc);
+}
+.tarif-raison {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.86);
+}
+.tarif-prix {
+  margin: 18px 0 0;
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--blanc);
+}
+.tarif-periode { font-size: 15px; font-weight: 600; color: rgba(255, 255, 255, 0.82); }
+.tarif-note { margin: 8px 0 0; font-size: 12.5px; color: rgba(255, 255, 255, 0.78); }
+
+.tarif .bouton-principal {
+  margin-top: 18px;
+  background: var(--blanc);
+  color: var(--marine);
+}
+.tarif .bouton-principal:disabled { background: rgba(255, 255, 255, 0.35); color: var(--blanc); }
+.tarif .mention { margin-top: 10px; color: rgba(255, 255, 255, 0.78); }
+.tarif .ia-message { margin-top: 12px; }
+
+.offre { list-style: none; margin: 10px 0 0; padding: 0; }
 .offre li {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   font-size: 14px;
   line-height: 1.5;
   color: var(--noir);
@@ -1391,16 +1441,37 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   color: var(--marine);
 }
 
-.offre-prix {
-  margin: 16px 0 4px;
-  font-size: 26px;
-  font-weight: 800;
+/* Un tableau de comparaison tient sur un téléphone s'il reste court. */
+.comparatif {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse: collapse;
+  background: var(--blanc);
+  border: 1px solid var(--bordure);
+  border-radius: 14px;
+  overflow: hidden;
+  font-size: 13px;
+}
+.comparatif th, .comparatif td { padding: 10px 12px; text-align: center; }
+.comparatif thead th {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gris-texte);
+  background: var(--gris-fond);
+}
+.comparatif tbody th {
+  text-align: left;
+  font-weight: 600;
   color: var(--noir);
 }
-.offre-periode { font-size: 14px; font-weight: 600; color: var(--gris-texte); }
+.comparatif tbody tr + tr th, .comparatif tbody tr + tr td { border-top: 1px solid var(--bordure); }
+.comparatif-oui { font-weight: 700; color: var(--marine); }
 
-#feuille-illimite .mention { margin-top: 8px; }
-#feuille-illimite .ia-message { margin-top: 10px; }
+.tarif-reponse { margin: 8px 0 0; font-size: 13.5px; line-height: 1.6; color: var(--noir); }
+
+#vue-abonnement .bouton-texte { margin-top: 18px; }
 #form-licence { margin-top: 12px; }
 
 .offre-etat {

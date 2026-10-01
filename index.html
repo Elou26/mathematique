@@ -350,6 +350,79 @@
     <article class="page-fiche" id="page-fiche" aria-live="polite"></article>
   </section>
 
+  <!-- Vue : Passer en illimité — la page de tarif -->
+  <section class="vue" id="vue-abonnement" hidden>
+    <button class="retour" type="button" id="illimite-retour">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      Retour
+    </button>
+
+    <section class="tarif">
+      <span class="tarif-badge">Illimité</span>
+      <h2 class="tarif-titre">Révise sans compteur</h2>
+      <p class="tarif-raison" id="illimite-raison">Autant de fiches que tu veux, sur toutes tes matières.</p>
+
+      <p class="tarif-prix">
+        <span id="illimite-prix">9,90 €</span>
+        <span class="tarif-periode" id="illimite-periode">par mois</span>
+      </p>
+      <p class="tarif-note" id="illimite-note">Sans engagement · résiliable en un clic</p>
+
+      <button class="bouton-principal" type="button" id="illimite-payer">Payer avec Stripe</button>
+      <p class="mention" id="illimite-mention">Paiement chez Stripe : l'app ne voit jamais ta carte.</p>
+      <p class="ia-message" id="illimite-message" hidden aria-live="polite"></p>
+    </section>
+
+    <h3 class="titre-categorie">Ce que l'illimité débloque</h3>
+    <ul class="offre">
+      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Fiches sans limite</strong> — photographie tous tes cours, toute l'année</span></li>
+      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Résumé, cartes et quiz</strong> sur chacune de tes fiches</span></li>
+      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Révision espacée</strong> sur tout ton programme, notion par notion</span></li>
+      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Entraînement libre</strong> sur l'ensemble de tes cartes</span></li>
+      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Sur tous tes appareils</strong> — une clé à coller, et c'est repris</span></li>
+    </ul>
+
+    <h3 class="titre-categorie">Gratuit ou illimité</h3>
+    <table class="comparatif">
+      <thead>
+        <tr><th scope="col">&nbsp;</th><th scope="col">Gratuit</th><th scope="col">Illimité</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row">Fiches de révision</th><td id="comparatif-gratuit">3</td><td class="comparatif-oui">sans limite</td></tr>
+        <tr><th scope="row">Résumé, cartes, quiz</th><td class="comparatif-oui">✓</td><td class="comparatif-oui">✓</td></tr>
+        <tr><th scope="row">Révision espacée</th><td class="comparatif-oui">✓</td><td class="comparatif-oui">✓</td></tr>
+        <tr><th scope="row">Lecture de tes photos</th><td class="comparatif-oui">✓</td><td class="comparatif-oui">✓</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="titre-categorie">Questions courantes</h3>
+    <details class="reglages">
+      <summary>Je change de téléphone, je perds mon abonnement ?</summary>
+      <p class="tarif-reponse">Non. Ton profil affiche une clé : colle-la sur l'autre appareil, dans
+        « J'ai déjà un abonnement », et tout revient.</p>
+    </details>
+    <details class="reglages">
+      <summary>Comment j'arrête ?</summary>
+      <p class="tarif-reponse">Depuis le mail de confirmation Stripe, en un clic. L'illimité reste
+        actif jusqu'à la fin du mois déjà payé.</p>
+    </details>
+    <details class="reglages">
+      <summary>Mes fiches m'appartiennent toujours ?</summary>
+      <p class="tarif-reponse">Oui. Elles restent sur ton téléphone, abonnement ou non. Sans
+        abonnement, tu ne peux simplement plus en créer de nouvelles au-delà de la limite gratuite.</p>
+    </details>
+
+    <button class="bouton-texte" type="button" id="illimite-restaurer">J'ai déjà un abonnement</button>
+
+    <form id="form-licence" hidden novalidate>
+      <label class="champ-libelle" for="licence-cle">Ta clé d'abonnement</label>
+      <input class="champ-texte" id="licence-cle" type="text" autocomplete="off" spellcheck="false"
+             placeholder="cus_…">
+      <p class="mention">Elle est affichée dans ton profil, sur l'appareil qui a payé.</p>
+      <button class="bouton-secondaire" type="submit" id="licence-valider">Retrouver mon abonnement</button>
+    </form>
+  </section>
+
   <!-- Vue : Générer par l'IA — la demande écrite -->
   <section class="vue" id="vue-ia" hidden>
     <button class="retour" type="button" data-onglet="accueil">
@@ -657,38 +730,6 @@
   </form>
 
   <button class="bouton-texte" type="button" id="nom-annuler">Annuler</button>
-</div>
-
-<!-- ————— Feuille « Passer en illimité » ————— -->
-<div class="feuille" id="feuille-illimite" hidden role="dialog" aria-modal="true" aria-labelledby="illimite-titre">
-  <div class="feuille-poignee" aria-hidden="true"></div>
-  <h2 class="feuille-titre" id="illimite-titre">Passer en illimité</h2>
-  <p class="sous-texte" id="illimite-raison">Tes 3 fiches gratuites sont utilisées.</p>
-
-  <ul class="offre">
-    <li><svg aria-hidden="true"><use href="#i-coche"></use></svg>Autant de fiches que tu veux</li>
-    <li><svg aria-hidden="true"><use href="#i-coche"></use></svg>Résumé, cartes et quiz sur chacune</li>
-    <li><svg aria-hidden="true"><use href="#i-coche"></use></svg>Révision espacée sur tout ton programme</li>
-    <li><svg aria-hidden="true"><use href="#i-coche"></use></svg>Résiliable quand tu veux</li>
-  </ul>
-
-  <p class="offre-prix"><span id="illimite-prix">3,99 €</span> <span class="offre-periode" id="illimite-periode">par mois</span></p>
-
-  <button class="bouton-principal" type="button" id="illimite-payer">Payer avec Stripe</button>
-  <p class="mention" id="illimite-mention">Paiement chez Stripe : l'app ne voit jamais ta carte.</p>
-  <p class="ia-message" id="illimite-message" hidden aria-live="polite"></p>
-
-  <button class="bouton-texte" type="button" id="illimite-restaurer">J'ai déjà un abonnement</button>
-
-  <form id="form-licence" hidden novalidate>
-    <label class="champ-libelle" for="licence-cle">Ta clé d'abonnement</label>
-    <input class="champ-texte" id="licence-cle" type="text" autocomplete="off" spellcheck="false"
-           placeholder="cus_…">
-    <p class="mention">Elle est affichée dans ton profil, sur l'appareil qui a payé.</p>
-    <button class="bouton-secondaire" type="submit" id="licence-valider">Retrouver mon abonnement</button>
-  </form>
-
-  <button class="bouton-texte" type="button" id="illimite-fermer">Plus tard</button>
 </div>
 
 <!-- ————— Barre du bas ————— -->

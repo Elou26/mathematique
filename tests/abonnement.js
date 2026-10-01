@@ -81,7 +81,7 @@ function semence(fiches, paiement) {
 
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
     verifier('sans serveur de paiement, la création reste libre',
-      (await page.isVisible('#feuille-creation')) && !(await page.isVisible('#feuille-illimite')),
+      (await page.isVisible('#feuille-creation')) && !(await page.isVisible('#vue-abonnement')),
       'un mur est apparu alors qu\'on ne peut pas payer');
     await page.click('#fermer-creation'); await page.waitForTimeout(200);
 
@@ -129,9 +129,19 @@ function semence(fiches, paiement) {
     await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(500);
 
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
-    verifier('le mur s\'ouvre au lieu de la création',
-      (await page.isVisible('#feuille-illimite')) && !(await page.isVisible('#feuille-creation')),
-      'feuille inattendue');
+    verifier('la page de tarif s\'ouvre au lieu de la création',
+      (await page.isVisible('#vue-abonnement')) && !(await page.isVisible('#feuille-creation')),
+      'vue inattendue');
+    verifier('elle annonce le tarif',
+      /9,90 €/.test(await page.innerText('.tarif-prix'))
+      && /par mois/.test(await page.innerText('.tarif-prix')),
+      await page.innerText('.tarif-prix'));
+    verifier('elle dit ce que l\'illimité débloque',
+      /Fiches sans limite/.test(await page.innerText('.offre')),
+      await page.innerText('.offre').then((t) => t.slice(0, 80)));
+    verifier('le comparatif reprend la limite gratuite',
+      (await page.innerText('#comparatif-gratuit')) === '3',
+      await page.innerText('#comparatif-gratuit'));
     verifier('le mur dit pourquoi',
       /3 fiches gratuites sont utilisées/.test(await page.innerText('#illimite-raison')),
       await page.innerText('#illimite-raison'));
@@ -140,10 +150,11 @@ function semence(fiches, paiement) {
       await page.evaluate(() => localStorage.getItem('mathematique.abonnement')));
 
     // Et la porte tient : impossible d'ajouter une fiche en douce.
-    const restantes = await page.evaluate(() => {
-      document.querySelector('#illimite-fermer').click();
-      return JSON.parse(localStorage.getItem('mathematique.fiches')).length;
-    });
+    await page.click('#illimite-retour'); await page.waitForTimeout(250);
+    verifier('le retour ramène d\'où l\'on vient',
+      await page.isVisible('#vue-accueil'), 'accueil masqué');
+    const restantes = await page.evaluate(
+      () => JSON.parse(localStorage.getItem('mathematique.fiches')).length);
     verifier('la bibliothèque reste à trois fiches', restantes === 3, restantes);
     await ctx.close();
   }
@@ -212,7 +223,7 @@ function semence(fiches, paiement) {
     await page.waitForTimeout(1200);
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
     verifier('une session non payée laisse le mur en place',
-      await page.isVisible('#feuille-illimite'), 'création ouverte à tort');
+      await page.isVisible('#vue-abonnement'), 'création ouverte à tort');
     await ctx.close();
   }
 
@@ -234,7 +245,7 @@ function semence(fiches, paiement) {
     await page.fill('#licence-cle', 'cus_bon');
     await page.click('#licence-valider'); await page.waitForTimeout(800);
     verifier('la bonne clé rend l\'illimité',
-      !(await page.isVisible('#feuille-illimite')), 'mur encore ouvert');
+      !(await page.isVisible('#vue-abonnement')), 'mur encore ouvert');
     await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(300);
     verifier('le profil le confirme',
       /illimité/i.test(await page.innerText('#profil-abonnement')),

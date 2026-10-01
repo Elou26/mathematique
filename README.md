@@ -594,7 +594,7 @@ travail est donc partagé en deux, et c'est le seul découpage possible :
 
 | Où | Quoi |
 | --- | --- |
-| `abonnement.js` (dans la page) | le compteur de fiches, le mur de paiement, la licence gardée sur l'appareil |
+| `abonnement.js` (dans la page) | le compteur de fiches, la page de tarif, la licence gardée sur l'appareil |
 | `serveur/` (à déployer) | la création de la session Stripe et la vérification de l'abonnement, avec la clé secrète |
 
 **Le serveur n'a pas de base de données** : c'est Stripe qui garde l'état de l'abonnement, on ne
@@ -604,7 +604,10 @@ Détail des routes et du déploiement dans [`serveur/LISEZMOI.md`](serveur/LISEZ
 
 ### Le parcours, bout à bout
 
-1. L'élève dépasse les **3 fiches gratuites** → le mur s'ouvre **avant** la photo, pas après.
+1. L'élève dépasse les **3 fiches gratuites** → la **page de tarif** (`#vue-abonnement`) s'ouvre
+   **avant** la photo, pas après. C'est une vue à part entière, pas une feuille : prix en grand,
+   ce que l'illimité débloque, comparatif gratuit/illimité, questions courantes, et le retour
+   ramène exactement d'où l'on vient.
 2. *Payer avec Stripe* → `POST /paiement` → le serveur crée la session et renvoie son adresse →
    la page ouvre Stripe (dans un onglet ; si le navigateur le refuse, elle affiche le lien).
 3. Stripe encaisse et renvoie sur `…?paiement=ok&session=cs_…`.
@@ -634,8 +637,9 @@ Détail des routes et du déploiement dans [`serveur/LISEZMOI.md`](serveur/LISEZ
    `ORIGINES_AUTORISEES`.
 2. Dans `abonnement.js`, renseigner `api: "https://ton-serveur"` — ou, sans toucher au fichier,
    poser `window.MATHEMATIQUE_PAIEMENT = { api: "…" }` avant son chargement.
-3. Le prix affiché (`prix`, `periode`) et la taille de la gratuité (`gratuit.fiches`, 3 par défaut)
-   se règlent au même endroit.
+3. Le prix affiché (`prix`, **9,90 €** par défaut), la période (`periode`, « par mois ») et la
+   taille de la gratuité (`gratuit.fiches`, 3) se règlent au même endroit — le tarif Stripe, lui,
+   se fixe dans le tableau de bord et doit évidemment correspondre.
 
 `node tests/serveur-paiement.js` éprouve le serveur avec un faux Stripe : session d'abonnement au
 bon tarif, retour contraint, licence active ou non, clé malformée refusée, CORS limité, et aucune
