@@ -246,14 +246,16 @@
       || "Autant de fiches que tu veux, sur toutes tes matières.";
     $("#illimite-prix").textContent = config.prix;
     $("#illimite-periode").textContent = config.periode;
-    $("#illimite-note").textContent = config.essai
-      ? `${config.essai} · sans engagement, résiliable en un clic`
-      : "Sans engagement · résiliable en un clic";
+    // Sans serveur de paiement, on ne fait pas semblant : on le dit.
+    const pret = OFFRE.estConfigure();
+    $("#illimite-note").textContent = !pret
+      ? "Offre en préparation — aujourd'hui, tout est gratuit et sans limite."
+      : config.essai
+        ? `${config.essai} · sans engagement, résiliable en un clic`
+        : "Sans engagement · résiliable en un clic";
     const casGratuit = $("#comparatif-gratuit");
     if (casGratuit) casGratuit.textContent = String(config.gratuit.fiches);
 
-    // Sans serveur de paiement, on ne fait pas semblant : on le dit.
-    const pret = OFFRE.estConfigure();
     $("#illimite-payer").disabled = !pret;
     $("#illimite-payer").textContent = pret ? "Payer avec Stripe" : "Paiement bientôt disponible";
     $("#illimite-mention").textContent = pret
@@ -351,11 +353,16 @@
     if (!bloc || !OFFRE) return;
     const quota = quotaFiches();
 
-    // Tant qu'il n'y a pas d'offre à vendre, le profil n'en parle pas.
-    if (quota.sansOffre) { bloc.hidden = true; bloc.textContent = ""; return; }
     bloc.hidden = false;
 
-    if (quota.illimite) {
+    /* Le paiement n'est pas encore branché : on ne limite rien, mais l'offre
+       reste visible — sinon la page de tarif n'existe pour personne. */
+    if (quota.sansOffre) {
+      bloc.innerHTML = `
+        <p class="offre-etiquette">Version gratuite</p>
+        <p class="offre-detail">Pour l'instant, rien n'est limité : crée autant de fiches que tu veux.</p>
+        <button class="bouton-secondaire" type="button" data-offre="payer">Voir l'offre illimitée</button>`;
+    } else if (quota.illimite) {
       const courant = OFFRE.etat();
       const fin = courant.expire
         ? `Prochain renouvellement le ${formatDate.format(new Date(courant.expire))}.`

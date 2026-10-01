@@ -619,9 +619,12 @@ Détail des routes et du déploiement dans [`serveur/LISEZMOI.md`](serveur/LISEZ
 
 ### Les règles qu'on s'est données
 
-- **Pas de mur sans porte.** Tant que `CONFIG.api` est vide, **rien n'est limité** et le profil ne
-  parle pas d'abonnement : il serait malhonnête de bloquer quelqu'un qui n'a aucun moyen de payer.
-  Le jour où l'adresse du serveur est renseignée, la gratuité s'applique.
+- **Pas de mur sans porte.** Tant que `CONFIG.api` est vide, **rien n'est limité** : il serait
+  malhonnête de bloquer quelqu'un qui n'a aucun moyen de payer. La page de tarif reste pourtant
+  **consultable depuis le profil** (« Voir l'offre illimitée »), le bouton de paiement y est
+  désactivé et l'en-tête annonce « Offre en préparation — aujourd'hui, tout est gratuit et sans
+  limite ». Le jour où l'adresse du serveur est renseignée, la gratuité s'applique et la page
+  s'ouvre d'elle-même au bon moment.
 - **Jamais de faux premium.** Une session non confirmée, une clé inconnue, un serveur injoignable :
   l'app le dit et reste en version gratuite. `retenir()` n'écrit un abonnement que si le serveur a
   répondu `actif`.

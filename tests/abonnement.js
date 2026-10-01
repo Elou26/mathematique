@@ -86,15 +86,27 @@ function semence(fiches, paiement) {
     await page.click('#fermer-creation'); await page.waitForTimeout(200);
 
     await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(250);
-    verifier('le profil ne parle pas d\'abonnement',
-      !(await page.isVisible('#profil-abonnement')), await page.innerText('#profil-abonnement'));
+    const plan = await page.innerText('#profil-abonnement');
+    verifier('le profil dit que rien n\'est limité',
+      /rien n'est limité/.test(plan), plan.replace(/\n+/g, ' / '));
 
-    // Si le mur s'ouvrait malgré tout, il ne promettrait rien de faux.
-    await page.evaluate(() => {
-      document.querySelectorAll('.vue').forEach((v) => { v.hidden = v.id !== 'vue-accueil'; });
-    });
-    await page.click('#ouvrir-creation'); await page.waitForTimeout(200);
-    await page.click('#fermer-creation'); await page.waitForTimeout(200);
+    // L'offre reste visible, mais ne promet rien de faux.
+    await page.click('[data-offre="payer"]'); await page.waitForTimeout(400);
+    verifier('la page de tarif reste consultable',
+      await page.isVisible('#vue-abonnement'), 'page de tarif inatteignable');
+    verifier('le tarif y est affiché',
+      /9,90 €/.test(await page.innerText('.tarif-prix')), await page.innerText('.tarif-prix'));
+    verifier('elle annonce l\'offre comme à venir',
+      /Offre en préparation/.test(await page.innerText('#illimite-note')),
+      await page.innerText('#illimite-note'));
+    verifier('et le paiement est annoncé indisponible',
+      (await page.isDisabled('#illimite-payer'))
+      && /Rien ne t'est débité/.test(await page.innerText('#illimite-mention')),
+      await page.innerText('#illimite-mention'));
+    verifier('aucun abonnement n\'est accordé pour autant',
+      (await page.evaluate(() => localStorage.getItem('mathematique.abonnement'))) === null,
+      await page.evaluate(() => localStorage.getItem('mathematique.abonnement')));
+    await page.click('#illimite-retour'); await page.waitForTimeout(250);
     verifier('aucune erreur console', erreurs.length === 0, erreurs.join(' || '));
     await ctx.close();
   }
