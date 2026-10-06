@@ -23,6 +23,20 @@ const Stripe = require("stripe");
 const CLE_SECRETE = process.env.STRIPE_CLE_SECRETE || process.env.STRIPE_SECRET_KEY || "";
 const PRIX = process.env.STRIPE_PRIX || process.env.STRIPE_PRICE_ID || "";
 const SECRET_WEBHOOK = process.env.STRIPE_WEBHOOK_SECRET || "";
+
+/* ————— Lecture des photos : Mistral Document AI ————————————————
+   La clé ne doit pas plus se trouver dans la page que celle de Stripe :
+   la photo monte ici, repart chez Mistral, et seul le texte revient.
+   ———————————————————————————————————————————————————————————— */
+const CLE_MISTRAL = process.env.MISTRAL_CLE || process.env.MISTRAL_API_KEY || "";
+const MODELE_OCR = process.env.MISTRAL_MODELE || "mistral-ocr-latest";
+const OCR_URL = process.env.MISTRAL_URL || "https://api.mistral.ai/v1/ocr";
+const PAGES_MAX = Number(process.env.LECTURE_PAGES_MAX) || 4;
+const OCTETS_MAX = Number(process.env.LECTURE_OCTETS_MAX) || 14 * 1024 * 1024;
+/* Combien de pages un même appareil peut faire lire par heure. Ce n'est pas
+   une sécurité — c'est un garde-fou pour la facture, en mémoire du
+   processus, remis à zéro à chaque redéploiement. */
+const PAGES_PAR_HEURE = Number(process.env.LECTURE_PAGES_PAR_HEURE) || 40;
 /* Les adresses autorisées à appeler ce serveur, séparées par des virgules.
    Vide = tout le monde : pratique pour essayer, à resserrer en production. */
 const ORIGINES = (process.env.ORIGINES_AUTORISEES || "").split(",").map((o) => o.trim()).filter(Boolean);
@@ -124,15 +138,113 @@ async function lireLicence(parametres) {
   return { code: 400, corps: { erreur: "parametre_manquant" } };
 }
 
+/* ————— Lire une photo ————————————————————————————————————————— */
+
+/* Un garde-fou en mémoire : {appareil → [horodatages]}. */
+const passages = new Map();
+
+function tropDemande(appareil, pages) {
+  if (!appareil) return false;
+  const maintenant = Date.now();
+  const recents = (passages.get(appareil) || []).filter((t) => maintenant - t < 3600000);
+  if (recents.length + pages > PAGES_PAR_HEURE) { passages.set(appareil, recents); return true; }
+  for (let i = 0; i < pages; i++) recents.push(maintenant);
+  passages.set(appareil, recents);
+  if (passages.size > 5000) passages.clear();        // on ne garde pas une mémoire qui enfle
+  return false;
+}
+
+/** Une image envoyée par la page : « data:image/jpeg;base64,… », bornée. */
+function imageValide(valeur) {
+  return typeof valeur === "string"
+    && /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(valeur)
+    && valeur.length < OCTETS_MAX;
+}
+
+/**
+ * Mistral attend un « document ». Pour une photo, c'est `image_url` ; pour
+ * un PDF, `document_url`. Si la forme devait changer, c'est le seul endroit
+ * à corriger — et l'erreur de l'API est renvoyée telle quelle pour qu'on la
+ * voie tout de suite (voir docs.mistral.ai/api/endpoint/ocr).
+ */
+function corpsOcr(image, type) {
+  return {
+    model: MODELE_OCR,
+    document: type === "document_url"
+      ? { type: "document_url", document_url: image }
+      : { type: "image_url", image_url: image },
+    include_image_base64: false,
+  };
+}
+
+async function demanderOcr(image) {
+  const essais = ["image_url", "document_url"];
+  let derniere = null;
+  for (const type of essais) {
+    const reponse = await fetch(OCR_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${CLE_MISTRAL}` },
+      body: JSON.stringify(corpsOcr(image, type)),
+    });
+    if (reponse.ok) return await reponse.json();
+    derniere = { code: reponse.status, texte: (await reponse.text()).slice(0, 400) };
+    // Une 400 peut vouloir dire « mauvaise forme de document » : on tente l'autre.
+    if (reponse.status !== 400) break;
+  }
+  throw derniere || { code: 502, texte: "pas de réponse" };
+}
+
+/** Le markdown de toutes les pages, mis bout à bout. */
+function markdownDe(resultat) {
+  const pages = (resultat && Array.isArray(resultat.pages)) ? resultat.pages : [];
+  return pages
+    .map((page) => String((page && (page.markdown || page.text)) || "").trim())
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+async function lirePhotos(corps) {
+  if (!CLE_MISTRAL) return { code: 503, corps: { erreur: "lecture_non_configuree" } };
+
+  const images = Array.isArray(corps && corps.pages) ? corps.pages : [];
+  if (!images.length) return { code: 400, corps: { erreur: "aucune_page" } };
+  if (images.length > PAGES_MAX) return { code: 400, corps: { erreur: "trop_de_pages", maximum: PAGES_MAX } };
+  if (!images.every(imageValide)) return { code: 400, corps: { erreur: "image_invalide" } };
+
+  const appareil = String((corps && corps.appareil) || "").slice(0, 64);
+  if (tropDemande(appareil, images.length)) {
+    return { code: 429, corps: { erreur: "trop_de_lectures", parHeure: PAGES_PAR_HEURE } };
+  }
+
+  const morceaux = [];
+  for (const image of images) {
+    try {
+      const resultat = await demanderOcr(image);
+      const markdown = markdownDe(resultat);
+      if (markdown) morceaux.push(markdown);
+    } catch (erreur) {
+      const code = erreur && erreur.code;
+      if (code === 401 || code === 403) return { code: 502, corps: { erreur: "cle_refusee" } };
+      if (code === 429) return { code: 429, corps: { erreur: "ocr_surcharge" } };
+      return { code: 502, corps: { erreur: "ocr_injoignable", detail: (erreur && erreur.texte) || "" } };
+    }
+  }
+
+  const markdown = morceaux.join("\n\n").trim();
+  if (markdown.replace(/\s/g, "").length < 20) return { code: 200, corps: { illisible: true } };
+  // La photo n'est ni gardée ni journalisée : seul le texte repart.
+  return { code: 200, corps: { markdown, pages: morceaux.length, moteur: "mistral" } };
+}
+
 /* ————— Serveur ———————————————————————————————————————————————— */
 
-function lireCorps(requete) {
+function lireCorps(requete, plafond = 64 * 1024) {
   return new Promise((resoudre, rejeter) => {
     const morceaux = [];
     let taille = 0;
     requete.on("data", (morceau) => {
       taille += morceau.length;
-      if (taille > 64 * 1024) { rejeter(new Error("corps trop gros")); requete.destroy(); return; }
+      if (taille > plafond) { rejeter(new Error("corps trop gros")); requete.destroy(); return; }
       morceaux.push(morceau);
     });
     requete.on("end", () => resoudre(Buffer.concat(morceaux)));
@@ -146,7 +258,10 @@ async function router(requete, reponse) {
 
   if (requete.method === "OPTIONS") { reponse.writeHead(204, enTetes(origine)); reponse.end(); return; }
 
-  if (adresse.pathname === "/sante") { repondre(reponse, 200, { pret: Boolean(stripe && PRIX) }, origine); return; }
+  if (adresse.pathname === "/sante") {
+    repondre(reponse, 200, { pret: Boolean(stripe && PRIX), lecture: Boolean(CLE_MISTRAL) }, origine);
+    return;
+  }
 
   if (adresse.pathname === "/paiement" && requete.method === "POST") {
     let corps = {};
@@ -158,6 +273,15 @@ async function router(requete, reponse) {
     } catch (erreur) {
       repondre(reponse, 502, { erreur: "stripe_injoignable" }, origine);
     }
+    return;
+  }
+
+  if (adresse.pathname === "/lecture" && requete.method === "POST") {
+    let corps = {};
+    try { corps = JSON.parse((await lireCorps(requete, OCTETS_MAX)).toString("utf8") || "{}"); }
+    catch (erreur) { repondre(reponse, 413, { erreur: "corps_trop_gros" }, origine); return; }
+    const resultat = await lirePhotos(corps);
+    repondre(reponse, resultat.code, resultat.corps, origine);
     return;
   }
 
@@ -199,10 +323,12 @@ if (require.main === module) {
     console.log(`Paiement en écoute sur http://localhost:${port}`);
     if (!stripe) console.log("⚠ STRIPE_CLE_SECRETE manquante : les routes répondront « non configuré ».");
     if (!PRIX) console.log("⚠ STRIPE_PRIX manquante : impossible de créer une session.");
+    if (!CLE_MISTRAL) console.log("⚠ MISTRAL_CLE manquante : /lecture répondra « non configuré ».");
   });
 }
 
 module.exports = router;
 module.exports.router = router;
 module.exports.__creerPaiement = creerPaiement;
+module.exports.__lirePhotos = lirePhotos;
 module.exports.__lireLicence = lireLicence;

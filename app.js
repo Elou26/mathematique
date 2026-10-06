@@ -1810,6 +1810,9 @@
 
   /** Pourquoi la lecture est possible — ou non. */
   function raisonLecture() {
+    if (typeof OCR !== "undefined" && OCR.serviceConfigure()) {
+      return { etat: "prete", texte: "✳︎ Ta page est lue par un service spécialisé : titres, listes et écriture manuscrite." };
+    }
     if (!claudeResolu) return { etat: "attente", texte: "Connexion…" };
     if (peutLirePhotos()) return { etat: "prete", texte: "✳︎ L'IA lit tes pages et écrit la fiche." };
     const secours = "Ton appareil peut la lire lui-même, gratuitement : fiche plus brute.";
@@ -1969,7 +1972,7 @@
    * en fiche (voir ocr.js). Aucun compte, rien à payer, résultat plus brut —
    * et on le dit au lecteur plutôt que de le laisser croire à une IA.
    */
-  async function lireSurAppareil() {
+  async function lireSurAppareil({ avis = "" } = {}) {
     if (typeof OCR === "undefined") { ouvrirEtapeManuelle(); return; }
 
     controleurScan = new AbortController();
@@ -1978,7 +1981,8 @@
     $("#scan-stop").hidden = false;
     $("#scan-balayage").hidden = false;
     $("#scan-progres").textContent = "Préparation du moteur de lecture…";
-    messageScan("");
+    // L'avis du chemin précédent survit : sinon l'élève ne saurait pas pourquoi.
+    messageScan(avis);
     etapesScan(["cadrage", "lecture"]);
 
     const pourcent = (part) => `${Math.round(Math.min(Math.max(part, 0), 1) * 100)} %`;
@@ -2077,8 +2081,100 @@
     }
   }
 
+  /* ————— Lecture par le service payant ————————————————————————————
+     Le meilleur des trois chemins quand il est branché : il lit le
+     manuscrit et rend du markdown déjà structuré, donc la fiche garde les
+     titres du document au lieu de les deviner. La clé vit sur le serveur
+     (voir serveur/LISEZMOI.md) ; ici on n'envoie que la photo.
+     ———————————————————————————————————————————————————————————— */
+
+  const ENNUIS_LECTURE = {
+    service_absent: "La lecture par service n'est pas branchée sur cette version.",
+    service_injoignable: "Le service de lecture n'est pas joignable depuis cette page.",
+    service_lent: "Le service de lecture met trop de temps. Réessaie dans un instant.",
+    service_sature: "Trop de lectures d'affilée : laisse passer un moment.",
+    service_refuse: "Le service de lecture a refusé la demande (clé invalide côté serveur).",
+    service_panne: "Le service de lecture a répondu de travers. Réessaie dans un instant.",
+    illisible: "Presque rien n'a été lu sur cette photo. Reprends-la à plat, bien éclairée.",
+  };
+
+  async function lireParService() {
+    controleurScan = new AbortController();
+    $("#scan-lecture").hidden = true;
+    $("#chargement-scan").hidden = false;
+    $("#scan-stop").hidden = false;
+    $("#scan-balayage").hidden = false;
+    $("#scan-progres").textContent = "Envoi de ta page…";
+    messageScan("");
+    etapesScan(["cadrage", "lecture"]);
+
+    try {
+      const lecture = await OCR.lireParService(fiche.pages, {
+        signal: controleurScan.signal,
+        appareil: typeof ABONNEMENT !== "undefined" ? ABONNEMENT.appareil() : "",
+        surProgres: ({ etape, part }) => {
+          $("#scan-progres").textContent = etape === "envoi"
+            ? `Envoi de tes pages… ${Math.round(part * 100)} %`
+            : "Lecture de ta page…";
+        },
+      });
+
+      const brute = OCR.structurerMarkdown(lecture.markdown, { moteur: "mistral" });
+      const propre = validerLecture({
+        lisible: true,
+        titre: brute.titre,
+        matiere: brute.matiere,
+        resume: brute.contenu,
+        flashcards: brute.cartes,
+      }, { minCartes: 0 });
+
+      if (!propre) {
+        messageScan("La page a été lue, mais il n'y a pas de quoi en tirer une fiche. "
+          + "Vérifie que la photo montre bien un cours.", "erreur");
+        etapesScan(["cadrage"]);
+        ouvrirEtapeManuelle();
+        return { fait: true };
+      }
+
+      propre.contenu.moteur = "mistral";
+      propre.contenu.accroche = brute.contenu.accroche;
+      propre.contenu.libelleFormules = brute.contenu.libelleFormules;
+      propre.contenu.texte = String(lecture.markdown || "").slice(0, 6000);
+      propre.texte = lecture.markdown;
+
+      fiche.lecture = propre;
+      if (propre.matiere) fiche.matiere = propre.matiere;
+      fiche.sujet = propre.titre;
+      etapesScan(["cadrage", "lecture", "notions"]);
+      afficherLecture(propre);
+      return { fait: true };
+    } catch (erreur) {
+      const code = (erreur && erreur.code) || "service_panne";
+      if (code === "cancelled") { etapesScan(["cadrage"]); messageScan("Lecture arrêtée."); return { fait: true }; }
+      /* Le service a flanché : plutôt que de laisser l'élève en plan, on
+         repasse par l'appareil — et c'est la lecture suivante qui le dira,
+         pour que le message ne soit pas effacé en chemin. */
+      return {
+        fait: false,
+        avis: `${ENNUIS_LECTURE[code] || ENNUIS_LECTURE.service_panne} Je lis la page sur ton appareil.`,
+      };
+    } finally {
+      controleurScan = null;
+      $("#chargement-scan").hidden = true;
+      $("#scan-stop").hidden = true;
+      $("#scan-balayage").hidden = true;
+      $("#scan-lecture").hidden = fiche.pages.length === 0 || Boolean(fiche.lecture);
+    }
+  }
+
   function lancerLecture() {
     if (!fiche.pages.length) { toast("Prends d'abord ta page en photo."); return; }
+
+    // Le service payant d'abord : c'est lui qui lit le mieux.
+    if (typeof OCR !== "undefined" && OCR.serviceConfigure()) {
+      lireParService().then((issue) => { if (!issue.fait) lireSurAppareil({ avis: issue.avis }); });
+      return;
+    }
 
     if (!claudeResolu && attenteClaude) {
       $("#scan-progres").textContent = "Connexion…";

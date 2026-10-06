@@ -24,7 +24,7 @@ python3 -m http.server 8000
 | `app.js` | Navigation, bibliothèque de fiches, sélecteur partagé, moteurs résumé / quiz / flashcards |
 | `data.js` | Données : matières, catalogue des chapitres, paliers de révision, séances d'entraînement, banques de secours (questions rédigées et cartes) |
 | `abonnement.js` | Version gratuite, mur de paiement, licence gardée sur l'appareil |
-| `serveur/` | Le serveur de paiement Stripe — la seule pièce qui connaît la clé secrète |
+| `serveur/` | Le serveur : paiement Stripe **et** lecture des photos — la seule pièce qui connaît les clés |
 | `generateurs.js` | Générateurs de questions : la banque des quiz ne s'épuise pas |
 | `ocr.js` | Lecture de secours sur l'appareil (Tesseract.js) + mise en fiche par règles |
 | `moteur/` | Tesseract.js, son cœur WebAssembly et le modèle français, servis depuis le site |
@@ -310,6 +310,28 @@ déclarés en second dans `OCR.SOURCES`, pour une app servie sans le dossier `mo
 lui-même sont bornés (`DELAI_SCRIPT`, `DELAI_SONDE`, `DELAI_SILENCE`) ; une lecture qui progresse
 repousse sa propre limite, une lecture muette rend la main avec un message qui dit quoi faire.
 
+### Trois lecteurs, dans cet ordre
+
+| Lecteur | Ce qu'il rend | Quand |
+| --- | --- | --- |
+| **Mistral Document AI** (`OCR.lireParService`) | du **markdown structuré** : titres, listes, tableaux ; lit le manuscrit | dès que `serveur/` a une `MISTRAL_CLE` |
+| L'IA du lecteur (`sample`) | une fiche rédigée | si le service n'est pas branché et que le lecteur est connecté |
+| **Tesseract**, sur l'appareil | du texte à plat, à structurer par règles | toujours, en dernier recours |
+
+Le premier qui peut lire gagne, et **si l'un flanche le suivant prend le relais en le disant** :
+« Le service de lecture n'est pas joignable. Je lis la page sur ton appareil. » Jamais de page
+blanche, jamais de fiche inventée.
+
+Le gain du service n'est pas seulement la qualité des caractères : **il rend la structure**. Là où
+`structurer()` passe son temps à deviner quelle ligne est un titre (voir plus bas),
+`structurerMarkdown()` n'a plus rien à deviner — les `##` *sont* les notions, les `- **Terme** :
+définition` *sont* le lexique, les tableaux deviennent des repères (ligne d'en-tête retirée), et les
+cartes sortent du lexique. La photo part en `data:image/…` vers `POST /lecture` ; **la clé API n'est
+jamais dans la page**, et la photo n'est ni stockée ni journalisée. Prix : ≈ 3,50 € les 1 000 pages,
+soit 0,35 centime la page — négligeable devant l'abonnement. Réglage :
+`window.MATHEMATIQUE_LECTURE = { api: "https://…" }`, ou à défaut l'adresse du serveur de paiement,
+qui est le même.
+
 **Trois gestes avant de lire** (`preparerImage()`), parce qu'une photo de cahier a des ombres et
 un contraste mou : mise à ~1800 px de large (la taille que Tesseract lit le mieux), effacement de
 l'éclairage inégal — l'image est divisée par son propre flou, l'ombre s'efface et le texte reste —
@@ -417,6 +439,12 @@ dans la page.
 `node tests/lecture-reelle.js` fait la **vraie** lecture : il imprime une page de cours avec le
 navigateur, la fait lire par le moteur embarqué (≈ 1 s), et vérifie le titre retenu, la matière
 devinée, les cartes tirées du texte — et qu'aucune requête ne sort du site.
+`node tests/lecture-service.js` éprouve la lecture payante sans réseau ni clé : un faux Mistral
+répond au serveur (clé dans l'en-tête, modèle d'OCR, photo en `image_url` avec repli `document_url`),
+les refus sont dits et non inventés, les garde-fous tiennent (pages, taille, cadence), et le
+markdown devient une fiche qui garde les titres du document.
+`node tests/lecture-app-service.js` fait le parcours dans l'app : la photo part au service, la
+fiche en revient titrée, et quand le service flanche l'appareil prend le relais en le disant.
 `node tests/cartes-ia.js` éprouve l'écriture des cartes avec un faux runtime : l'invite part bien
 des notions et du lexique, les cartes mal formées sont écartées, le paquet est gardé avec la fiche,
 une notion ne sort que ses cartes, et sans IA la séance démarre quand même sur les cartes locales.

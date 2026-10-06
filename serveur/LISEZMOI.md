@@ -15,7 +15,8 @@ l'abonnement, on ne fait que le lui demander.
 | `GET /licence?session=cs_…` | au retour de Stripe : cet achat donne-t-il un abonnement actif ? |
 | `GET /licence?cle=cus_…` | plus tard : cet abonnement est-il **toujours** actif ? |
 | `POST /webhook` | facultatif — vérifie la signature Stripe et journalise l'événement |
-| `GET /sante` | dit si les clés sont bien en place |
+| `POST /lecture` | **lit une photo de cours** : elle part chez Mistral, le markdown revient |
+| `GET /sante` | dit si les clés sont bien en place (`pret` pour le paiement, `lecture` pour l'OCR) |
 
 La « licence » rendue à l'app est l'identifiant client Stripe (`cus_…`). Le connaître ne donne rien
 d'autre que la réponse « actif » ou « non » : aucune donnée personnelle, aucun moyen de paiement ne
@@ -42,19 +43,55 @@ de suite (envoyer un mail, journaliser).
 | `STRIPE_PRIX` | l'identifiant du tarif récurrent (`price_…`) |
 | `ORIGINES_AUTORISEES` | les adresses de l'app, séparées par des virgules — **à remplir en production** |
 | `STRIPE_WEBHOOK_SECRET` | facultatif, pour le webhook (`whsec_…`) |
+| `MISTRAL_CLE` | la clé Mistral, pour la lecture des photos |
+| `MISTRAL_MODELE` | facultatif, `mistral-ocr-latest` par défaut |
+| `LECTURE_PAGES_PAR_HEURE` | facultatif, 40 par défaut — le garde-fou de facture |
 
 `ORIGINES_AUTORISEES` fait deux choses : elle limite qui peut appeler le serveur (CORS) et elle
 **impose l'adresse de retour** après paiement. Sans elle, le serveur accepte n'importe quel
 retour — commode pour essayer sur ta machine, à ne pas laisser en ligne.
+
+## La lecture des photos (Mistral Document AI)
+
+Tesseract tourne gratuitement sur le téléphone de l'élève, mais il rend du **texte à plat** : il
+faut ensuite deviner où sont les titres, et le manuscrit lui échappe. Mistral Document AI rend du
+**markdown déjà structuré** — `##` pour les parties, `-` pour les listes, les tableaux en tableaux —
+et lit l'écriture manuscrite. Du coup la fiche garde les titres **du document** au lieu de les
+inventer, et le lexique sort des termes en gras.
+
+| | |
+| --- | --- |
+| Modèle | `mistral-ocr-latest` |
+| Adresse | `https://api.mistral.ai/v1/ocr` |
+| Prix | ≈ 3,50 € les 1 000 pages, soit **0,35 centime la page** |
+
+Il te faut une clé sur [console.mistral.ai](https://console.mistral.ai), à mettre dans
+`MISTRAL_CLE`. Rien d'autre : la route est déjà là.
+
+**Ce que fait la route**
+
+1. Elle refuse ce qui n'est pas une image (`data:image/…;base64,…`), au-delà de 4 pages ou de 14 Mo.
+2. Elle freine un appareil qui demande plus de 40 pages par heure — un garde-fou pour la facture,
+   gardé en mémoire du processus, donc remis à zéro à chaque redéploiement. Ce n'est pas une
+   sécurité : si tu ouvres l'app au public, mets une vraie limite devant (passerelle, WAF).
+3. Elle envoie la photo comme `image_url` ; si l'API refuse cette forme, elle retente en
+   `document_url`. C'est le seul endroit à corriger si leur schéma change.
+4. **La photo n'est ni stockée ni journalisée** : seul le texte repart.
+
+Elle répond `{ markdown, pages, moteur }`, ou `{ illisible: true }` quand la page n'a presque rien
+donné. En cas de panne, l'app repasse toute seule sur Tesseract et le dit à l'élève.
 
 ## Essayer en local
 
 ```sh
 cd serveur
 npm install
-STRIPE_CLE_SECRETE=sk_test_… STRIPE_PRIX=price_… npm start
+STRIPE_CLE_SECRETE=sk_test_… STRIPE_PRIX=price_… MISTRAL_CLE=… npm start
 # → Paiement en écoute sur http://localhost:8787
 ```
+
+Les deux moitiés sont indépendantes : le paiement marche sans `MISTRAL_CLE`, la lecture marche sans
+les clés Stripe. Chacune annonce ce qui lui manque au démarrage, et `/sante` le dit aussi.
 
 Puis, dans `abonnement.js`, mets `api: "http://localhost:8787"` et sers l'app
 (`python3 -m http.server 8321`). Les cartes d'essai de Stripe : `4242 4242 4242 4242`, n'importe

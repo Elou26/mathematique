@@ -14,6 +14,89 @@
 const OCR = (function () {
   "use strict";
 
+  /* ————— Lecture par service : Mistral Document AI —————————————————
+     Tesseract tourne sur l'appareil et ne coûte rien, mais il rend du
+     texte à plat où il faut deviner les titres. Un service payant rend du
+     markdown déjà structuré — titres, listes, tableaux — et lit le
+     manuscrit. La clé n'est pas ici : l'appel passe par `serveur/`, qui
+     seul la connaît (voir serveur/LISEZMOI.md).
+
+     L'adresse se règle sans toucher à ce fichier :
+       <script>window.MATHEMATIQUE_LECTURE = { api: "https://…" }</script>
+     À défaut, on réutilise celle du serveur de paiement : c'est le même.
+     ———————————————————————————————————————————————————————————— */
+  const SERVICE = { api: "", pagesMax: 4, delai: 90000 };
+
+  if (typeof window !== "undefined") {
+    const reglages = window.MATHEMATIQUE_LECTURE || null;
+    const paiement = window.MATHEMATIQUE_PAIEMENT || null;
+    if (reglages && reglages.api) SERVICE.api = reglages.api;
+    else if (paiement && paiement.api) SERVICE.api = paiement.api;
+    if (reglages && reglages.pagesMax) SERVICE.pagesMax = reglages.pagesMax;
+  }
+
+  function serviceConfigure() { return Boolean(SERVICE.api); }
+
+  /** Une image en « data:…;base64,… », ce que le serveur attend. */
+  function enDataURI(fichier) {
+    return new Promise((resoudre, rejeter) => {
+      const lecteur = new FileReader();
+      lecteur.onload = () => resoudre(String(lecteur.result || ""));
+      lecteur.onerror = () => rejeter({ code: "image_illisible" });
+      lecteur.readAsDataURL(fichier);
+    });
+  }
+
+  /**
+   * Fait lire les pages par le service. Renvoie `{ markdown, pages, moteur }`.
+   * Rejette avec un code que l'app sait dire à l'élève.
+   */
+  async function lireParService(pages, { surProgres, signal, appareil } = {}) {
+    if (!serviceConfigure()) throw { code: "service_absent" };
+    const avancer = (etape, part) => { if (surProgres) surProgres({ etape, part }); };
+
+    avancer("envoi", 0);
+    const images = [];
+    for (let rang = 0; rang < Math.min(pages.length, SERVICE.pagesMax); rang++) {
+      if (signal && signal.aborted) throw { code: "cancelled" };
+      images.push(await enDataURI(pages[rang]));
+      avancer("envoi", (rang + 1) / pages.length);
+    }
+
+    const controleur = new AbortController();
+    const minuteur = setTimeout(() => controleur.abort(), SERVICE.delai);
+    if (signal) signal.addEventListener("abort", () => controleur.abort(), { once: true });
+
+    try {
+      avancer("lecture", 0.5);
+      const reponse = await fetch(`${SERVICE.api}/lecture`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pages: images, appareil: appareil || "" }),
+        signal: controleur.signal,
+      });
+      const donnees = await reponse.json().catch(() => null);
+      if (!reponse.ok || !donnees) {
+        const erreur = (donnees && donnees.erreur) || "";
+        if (reponse.status === 503 || erreur === "lecture_non_configuree") throw { code: "service_absent" };
+        if (reponse.status === 429) throw { code: "service_sature" };
+        if (erreur === "cle_refusee") throw { code: "service_refuse" };
+        throw { code: "service_panne" };
+      }
+      if (donnees.illisible) throw { code: "illisible" };
+      if (!donnees.markdown) throw { code: "illisible" };
+      avancer("lecture", 1);
+      return { markdown: donnees.markdown, pages: donnees.pages || images.length, moteur: "mistral" };
+    } catch (erreur) {
+      if (erreur && erreur.code) throw erreur;
+      if (signal && signal.aborted) throw { code: "cancelled" };
+      // Une page publiée peut être empêchée de joindre un autre domaine.
+      throw { code: erreur && erreur.name === "AbortError" ? "service_lent" : "service_injoignable" };
+    } finally {
+      clearTimeout(minuteur);
+    }
+  }
+
   /* Le moteur est servi depuis la même origine que l'app (dossier `moteur/`,
      voir moteur/LISEZMOI.md) : la page publiée n'a pas le droit d'aller
      chercher ses fichiers sur un domaine tiers. Les CDN restent en second,
@@ -557,7 +640,12 @@ const OCR = (function () {
       // Un terme nu se cite tel quel : lui inventer un article se trompe de genre
       // une fois sur deux. Mais on ne cite qu'un terme, pas un titre de partie.
       if (propre.split(" ").length > 4) return "";
-      const mot = /^[A-ZÀ-Ý][a-zà-ÿ]+$/.test(propre) ? propre.toLowerCase() : propre;
+      /* « Contrainte naturelle » se dit en minuscules au milieu d'une phrase ;
+         « Doctrine Truman » garde sa majuscule interne, donc on n'y touche pas. */
+      const nomPropre = /[A-ZÀ-Ý]/.test(propre.slice(1));
+      const mot = !nomPropre && /^[A-ZÀ-Ý]/.test(propre)
+        ? propre.charAt(0).toLowerCase() + propre.slice(1)
+        : propre;
       return `Que signifie « ${mot} » dans ce cours ?`;
     }
 
@@ -901,6 +989,166 @@ const OCR = (function () {
     return gardees;
   }
 
+  /* ————— Du markdown à la fiche ————————————————————————————————
+     Quand le service a lu la page, on ne devine plus rien : les titres
+     sont des titres, les listes des listes. Tout le travail de `structurer()`
+     — repérer les parties, trier les phrases — devient inutile ; il reste à
+     ranger ce qui est déjà rangé, et à en tirer le lexique et les cartes.
+     ———————————————————————————————————————————————————————————— */
+
+  /** Enlève le balisage d'une ligne de markdown, en gardant le texte. */
+  function sansBalises(ligne) {
+    return String(ligne || "")
+      .replace(/^#{1,6}\s*/, "")
+      .replace(/^[-*+]\s+/, "")
+      .replace(/^\d+[.)]\s+/, "")
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/__([^_]+)__/g, "$1")
+      .replace(/\*([^*]+)\*/g, "$1")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  const NIVEAU_TITRE = /^(#{1,6})\s+(.+)$/;
+  const PUCE = /^\s*(?:[-*+]|\d+[.)])\s+(.+)$/;
+  const LIGNE_TABLEAU = /^\s*\|.*\|\s*$/;
+  /* « **Densité** : nombre d'habitants… » ou « Densité : nombre… » :
+     un terme court suivi de sa définition, c'est une entrée de lexique. */
+  const ENTREE_LEXIQUE = /^([^:]{2,48}?)\s*[:\u202f]\s*(.{10,})$/;
+
+  /** Une entrée de lexique, si la ligne en est une. */
+  function entreeLexique(ligne, gras) {
+    const coup = ligne.match(ENTREE_LEXIQUE);
+    if (!coup) return null;
+    const terme = termeLexique(coup[1]);
+    const definition = enReponse(coup[2]);
+    // Un terme en gras est une définition annoncée ; sinon il faut qu'il soit court.
+    const credible = gras || (terme.split(" ").length <= 4 && !VERBES_DEFINITION.test(` ${coup[1]} `));
+    if (!terme || !credible || TERME_VAGUE.test(terme) || definition.length < 10) return null;
+    return { terme, definition };
+  }
+
+  function structurerMarkdown(markdown, options = {}) {
+    const lignes = String(markdown || "").split(/\r?\n/);
+
+    let titre = "";
+    const parties = [];
+    let courante = null;
+    let niveauTitre = 0;
+
+    lignes.forEach((brute) => {
+      const ligne = brute.replace(/\s+$/, "");
+      if (!ligne.trim()) return;
+
+      const entete = ligne.match(NIVEAU_TITRE);
+      if (entete) {
+        const niveau = entete[1].length;
+        const texte = sansBalises(entete[2]);
+        if (!texte) return;
+        // Le premier titre, et lui seul, nomme le document.
+        if (!titre && (niveau === 1 || !parties.length)) { titre = texte; niveauTitre = niveau; return; }
+        if (niveau <= niveauTitre) { /* un second titre de même niveau ouvre quand même une partie */ }
+        courante = { titre: nettoyerTitre(texte), paragraphes: [], puces: [], reperes: [] };
+        parties.push(courante);
+        return;
+      }
+
+      if (!courante) {
+        // Du texte avant le premier sous-titre : il ouvre une partie sans nom.
+        courante = { titre: titre || "L'essentiel", paragraphes: [], puces: [], reperes: [] };
+        parties.push(courante);
+      }
+
+      if (LIGNE_TABLEAU.test(ligne)) {
+        const cellules = ligne.split("|").map((c) => sansBalises(c)).filter(Boolean);
+        /* La ligne de séparation (---|---) n'apprend rien — et elle dit que
+           la ligne d'avant était l'en-tête du tableau : on la retire. */
+        if (/^[-: ]+$/.test(cellules.join(""))) { courante.reperes.pop(); return; }
+        if (cellules.length >= 2) courante.reperes.push(cellules.join(" · "));
+        return;
+      }
+
+      const puce = ligne.match(PUCE);
+      if (puce) {
+        courante.puces.push({ texte: sansBalises(puce[1]), gras: /\*\*|__/.test(puce[1]) });
+        return;
+      }
+
+      courante.paragraphes.push(sansBalises(ligne));
+    });
+
+    // Chaque partie devient une notion : paragraphe, points, lexique, repères.
+    const sections = parties.map((partie) => {
+      const lexique = [];
+      const points = [];
+      partie.puces.forEach((puce) => {
+        const entree = entreeLexique(puce.texte, puce.gras);
+        if (entree && lexique.length < 8) lexique.push(entree);
+        else if (puce.texte.length > 8) points.push(puce.texte);
+      });
+
+      const prose = partie.paragraphes.filter((p) => p.length > 20);
+      prose.forEach((ligne) => {
+        const entree = entreeLexique(ligne, false);
+        if (entree && lexique.length < 8 && !lexique.some((e) => e.terme === entree.terme)) lexique.push(entree);
+      });
+
+      const dits = new Set(lexique.map((e) => sansAccents(e.definition)));
+      const texte = prose
+        .filter((ligne) => !dits.has(sansAccents(ligne)))
+        .slice(0, 3)
+        .join(" ");
+
+      return {
+        titre: partie.titre,
+        texte: texte || debutLisible(prose.join(" "), 300),
+        points: points.slice(0, 6),
+        reperes: sansRedites(partie.reperes.concat(repererFormules(prose))).slice(0, 4),
+        lexique,
+      };
+    }).filter((section) => section.titre && (section.texte.length > 15 || section.points.length || section.lexique.length))
+      .slice(0, 10);
+
+    // Les cartes viennent du lexique : une question par terme, comme ailleurs.
+    const cartes = [];
+    const vues = new Set();
+    sections.forEach((section, rang) => {
+      section.lexique.forEach((entree) => {
+        const recto = questionDefinition(entree.terme);
+        if (!recto) return;
+        const cle = sansAccents(recto);
+        if (vues.has(cle)) return;
+        vues.add(cle);
+        cartes.push({ recto, verso: entree.definition, partie: rang, terme: entree.terme });
+      });
+    });
+
+    const plat = sections.map((s) => `${s.titre} ${s.texte} ${s.points.join(" ")}`).join(" ");
+    const formules = sansRedites([].concat(...sections.map((s) => s.reperes))).slice(0, 6);
+
+    return {
+      titre: titre || (sections[0] && sections[0].titre) || "Document lu",
+      matiere: devinerMatiere(`${titre} ${plat}`),
+      contenu: {
+        lu: true,
+        moteur: options.moteur || "service",
+        accroche: accroche(sections, 100),
+        sections,
+        points: sections.map((s) => s.texte).filter(Boolean).slice(0, 6),
+        formules,
+        exemples: [],
+        pieges: [],
+        libelleFormules: "Formules et repères",
+        texte: String(markdown || "").slice(0, 6000),
+      },
+      cartes: cartes.slice(0, 18),
+      texte: markdown,
+    };
+  }
+
   function structurer(texte, confiance) {
     const lignes = lignesUtiles(texte);
     const titre = devinerTitre(lignes);
@@ -997,5 +1245,9 @@ const OCR = (function () {
   }
 
   // Exposés pour le banc d'essai (tests/qualite-lecture.js), pas pour l'app.
-  return { charger, lire, structurer, qualiteTexte, SOURCES, __preparerImage: preparerImage, __texteFiable: texteFiable };
+  return {
+    charger, lire, structurer, qualiteTexte, SOURCES,
+    lireParService, structurerMarkdown, serviceConfigure, SERVICE,
+    __preparerImage: preparerImage, __texteFiable: texteFiable,
+  };
 })();
