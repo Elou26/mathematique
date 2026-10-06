@@ -753,6 +753,21 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<!-- ————— Branchement du serveur —————————————————————————————————
+     Décommente la ligne qui te concerne et remplace l'adresse par celle de
+     ton serveur (dossier serveur/, voir serveur/LISEZMOI.md).
+
+     · MATHEMATIQUE_LECTURE  → fait lire les photos par le service payant.
+     · MATHEMATIQUE_PAIEMENT → allume AUSSI la limite de la version gratuite
+       (3 fiches) et la page de tarif. Ne la mets qu'une fois Stripe prêt :
+       sinon tes élèves butent sur un mur qu'ils ne peuvent pas franchir.
+
+<script>
+  window.MATHEMATIQUE_LECTURE  = { api: "https://ton-serveur.onrender.com" };
+  window.MATHEMATIQUE_PAIEMENT = { api: "https://ton-serveur.onrender.com" };
+</script>
+     ———————————————————————————————————————————————————————————— -->
+
 <script src="data.js"></script>
 <script src="abonnement.js"></script>
 <script src="ocr.js"></script>
