@@ -110,6 +110,11 @@ par route (`api/lecture.js`, `api/sante.js`…), chacun renvoyant vers ce serveu
 le serveur partent alors **en un seul déploiement, sur une seule adresse** — donc plus de CORS à
 régler, et dans `index.html` l'adresse du service s'écrit `"/api"`.
 
+Le `vercel.json` de la racine fige les réglages de construction (aucun cadriciel, aucune
+compilation : le site est déjà du HTML prêt à servir), donc le formulaire d'import n'a rien à
+deviner. Un seul réglage reste à sa main : **Root Directory**, qu'il faut laisser à la racine du
+dépôt — pointé sur `serveur/`, Vercel ne verrait plus ni `index.html` ni `api/`.
+
 Trois choses à savoir avant de choisir Vercel :
 
 | | |
