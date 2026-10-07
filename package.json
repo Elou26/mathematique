@@ -1,0 +1,12 @@
+{
+  "name": "mathematique",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mathématique : le site de révision, et son serveur dans api/.",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "stripe": "^17.0.0"
+  }
+}

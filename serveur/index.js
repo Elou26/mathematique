@@ -239,6 +239,17 @@ async function lirePhotos(corps) {
 /* ————— Serveur ———————————————————————————————————————————————— */
 
 function lireCorps(requete, plafond = 64 * 1024) {
+  /* Certains hébergeurs (Vercel, Express…) lisent le flux avant nous et
+     posent le résultat dans `requete.body`. Le relire bloquerait pour
+     toujours : on se sert de ce qu'ils ont déjà. */
+  if (requete.body !== undefined && requete.body !== null) {
+    const deja = Buffer.isBuffer(requete.body) ? requete.body
+      : typeof requete.body === "string" ? Buffer.from(requete.body, "utf8")
+      : Buffer.from(JSON.stringify(requete.body), "utf8");
+    return deja.length > plafond
+      ? Promise.reject(new Error("corps trop gros"))
+      : Promise.resolve(deja);
+  }
   return new Promise((resoudre, rejeter) => {
     const morceaux = [];
     let taille = 0;
@@ -255,15 +266,18 @@ function lireCorps(requete, plafond = 64 * 1024) {
 async function router(requete, reponse) {
   const origine = requete.headers.origin || "";
   const adresse = new URL(requete.url, `http://${requete.headers.host || "localhost"}`);
+  /* Chez Vercel, les routes vivent forcément sous /api : on retire ce préfixe
+     pour que les chemins ci-dessous s'écrivent pareil partout. */
+  const chemin = adresse.pathname.replace(/^\/api(?=\/|$)/, "") || "/";
 
   if (requete.method === "OPTIONS") { reponse.writeHead(204, enTetes(origine)); reponse.end(); return; }
 
-  if (adresse.pathname === "/sante") {
+  if (chemin === "/sante") {
     repondre(reponse, 200, { pret: Boolean(stripe && PRIX), lecture: Boolean(CLE_MISTRAL) }, origine);
     return;
   }
 
-  if (adresse.pathname === "/paiement" && requete.method === "POST") {
+  if (chemin === "/paiement" && requete.method === "POST") {
     let corps = {};
     try { corps = JSON.parse((await lireCorps(requete)).toString("utf8") || "{}"); }
     catch (erreur) { repondre(reponse, 400, { erreur: "json_invalide" }, origine); return; }
@@ -276,7 +290,7 @@ async function router(requete, reponse) {
     return;
   }
 
-  if (adresse.pathname === "/lecture" && requete.method === "POST") {
+  if (chemin === "/lecture" && requete.method === "POST") {
     let corps = {};
     try { corps = JSON.parse((await lireCorps(requete, OCTETS_MAX)).toString("utf8") || "{}"); }
     catch (erreur) { repondre(reponse, 413, { erreur: "corps_trop_gros" }, origine); return; }
@@ -285,7 +299,7 @@ async function router(requete, reponse) {
     return;
   }
 
-  if (adresse.pathname === "/licence" && requete.method === "GET") {
+  if (chemin === "/licence" && requete.method === "GET") {
     const resultat = await lireLicence(adresse.searchParams);
     repondre(reponse, resultat.code, resultat.corps, origine);
     return;
@@ -294,7 +308,7 @@ async function router(requete, reponse) {
   /* Facultatif : Stripe prévient des changements d'abonnement. On n'en a pas
      besoin pour fonctionner — l'app revérifie chaque jour — mais c'est le
      bon endroit pour journaliser ou prévenir l'élève. */
-  if (adresse.pathname === "/webhook" && requete.method === "POST") {
+  if (chemin === "/webhook" && requete.method === "POST") {
     const brut = await lireCorps(requete);
     if (!SECRET_WEBHOOK || !stripe) { repondre(reponse, 200, { recu: true }, origine); return; }
     try {

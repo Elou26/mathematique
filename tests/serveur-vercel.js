@@ -1,0 +1,94 @@
+/* Éprouve ce qui change quand le serveur tourne en fonction (Vercel) :
+   - les routes vivent sous /api, le routeur doit retirer le préfixe ;
+   - l'hébergeur a déjà lu le corps et l'a posé dans requete.body, donc
+     relire le flux bloquerait pour toujours.
+   Aucun réseau, aucune clé. Lancer : node tests/serveur-vercel.js */
+const path = require('path');
+
+let echecs = 0;
+function verifier(nom, condition, vu) {
+  if (condition) console.log(`[ok] ${nom}`);
+  else { echecs++; console.log(`[ÉCHEC] ${nom}\n        vu : ${vu}`); }
+}
+
+const MARKDOWN = '# Les séismes\n\n## 1. Une plaque qui glisse\n\nLa secousse part du foyer.\n\n- **Foyer** : le point de départ de la rupture.\n';
+
+global.fetch = async () => ({ ok: true, json: async () => ({ pages: [{ markdown: MARKDOWN }] }) });
+
+process.env.MISTRAL_CLE = 'cle_de_test';
+process.env.STRIPE_CLE_SECRETE = '';
+process.env.ORIGINES_AUTORISEES = '';
+
+const Module = require('module');
+const chargerOriginal = Module._load;
+Module._load = function (demande) {
+  if (demande === 'stripe') return function Stripe() { return {}; };
+  return chargerOriginal.apply(this, arguments);
+};
+const routeur = require(path.join(__dirname, '..', 'serveur', 'index.js'));
+
+const PHOTO = `data:image/jpeg;base64,${Buffer.from('x'.repeat(400)).toString('base64')}`;
+
+/* Une requête à la manière de Vercel : le corps est DÉJÀ un objet, et le flux
+   est épuisé — aucun évènement « data » n'arrivera jamais. */
+function requeteVercel(url, methode, corps) {
+  const fausse = {
+    url, method: methode, headers: { host: 'mon-site.vercel.app', 'content-type': 'application/json' },
+    on() { /* le flux est fini : personne ne nous rappellera */ },
+    destroy() {},
+  };
+  if (corps !== undefined) fausse.body = corps;
+  return fausse;
+}
+
+function reponseFactice() {
+  const vue = { code: 0, corps: null, enTetes: null };
+  return {
+    vue,
+    writeHead(code, enTetes) { vue.code = code; vue.enTetes = enTetes; },
+    end(texte) { try { vue.corps = JSON.parse(texte); } catch (e) { vue.corps = texte; } },
+  };
+}
+
+/* Un appel qui n'aboutit pas doit échouer franchement, pas rester pendu :
+   sans garde-fou, lireCorps() attendrait un flux qui ne viendra jamais. */
+function appeler(url, methode, corps) {
+  const reponse = reponseFactice();
+  return Promise.race([
+    routeur(requeteVercel(url, methode, corps), reponse).then(() => reponse.vue),
+    new Promise((_, rejeter) => setTimeout(() => rejeter(new Error('resté pendu')), 2000)),
+  ]);
+}
+
+(async () => {
+  /* — 1. Le préfixe /api est retiré — */
+  const sante = await appeler('/api/sante', 'GET');
+  verifier('/api/sante répond comme /sante',
+    sante.code === 200 && sante.corps.lecture === true, JSON.stringify(sante.corps));
+
+  const inconnue = await appeler('/api/nawak', 'GET');
+  verifier('une route inconnue reste inconnue',
+    inconnue.code === 404, JSON.stringify(inconnue.corps));
+
+  /* — 2. Un corps déjà lu est utilisé tel quel, sans attendre le flux — */
+  const lue = await appeler('/api/lecture', 'POST', { pages: [PHOTO], appareil: 'vercel-1' });
+  verifier('une photo passe avec un corps déjà lu',
+    lue.code === 200 && /^# Les séismes/.test(lue.corps.markdown || ''),
+    JSON.stringify(lue.corps).slice(0, 120));
+
+  /* — 3. Le plafond s'applique aussi à un corps déjà lu — */
+  const enorme = await appeler('/api/lecture', 'POST', { pages: [PHOTO], gros: 'o'.repeat(20 * 1024 * 1024) });
+  verifier('un corps déjà lu trop gros est refusé, pas envoyé chez Mistral',
+    enorme.code === 413, JSON.stringify(enorme.corps).slice(0, 80));
+
+  /* — 4. Le chemin sans préfixe marche toujours (Render, local) — */
+  const direct = await appeler('/sante', 'GET');
+  verifier('/sante marche encore sans préfixe',
+    direct.code === 200 && direct.corps.lecture === true, JSON.stringify(direct.corps));
+
+  console.log(echecs ? `\n${echecs} vérification(s) en échec` : '\nTout est vert.');
+  process.exit(echecs ? 1 : 0);
+})().catch((erreur) => {
+  console.log(`[ÉCHEC] le routeur n'a pas répondu : ${erreur.message}`);
+  process.exit(1);
+});

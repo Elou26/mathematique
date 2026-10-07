@@ -105,8 +105,25 @@ utilisable tel quel en fonction serverless.
 **Render / Railway / Fly** — dépôt, dossier `serveur/`, commande `npm start`, et les variables
 d'environnement ci-dessus.
 
-**Vercel** — place `index.js` dans `api/` (ou ajoute un `vercel.json` qui route tout vers lui) ;
-le module exporte `(requete, reponse)`, la signature attendue.
+**Vercel** — rien à préparer : le dossier `api/` à la racine du dépôt est déjà là, un fichier
+par route (`api/lecture.js`, `api/sante.js`…), chacun renvoyant vers ce serveur. Le site statique et
+le serveur partent alors **en un seul déploiement, sur une seule adresse** — donc plus de CORS à
+régler, et dans `index.html` l'adresse du service s'écrit `"/api"`.
+
+Trois choses à savoir avant de choisir Vercel :
+
+| | |
+| --- | --- |
+| Usage commercial | le palier **Hobby l'interdit** : vendre un abonnement demande le palier Pro (~20 $/mois) |
+| Corps de requête | **4,5 Mo maximum**, et rien ne change ce chiffre. Mets `LECTURE_OCTETS_MAX=4000000` pour que l'élève reçoive une erreur claire au lieu de celle de Vercel |
+| Garde-fou de facture | `LECTURE_PAGES_PAR_HEURE` compte en mémoire du processus : en fonction, chaque instance repart de zéro. Le garde-fou devient poreux (il l'était déjà, mais là plus encore) |
+
+N'active pas le webhook sur Vercel : l'hébergeur lit le corps avant nous, donc la signature Stripe
+ne peut plus être vérifiée octet par octet. Laisse `STRIPE_WEBHOOK_SECRET` vide — le webhook est de
+toute façon facultatif, l'app revérifie la licence chaque jour.
+
+En échange, une fonction ne **dort jamais** : pas de première lecture à 50 secondes comme sur un
+palier gratuit qui se met en veille.
 
 Une fois en ligne :
 
