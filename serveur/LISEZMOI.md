@@ -38,8 +38,8 @@ de suite (envoyer un mail, journaliser).
    | Offre | Prix suggéré | Ce qu'elle donne |
    | --- | --- | --- |
    | Essentiel | 4,90 € | 15 fiches par mois |
-   | Régulier | 9,90 € | 50 fiches par mois |
-   | Intensif | 14,90 € | 100 fiches par mois |
+   | Régulier | 9,90 € | 40 fiches par mois |
+   | Intensif | 14,90 € | 80 fiches par mois |
 
    Les prix et les quotas affichés vivent dans `abonnement.js` (`CONFIG.offres`) :
    change-les là, pas dans la page. Chez Stripe, seuls les montants comptent.
@@ -54,8 +54,8 @@ de suite (envoyer un mail, journaliser).
 | --- | --- |
 | `STRIPE_CLE_SECRETE` | la clé secrète (`sk_test_…` ou `sk_live_…`) |
 | `STRIPE_PRIX_ESSENTIEL` | le tarif de l'offre à 15 fiches/mois (`price_…`) |
-| `STRIPE_PRIX_REGULIER` | le tarif de l'offre à 50 fiches/mois |
-| `STRIPE_PRIX_INTENSIF` | le tarif de l'offre à 100 fiches/mois |
+| `STRIPE_PRIX_REGULIER` | le tarif de l'offre à 40 fiches/mois |
+| `STRIPE_PRIX_INTENSIF` | le tarif de l'offre à 80 fiches/mois |
 | `ORIGINES_AUTORISEES` | les adresses de l'app, séparées par des virgules — **à remplir en production** |
 | `STRIPE_WEBHOOK_SECRET` | facultatif, pour le webhook (`whsec_…`) |
 | `CLAUDE_CLE` | la clé Claude, pour la lecture des photos |

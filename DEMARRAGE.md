@@ -103,8 +103,8 @@ résumé qu'on trouve soi-même pas clair.
    | Produit | Prix | Ce qu'il donne |
    | --- | --- | --- |
    | Mathématique Essentiel | 4,90 € | 15 fiches/mois |
-   | Mathématique Régulier | 9,90 € | 50 fiches/mois |
-   | Mathématique Intensif | 14,90 € | 100 fiches/mois |
+   | Mathématique Régulier | 9,90 € | 40 fiches/mois |
+   | Mathématique Intensif | 14,90 € | 80 fiches/mois |
 
    Note les trois identifiants `price_…`. Pour changer un prix affiché ou un
    quota, c'est `abonnement.js` (`CONFIG.offres`) — Stripe ne connaît que

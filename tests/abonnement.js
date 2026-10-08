@@ -162,7 +162,7 @@ function semence(fiches, paiement) {
     verifier('le comparatif oppose l\'essai aux trois offres',
       /3 en tout/.test(await page.innerText('#illimite-comparatif'))
       && /15 \/ mois/.test(await page.innerText('#illimite-comparatif'))
-      && /100 \/ mois/.test(await page.innerText('#illimite-comparatif')),
+      && /80 \/ mois/.test(await page.innerText('#illimite-comparatif')),
       await page.innerText('#illimite-comparatif'));
     /* Cinq colonnes sur 390 px : si le tableau déborde, deux offres
        deviennent invisibles sans que l'élève sache qu'il faut faire

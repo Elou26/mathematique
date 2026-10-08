@@ -47,11 +47,11 @@ const ABONNEMENT = (function () {
       },
       {
         cle: "regulier", nom: "Régulier", prix: "9,90 €", periode: "par mois",
-        fiches: 50, argument: "Toutes tes matières, toute l'année.", conseille: true,
+        fiches: 40, argument: "Toutes tes matières, toute l'année.", conseille: true,
       },
       {
         cle: "intensif", nom: "Intensif", prix: "14,90 €", periode: "par mois",
-        fiches: 100, argument: "Pour les semaines de révisions à plein régime.",
+        fiches: 80, argument: "Pour les semaines de révisions à plein régime.",
       },
     ],
   };
