@@ -4,6 +4,7 @@
      relire le flux bloquerait pour toujours.
    Aucun réseau, aucune clé. Lancer : node tests/serveur-vercel.js */
 const path = require('path');
+const fs = require('fs');
 
 let echecs = 0;
 function verifier(nom, condition, vu) {
@@ -79,6 +80,26 @@ function appeler(url, methode, corps) {
     routeur(requeteVercel(url, methode, corps), reponse).then(() => reponse.vue),
     new Promise((_, rejeter) => setTimeout(() => rejeter(new Error('resté pendu')), 2000)),
   ]);
+}
+
+/* ————— Le paquet que Vercel installera ————————————————————————
+   Vercel n'installe que le package.json de la racine. Si une dépendance
+   n'y figure que dans serveur/, la fonction se charge en local — où
+   serveur/node_modules existe — et plante en ligne. C'est arrivé.
+   ———————————————————————————————————————————————————————————— */
+{
+  const lire = (chemin) => JSON.parse(fs.readFileSync(path.join(__dirname, '..', chemin), 'utf8'));
+  const racine = lire('package.json').dependencies || {};
+  const serveur = lire('serveur/package.json').dependencies || {};
+  const manquantes = Object.keys(serveur).filter((nom) => racine[nom] !== serveur[nom]);
+  verifier('la racine déclare tout ce dont le serveur a besoin, à la même version',
+    manquantes.length === 0,
+    manquantes.map((n) => `${n} : racine ${racine[n] || 'absente'} ≠ serveur ${serveur[n]}`).join(' | '));
+
+  const relais = fs.readFileSync(path.join(__dirname, '..', 'api', '_relais.js'), 'utf8');
+  verifier('le relais demande les dépendances dans son try, pas au-dessus',
+    relais.indexOf('try {') < relais.indexOf('require("@anthropic-ai/sdk")'),
+    'un require hors du try replanterait à l\'endroit qu\'il doit rendre lisible');
 }
 
 (async () => {
