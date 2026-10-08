@@ -75,6 +75,8 @@
 
     // Une fiche de plus : c'est ici que la version gratuite s'arrête.
     if (!peutCreerUneFiche()) return null;
+    // …et c'est ici qu'elle est comptée dans le mois, une fois accordée.
+    if (OFFRE && OFFRE.noterFiche) OFFRE.noterFiche();
 
     const maintenant = new Date().toISOString();
     const fiche = {
@@ -227,9 +229,13 @@
   function peutCreerUneFiche({ silencieux = false } = {}) {
     const quota = quotaFiches();
     if (!quota.atteint) return true;
-    if (!silencieux) ouvrirPageIllimite(
-      `Tes ${quota.max} fiches gratuites sont utilisées. L'illimité les débloque toutes.`,
-      vueCourante());
+    /* Un abonné qui a épuisé son mois n'a pas le même problème qu'un
+       curieux au bout de son essai : lui dire « passe à l'illimité » alors
+       qu'il paie déjà serait absurde. */
+    const raison = quota.abonne
+      ? `Tes ${quota.max} fiches du mois sont utilisées. Le compteur repart le 1er, ou passe à l'offre au-dessus.`
+      : `Tes ${quota.max} fiches d'essai sont utilisées. Choisis une offre pour continuer.`;
+    if (!silencieux) ouvrirPageIllimite(raison, vueCourante());
     return false;
   }
 
@@ -242,22 +248,13 @@
     const config = OFFRE.config();
     retourAbonnement = VUES.includes(depuis) ? depuis : "accueil";
 
-    $("#illimite-raison").textContent = raison
-      || "Autant de fiches que tu veux, sur toutes tes matières.";
-    $("#illimite-prix").textContent = config.prix;
-    $("#illimite-periode").textContent = config.periode;
     // Sans serveur de paiement, on ne fait pas semblant : on le dit.
     const pret = OFFRE.estConfigure();
-    $("#illimite-note").textContent = !pret
-      ? "Offre en préparation — aujourd'hui, tout est gratuit et sans limite."
-      : config.essai
-        ? `${config.essai} · sans engagement, résiliable en un clic`
-        : "Sans engagement · résiliable en un clic";
-    const casGratuit = $("#comparatif-gratuit");
-    if (casGratuit) casGratuit.textContent = String(config.gratuit.fiches);
-
-    $("#illimite-payer").disabled = !pret;
-    $("#illimite-payer").textContent = pret ? "Payer avec Stripe" : "Paiement bientôt disponible";
+    $("#illimite-raison").textContent = raison
+      || (pret ? "Choisis ce qui correspond à ton rythme."
+               : "Offre en préparation — aujourd'hui, tout est gratuit et sans limite.");
+    rendreOffres(pret);
+    rendreComparatif();
     $("#illimite-mention").textContent = pret
       ? "Paiement chez Stripe : l'app ne voit jamais ta carte."
       : "Le paiement n'est pas encore branché sur cette version. Rien ne t'est débité.";
@@ -266,6 +263,66 @@
     messageIllimite("");
 
     afficherVue("abonnement");
+  }
+
+  /* ————— Les trois offres ————————————————————————————————————
+     Écrites depuis abonnement.js, jamais recopiées dans la page : un prix
+     qui vit à deux endroits finit toujours par différer de lui-même, et
+     c'est l'élève qui le découvre au moment de payer.
+     ———————————————————————————————————————————————————————————— */
+  function rendreOffres(pret) {
+    const bloc = $("#illimite-offres");
+    if (!bloc || !OFFRE) return;
+    const active = OFFRE.offreActive();
+
+    bloc.innerHTML = OFFRE.offres().map((offre) => {
+      const sienne = active && active.cle === offre.cle;
+      const volume = offre.illimite
+        ? "Fiches sans compter"
+        : `${offre.fiches} fiches par mois`;
+      return `
+        <article class="offre-carte${offre.conseille ? " offre-carte--conseillee" : ""}${sienne ? " offre-carte--actuelle" : ""}">
+          ${offre.conseille ? `<span class="offre-ruban">Le plus choisi</span>` : ""}
+          ${sienne ? `<span class="offre-ruban offre-ruban--actuelle">Ton offre</span>` : ""}
+          <h3 class="offre-nom">${echapper(offre.nom)}</h3>
+          <p class="offre-prix"><strong>${echapper(offre.prix)}</strong>
+            <span class="tarif-periode">${echapper(offre.periode)}</span></p>
+          <p class="offre-volume">${echapper(volume)}</p>
+          <p class="offre-argument">${echapper(offre.argument)}</p>
+          ${offre.illimite
+            ? `<p class="offre-loyaute">Usage loyal : ${offre.fiches} fiches par mois.
+                 Au-delà, on en reparle — ce n'est pas un piège caché.</p>`
+            : ""}
+          <button class="${offre.conseille ? "bouton-principal" : "bouton-secondaire"}" type="button"
+                  data-payer="${echapper(offre.cle)}"${pret && !sienne ? "" : " disabled"}>
+            ${sienne ? "Offre en cours" : pret ? "Choisir" : "Bientôt disponible"}
+          </button>
+        </article>`;
+    }).join("");
+  }
+
+  function rendreComparatif() {
+    const table = $("#illimite-comparatif");
+    if (!table || !OFFRE) return;
+    const offres = OFFRE.offres();
+    const gratuit = OFFRE.config().gratuit.fiches;
+
+    const colonnes = [`<th scope="col">Gratuit</th>`]
+      .concat(offres.map((o) => `<th scope="col">${echapper(o.nom)}</th>`)).join("");
+    const volumes = [`<td>${gratuit} en tout</td>`]
+      .concat(offres.map((o) => `<td class="comparatif-oui">${o.illimite ? "sans compter" : `${o.fiches} / mois`}</td>`)).join("");
+    const partout = (libelle) => `<tr><th scope="row">${libelle}</th>`
+      + [`<td class="comparatif-oui">✓</td>`]
+        .concat(offres.map(() => `<td class="comparatif-oui">✓</td>`)).join("") + `</tr>`;
+
+    table.innerHTML = `
+      <thead><tr><th scope="col">&nbsp;</th>${colonnes}</tr></thead>
+      <tbody>
+        <tr><th scope="row">Fiches de révision</th>${volumes}</tr>
+        ${partout("Lecture de tes photos")}
+        ${partout("Résumé, cartes, quiz")}
+        ${partout("Révision espacée")}
+      </tbody>`;
   }
 
   function fermerPageIllimite() { afficherVue(retourAbonnement); }
@@ -286,13 +343,13 @@
     introuvable: "Cette clé d'abonnement est inconnue.",
   };
 
-  async function lancerPaiement() {
+  async function lancerPaiement(cle) {
     if (!OFFRE || !OFFRE.estConfigure()) return;
-    const bouton = $("#illimite-payer");
-    bouton.disabled = true;
+    const boutons = $$("[data-payer]");
+    boutons.forEach((b) => { b.disabled = true; });
     messageIllimite("Ouverture du paiement sécurisé…");
     try {
-      const url = await OFFRE.ouvrirPaiement({});
+      const url = await OFFRE.ouvrirPaiement({ offre: cle });
       /* Une page publiée peut être empêchée de changer d'adresse : on tente
          l'onglet, et si le navigateur le refuse on donne le lien à toucher. */
       const onglet = window.open(url, "_blank", "noopener");
@@ -309,7 +366,7 @@
       const code = (erreur && erreur.code) || "serveur";
       messageIllimite(ENNUIS_PAIEMENT[code] || ENNUIS_PAIEMENT.serveur, "erreur");
     } finally {
-      bouton.disabled = false;
+      boutons.forEach((b) => { b.disabled = false; });
     }
   }
 
@@ -361,25 +418,30 @@
       bloc.innerHTML = `
         <p class="offre-etiquette">Version gratuite</p>
         <p class="offre-detail">Pour l'instant, rien n'est limité : crée autant de fiches que tu veux.</p>
-        <button class="bouton-secondaire" type="button" data-offre="payer">Voir l'offre illimitée</button>`;
-    } else if (quota.illimite) {
+        <button class="bouton-secondaire" type="button" data-offre="payer">Voir les offres</button>`;
+    } else if (quota.abonne) {
       const courant = OFFRE.etat();
       const fin = courant.expire
         ? `Prochain renouvellement le ${formatDate.format(new Date(courant.expire))}.`
         : "";
+      const compte = quota.illimite
+        ? `${quota.faites} fiche${quota.faites > 1 ? "s" : ""} ce mois-ci.`
+        : `${quota.faites} fiche${quota.faites > 1 ? "s" : ""} sur ${quota.max} ce mois-ci.`
+          + (quota.reste ? ` Il t'en reste ${quota.reste}.` : " Le compteur repart le 1er.");
       bloc.innerHTML = `
-        <p class="offre-etiquette offre-etiquette--actif">Illimité</p>
-        <p class="offre-detail">Fiches, cartes et quiz sans compteur. ${fin}</p>
+        <p class="offre-etiquette offre-etiquette--actif">${echapper(quota.offre.nom)}</p>
+        <p class="offre-detail">${compte} ${fin}</p>
         <label class="champ-libelle champ-libelle--discret" for="profil-licence">
           Ta clé, pour retrouver l'abonnement sur un autre téléphone</label>
         <input class="champ-texte" id="profil-licence" type="text" readonly value="${echapper(courant.cle)}">
+        <button class="bouton-texte" type="button" data-offre="payer">Changer d'offre</button>
         <button class="bouton-texte" type="button" data-offre="oublier">Retirer l'abonnement de cet appareil</button>`;
     } else {
       bloc.innerHTML = `
-        <p class="offre-etiquette">Version gratuite</p>
+        <p class="offre-etiquette">Essai gratuit</p>
         <p class="offre-detail">${fiches.length} fiche${fiches.length > 1 ? "s" : ""} sur ${quota.max}.
           ${quota.reste ? `Il t'en reste ${quota.reste}.` : "Tu les as toutes utilisées."}</p>
-        <button class="bouton-secondaire" type="button" data-offre="payer">Passer en illimité</button>`;
+        <button class="bouton-secondaire" type="button" data-offre="payer">Voir les offres</button>`;
     }
 
     $$("[data-offre]", bloc).forEach((bouton) => {
@@ -395,7 +457,12 @@
   function initIllimite() {
     if (!$("#vue-abonnement")) return;
     $("#illimite-retour").addEventListener("click", fermerPageIllimite);
-    $("#illimite-payer").addEventListener("click", lancerPaiement);
+    /* Les cartes d'offre sont réécrites à chaque ouverture : on écoute le
+       conteneur, qui lui ne bouge pas. */
+    $("#illimite-offres").addEventListener("click", (evenement) => {
+      const bouton = evenement.target.closest("[data-payer]");
+      if (bouton && !bouton.disabled) lancerPaiement(bouton.dataset.payer);
+    });
     $("#illimite-restaurer").addEventListener("click", () => {
       const form = $("#form-licence");
       form.hidden = !form.hidden;

@@ -29,7 +29,10 @@ function fauxStripe() {
           if (id === 'cs_impayee') return { subscription: null, customer: 'cus_abc' };
           return {
             customer: 'cus_abc',
-            subscription: { status: 'active', current_period_end: MOIS_PROCHAIN },
+            subscription: {
+              status: 'active', current_period_end: MOIS_PROCHAIN,
+              items: { data: [{ price: { id: 'price_illimite' } }] },
+            },
           };
         },
       },
@@ -38,7 +41,10 @@ function fauxStripe() {
       list: async ({ customer }) => {
         if (customer === 'cus_resilie') return { data: [{ status: 'canceled', current_period_end: MOIS_PROCHAIN }] };
         if (customer === 'cus_inconnu') return { data: [] };
-        return { data: [{ status: 'active', current_period_end: MOIS_PROCHAIN }] };
+        return { data: [{
+          status: 'active', current_period_end: MOIS_PROCHAIN,
+          items: { data: [{ price: { id: 'price_essentiel' } }] },
+        }] };
       },
     },
     webhooks: { constructEvent: () => ({ type: 'checkout.session.completed' }) },
@@ -53,7 +59,9 @@ Module._load = function (demande, parent, isMain) {
 };
 
 process.env.STRIPE_CLE_SECRETE = 'sk_test_faux';
-process.env.STRIPE_PRIX = 'price_faux';
+process.env.STRIPE_PRIX_ESSENTIEL = 'price_essentiel';
+process.env.STRIPE_PRIX_REGULIER = 'price_regulier';
+process.env.STRIPE_PRIX_ILLIMITE = 'price_illimite';
 process.env.ORIGINES_AUTORISEES = 'http://localhost:8321';
 
 const routeur = require(path.join(__dirname, '..', 'serveur', 'index.js'));
@@ -91,15 +99,38 @@ serveur.listen(0, async () => {
 
   /* — 2. Créer un paiement — */
   const paiement = await appeler('/paiement', {
-    method: 'POST', corps: { appareil: 'a1234', retour: 'http://localhost:8321/index.html' },
+    method: 'POST', corps: { appareil: 'a1234', offre: 'illimite', retour: 'http://localhost:8321/index.html' },
   });
   verifier('le paiement renvoie une adresse Stripe',
     paiement.code === 200 && /checkout\.stripe\.com/.test(paiement.corps.url), JSON.stringify(paiement.corps));
 
   const demande = journal.sessions[journal.sessions.length - 1];
-  verifier('la session est un abonnement, au bon tarif',
-    demande.mode === 'subscription' && demande.line_items[0].price === 'price_faux',
+  verifier('la session est un abonnement, au tarif de l\'offre demandée',
+    demande.mode === 'subscription' && demande.line_items[0].price === 'price_illimite',
     JSON.stringify({ mode: demande.mode, prix: demande.line_items[0].price }));
+
+  /* Chaque offre a son tarif : une erreur de correspondance ferait payer
+     le mauvais prix sans que rien ne le signale. */
+  for (const [offre, prix] of [['essentiel', 'price_essentiel'], ['regulier', 'price_regulier']]) {
+    await appeler('/paiement', {
+      method: 'POST', corps: { appareil: 'a1234', offre, retour: 'http://localhost:8321/index.html' },
+    });
+    const vu = journal.sessions[journal.sessions.length - 1].line_items[0].price;
+    verifier(`l'offre « ${offre} » part sur son propre tarif`, vu === prix, vu);
+  }
+
+  /* L'offre vient de la page : une clé inconnue ne doit pas tomber sur un
+     tarif par défaut, sinon on vend ce qu'on n'a pas annoncé. */
+  const inventee = await appeler('/paiement', {
+    method: 'POST', corps: { appareil: 'a1234', offre: 'gratuite_a_vie', retour: 'http://localhost:8321/index.html' },
+  });
+  verifier('une offre inconnue est refusée, pas servie au hasard',
+    inventee.code === 400 && inventee.corps.erreur === 'offre_inconnue', JSON.stringify(inventee.corps));
+  const sansOffre = await appeler('/paiement', {
+    method: 'POST', corps: { appareil: 'a1234', retour: 'http://localhost:8321/index.html' },
+  });
+  verifier('et une demande sans offre aussi',
+    sansOffre.code === 400 && sansOffre.corps.erreur === 'offre_inconnue', JSON.stringify(sansOffre.corps));
   verifier("l'appareil est rattaché au paiement",
     demande.client_reference_id === 'a1234', demande.client_reference_id);
   verifier('le retour porte la session, pour la vérifier ensuite',
@@ -107,7 +138,7 @@ serveur.listen(0, async () => {
 
   /* — 3. Le retour n'accepte pas n'importe quelle adresse — */
   const detourne = await appeler('/paiement', {
-    method: 'POST', corps: { appareil: 'a1234', retour: 'https://site-pirate.example/vol' },
+    method: 'POST', corps: { appareil: 'a1234', offre: 'regulier', retour: 'https://site-pirate.example/vol' },
   });
   const sessionDetournee = journal.sessions[journal.sessions.length - 1];
   verifier('un retour non déclaré est ramené à une origine autorisée',
@@ -116,9 +147,13 @@ serveur.listen(0, async () => {
 
   /* — 4. La licence, depuis la session — */
   const licence = await appeler('/licence?session=cs_test_123');
+  /* L'offre n'est stockée nulle part : c'est le tarif de l'abonnement
+     Stripe qui la dit. Sans ça, l'app ne saurait pas quel quota appliquer. */
   verifier('une session payée donne une licence active',
     licence.corps.actif === true && licence.corps.cle === 'cus_abc' && licence.corps.expire > Date.now(),
     JSON.stringify(licence.corps));
+  verifier('la licence dit quelle offre a été payée',
+    licence.corps.offre === 'illimite', JSON.stringify(licence.corps));
 
   const impayee = await appeler('/licence?session=cs_impayee');
   verifier('une session sans abonnement ne donne rien',
@@ -130,6 +165,9 @@ serveur.listen(0, async () => {
 
   /* — 5. La licence, plus tard — */
   const toujours = await appeler('/licence?cle=cus_abc');
+  verifier('et pour une clé, l\'offre vient aussi du tarif de l\'abonnement',
+    (await appeler('/licence?cle=cus_abc')).corps.offre === 'essentiel',
+    JSON.stringify((await appeler('/licence?cle=cus_abc')).corps));
   verifier('un abonnement en cours reste actif',
     toujours.corps.actif === true, JSON.stringify(toujours.corps));
 

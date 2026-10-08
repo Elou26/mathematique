@@ -2120,3 +2120,53 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
 /* Une formule en bloc ne doit pas élargir la page sur un téléphone. */
 .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
 .fiche-partie-texte .katex, .fiche-partie-points .katex { font-size: 1em; }
+
+/* ————— Les trois offres ————————————————————————————————————————
+   En colonne sur téléphone : trois cartes côte à côte sur 390 px seraient
+   illisibles, et c'est l'écran de presque tous les élèves. */
+.offres { display: grid; gap: 0.9rem; margin: 1rem 0 1.4rem; }
+
+.offre-carte {
+  position: relative;
+  border: 1px solid var(--bordure);
+  border-radius: 14px;
+  padding: 1.1rem 1rem 1rem;
+  background: #fff;
+}
+.offre-carte--conseillee { border-color: var(--marine); border-width: 2px; }
+.offre-carte--actuelle { background: var(--gris-fond); }
+
+.offre-ruban {
+  position: absolute; top: -0.65rem; left: 1rem;
+  background: var(--marine); color: #fff;
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.02em;
+  padding: 0.18rem 0.55rem; border-radius: 999px;
+}
+.offre-ruban--actuelle { background: #2F7A4D; }
+
+.offre-nom { margin: 0.2rem 0 0.3rem; font-size: 1.05rem; }
+.offre-prix { margin: 0 0 0.35rem; font-size: 1.5rem; line-height: 1.1; }
+.offre-prix .tarif-periode { font-size: 0.85rem; font-weight: 400; color: var(--gris-texte); }
+.offre-volume { margin: 0 0 0.25rem; font-weight: 600; }
+.offre-argument { margin: 0 0 0.8rem; color: var(--gris-texte); font-size: 0.92rem; }
+.offre-loyaute { margin: -0.4rem 0 0.8rem; font-size: 0.8rem; color: var(--gris-texte); }
+.offre-carte button { width: 100%; }
+
+/* Cinq colonnes sur 390 px : plutôt que de laisser glisser latéralement —
+   un défilement que personne ne devine, donc deux offres invisibles — on
+   resserre tout pour que le tableau tienne en entier. */
+.comparatif { width: 100%; table-layout: fixed; }
+.comparatif th, .comparatif td { padding: 0.45rem 0.2rem; font-size: 0.78rem; }
+.comparatif th[scope="row"] {
+  width: 27%;                      /* juste assez pour deux mots par ligne */
+  white-space: normal;             /* le libellé passe à la ligne, pas le tableau */
+  text-align: left;
+  font-size: 0.76rem;
+}
+.comparatif thead th {
+  font-size: 0.66rem;
+  letter-spacing: 0;               /* l'interlettrage des titres collait les colonnes */
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+  white-space: nowrap;             /* « ESSENTIE / L » coupé en deux : non */
+}

@@ -18,6 +18,10 @@ l'abonnement, on ne fait que le lui demander.
 | `POST /lecture` | **lit les photos d'un cours** : elles partent chez Claude, la fiche revient |
 | `GET /sante` | dit si les clés sont bien en place (`pret` pour le paiement, `lecture` pour la lecture) |
 
+La licence dit aussi **quelle offre** a été payée : le tarif de l'abonnement Stripe le révèle, donc
+il n'y a toujours rien à stocker ici. Une licence d'avant les paliers, ou dont le tarif n'est plus
+au catalogue, retombe sur l'offre conseillée plutôt que de bloquer quelqu'un qui paie.
+
 La « licence » rendue à l'app est l'identifiant client Stripe (`cus_…`). Le connaître ne donne rien
 d'autre que la réponse « actif » ou « non » : aucune donnée personnelle, aucun moyen de paiement ne
 passe par ici. Stripe encaisse, Stripe garde.
@@ -29,7 +33,16 @@ de suite (envoyer un mail, journaliser).
 ## Ce qu'il faut créer chez Stripe
 
 1. Un compte sur [stripe.com](https://stripe.com), puis **Produits → + Ajouter un produit**.
-2. Un tarif **récurrent** (mensuel, par exemple 3,99 €). Note son identifiant : `price_…`.
+2. **Trois** tarifs **récurrents** mensuels, un par offre. Note chaque identifiant `price_…` :
+
+   | Offre | Prix suggéré | Ce qu'elle donne |
+   | --- | --- | --- |
+   | Essentiel | 4,90 € | 20 fiches par mois |
+   | Régulier | 9,90 € | 60 fiches par mois |
+   | Illimité | 14,90 € | sans compteur (usage loyal : 300/mois) |
+
+   Les prix et les quotas affichés vivent dans `abonnement.js` (`CONFIG.offres`) :
+   change-les là, pas dans la page. Chez Stripe, seuls les montants comptent.
 3. Dans **Développeurs → Clés API**, prends la **clé secrète** : `sk_test_…` pour essayer,
    `sk_live_…` une fois prêt.
 4. (Facultatif) **Développeurs → Webhooks → + Ajouter**, adresse `https://…/webhook`,
@@ -40,7 +53,9 @@ de suite (envoyer un mail, journaliser).
 | Variable | À quoi elle sert |
 | --- | --- |
 | `STRIPE_CLE_SECRETE` | la clé secrète (`sk_test_…` ou `sk_live_…`) |
-| `STRIPE_PRIX` | l'identifiant du tarif récurrent (`price_…`) |
+| `STRIPE_PRIX_ESSENTIEL` | le tarif de l'offre à 20 fiches/mois (`price_…`) |
+| `STRIPE_PRIX_REGULIER` | le tarif de l'offre à 60 fiches/mois |
+| `STRIPE_PRIX_ILLIMITE` | le tarif de l'offre sans compteur |
 | `ORIGINES_AUTORISEES` | les adresses de l'app, séparées par des virgules — **à remplir en production** |
 | `STRIPE_WEBHOOK_SECRET` | facultatif, pour le webhook (`whsec_…`) |
 | `CLAUDE_CLE` | la clé Claude, pour la lecture des photos |
@@ -101,7 +116,7 @@ toute seule sur Tesseract et le dit à l'élève.
 ```sh
 cd serveur
 npm install
-STRIPE_CLE_SECRETE=sk_test_… STRIPE_PRIX=price_… CLAUDE_CLE=sk-ant-… npm start
+STRIPE_CLE_SECRETE=sk_test_… STRIPE_PRIX_REGULIER=price_… CLAUDE_CLE=sk-ant-… npm start
 # → Paiement en écoute sur http://localhost:8787
 ```
 

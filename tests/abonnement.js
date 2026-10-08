@@ -21,6 +21,7 @@ function verifier(nom, condition, vu) {
    Il répond comme serveur/index.js, sans Stripe : on éprouve ici ce que
    fait la page, pas ce que fait Stripe (voir tests/serveur-paiement.js). */
 const recu = { paiements: [], licences: [] };
+let offreRendue = 'essentiel';     // l'offre que le faux serveur dit avoir vendue
 const faux = http.createServer((requete, reponse) => {
   const adresse = new URL(requete.url, 'http://localhost');
   const entetes = {
@@ -48,7 +49,7 @@ const faux = http.createServer((requete, reponse) => {
     const actif = session === 'cs_payee' || cle === 'cus_bon';
     reponse.writeHead(200, entetes);
     reponse.end(JSON.stringify(actif
-      ? { actif: true, cle: 'cus_bon', expire: Date.now() + 30 * 86400000 }
+      ? { actif: true, cle: 'cus_bon', offre: offreRendue, expire: Date.now() + 30 * 86400000 }
       : { actif: false }));
     return;
   }
@@ -94,13 +95,19 @@ function semence(fiches, paiement) {
     await page.click('[data-offre="payer"]'); await page.waitForTimeout(400);
     verifier('la page de tarif reste consultable',
       await page.isVisible('#vue-abonnement'), 'page de tarif inatteignable');
-    verifier('le tarif y est affiché',
-      /9,90 €/.test(await page.innerText('.tarif-prix')), await page.innerText('.tarif-prix'));
+    verifier('les trois offres sont affichées',
+      (await page.locator('.offre-carte').count()) === 3,
+      await page.locator('.offre-carte').count());
+    verifier('leurs trois tarifs y sont',
+      /4,90 €/.test(await page.innerText('#illimite-offres'))
+      && /9,90 €/.test(await page.innerText('#illimite-offres'))
+      && /14,90 €/.test(await page.innerText('#illimite-offres')),
+      await page.innerText('#illimite-offres'));
     verifier('elle annonce l\'offre comme à venir',
-      /Offre en préparation/.test(await page.innerText('#illimite-note')),
-      await page.innerText('#illimite-note'));
-    verifier('et le paiement est annoncé indisponible',
-      (await page.isDisabled('#illimite-payer'))
+      /Offre en préparation/.test(await page.innerText('#illimite-raison')),
+      await page.innerText('#illimite-raison'));
+    verifier('et aucune ne peut être souscrite',
+      (await page.locator('[data-payer]:not([disabled])').count()) === 0
       && /Rien ne t'est débité/.test(await page.innerText('#illimite-mention')),
       await page.innerText('#illimite-mention'));
     verifier('aucun abonnement n\'est accordé pour autant',
@@ -144,18 +151,38 @@ function semence(fiches, paiement) {
     verifier('la page de tarif s\'ouvre au lieu de la création',
       (await page.isVisible('#vue-abonnement')) && !(await page.isVisible('#feuille-creation')),
       'vue inattendue');
-    verifier('elle annonce le tarif',
-      /9,90 €/.test(await page.innerText('.tarif-prix'))
-      && /par mois/.test(await page.innerText('.tarif-prix')),
-      await page.innerText('.tarif-prix'));
-    verifier('elle dit ce que l\'illimité débloque',
-      /Fiches sans limite/.test(await page.innerText('.offre')),
+    verifier('elle annonce les trois tarifs et leurs volumes',
+      /4,90 €/.test(await page.innerText('#illimite-offres'))
+      && /20 fiches par mois/.test(await page.innerText('#illimite-offres'))
+      && /par mois/.test(await page.innerText('#illimite-offres')),
+      await page.innerText('#illimite-offres'));
+    verifier('elle dit ce que l\'abonnement débloque',
+      /Lecture de tes photos/.test(await page.innerText('.offre')),
       await page.innerText('.offre').then((t) => t.slice(0, 80)));
-    verifier('le comparatif reprend la limite gratuite',
-      (await page.innerText('#comparatif-gratuit')) === '3',
-      await page.innerText('#comparatif-gratuit'));
+    verifier('le comparatif oppose l\'essai aux trois offres',
+      /3 en tout/.test(await page.innerText('#illimite-comparatif'))
+      && /20 \/ mois/.test(await page.innerText('#illimite-comparatif'))
+      && /sans compter/.test(await page.innerText('#illimite-comparatif')),
+      await page.innerText('#illimite-comparatif'));
+    /* Cinq colonnes sur 390 px : si le tableau déborde, deux offres
+       deviennent invisibles sans que l'élève sache qu'il faut faire
+       glisser — autant ne pas les proposer. */
+    const tableau = await page.evaluate(() => {
+      const t = document.querySelector('#illimite-comparatif');
+      const titres = [...t.querySelectorAll('thead th')].map((e) => e.textContent.trim()).filter(Boolean);
+      return {
+        deborde: t.scrollWidth > t.clientWidth + 2,
+        page: document.documentElement.scrollWidth > window.innerWidth,
+        titres,
+      };
+    });
+    verifier('le comparatif tient dans l\'écran, sans défilement latéral',
+      !tableau.deborde && !tableau.page, JSON.stringify(tableau));
+    verifier('les quatre colonnes sont nommées en entier',
+      tableau.titres.join('|') === 'Gratuit|Essentiel|Régulier|Illimité', tableau.titres.join(' | '));
+
     verifier('le mur dit pourquoi',
-      /3 fiches gratuites sont utilisées/.test(await page.innerText('#illimite-raison')),
+      /3 fiches d'essai sont utilisées/.test(await page.innerText('#illimite-raison')),
       await page.innerText('#illimite-raison'));
     verifier('aucun abonnement n\'est inventé',
       (await page.evaluate(() => localStorage.getItem('mathematique.abonnement'))) === null,
@@ -180,14 +207,19 @@ function semence(fiches, paiement) {
     await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(500);
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
 
-    verifier('avec un serveur, le paiement est proposé',
-      !(await page.isDisabled('#illimite-payer'))
-      && /Payer avec Stripe/.test(await page.innerText('#illimite-payer')),
-      await page.innerText('#illimite-payer'));
+    verifier('avec un serveur, les trois offres sont souscriptibles',
+      (await page.locator('[data-payer]:not([disabled])').count()) === 3,
+      await page.locator('[data-payer]:not([disabled])').count());
+    verifier('celle du milieu est mise en avant',
+      (await page.locator('.offre-carte--conseillee [data-payer]').getAttribute('data-payer')) === 'regulier',
+      await page.locator('.offre-carte--conseillee [data-payer]').getAttribute('data-payer'));
 
-    await page.click('#illimite-payer'); await page.waitForTimeout(900);
+    await page.click('[data-payer="essentiel"]'); await page.waitForTimeout(900);
     verifier('la page demande la session au serveur', recu.paiements.length === 1,
       JSON.stringify(recu.paiements));
+    verifier('elle transmet l\'offre choisie, pas une autre',
+      recu.paiements[0] && recu.paiements[0].offre === 'essentiel',
+      JSON.stringify(recu.paiements[0]));
     verifier('elle transmet l\'appareil et l\'adresse de retour',
       recu.paiements[0] && /^a/.test(recu.paiements[0].appareil)
       && /localhost:8321/.test(recu.paiements[0].retour),
@@ -215,7 +247,10 @@ function semence(fiches, paiement) {
 
     await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(300);
     const profil = await page.innerText('#profil-abonnement');
-    verifier('le profil passe à « Illimité »', /illimité/i.test(profil), profil.replace(/\n+/g, ' / '));
+    verifier('le profil nomme l\'offre souscrite, pas une autre',
+      /Essentiel/i.test(profil), profil.replace(/\n+/g, ' / '));
+    verifier('et donne le compteur du mois, pas le total de la bibliothèque',
+      /sur 20 ce mois-ci/.test(profil), profil.replace(/\n+/g, ' / '));
     verifier('la clé est donnée pour un autre appareil',
       (await page.inputValue('#profil-licence')) === 'cus_bon', await page.inputValue('#profil-licence'));
 
@@ -259,8 +294,8 @@ function semence(fiches, paiement) {
     verifier('la bonne clé rend l\'illimité',
       !(await page.isVisible('#vue-abonnement')), 'mur encore ouvert');
     await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(300);
-    verifier('le profil le confirme',
-      /illimité/i.test(await page.innerText('#profil-abonnement')),
+    verifier('le profil le confirme, avec le nom de l\'offre',
+      /Essentiel/i.test(await page.innerText('#profil-abonnement')),
       await page.innerText('#profil-abonnement'));
     await ctx.close();
   }

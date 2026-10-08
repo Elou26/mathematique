@@ -23,7 +23,23 @@ const Stripe = require("stripe");
 const Anthropic = require("@anthropic-ai/sdk");
 
 const CLE_SECRETE = process.env.STRIPE_CLE_SECRETE || process.env.STRIPE_SECRET_KEY || "";
-const PRIX = process.env.STRIPE_PRIX || process.env.STRIPE_PRICE_ID || "";
+/* ————— Les trois offres ————————————————————————————————————————
+   Un tarif Stripe par offre. La clé (« essentiel », « regulier »,
+   « illimite ») est ce que la page demande ; l'identifiant price_… ne
+   sort jamais d'ici. STRIPE_PRIX seule reste acceptée : une mise en ligne
+   faite avant les paliers continue de fonctionner, sur l'offre du milieu.
+   ———————————————————————————————————————————————————————————— */
+const TARIFS = {
+  essentiel: process.env.STRIPE_PRIX_ESSENTIEL || "",
+  regulier: process.env.STRIPE_PRIX_REGULIER || process.env.STRIPE_PRIX || process.env.STRIPE_PRICE_ID || "",
+  illimite: process.env.STRIPE_PRIX_ILLIMITE || "",
+};
+/* L'inverse, pour retrouver l'offre d'un abonnement existant. */
+const OFFRE_DU_TARIF = Object.keys(TARIFS).reduce((table, cle) => {
+  if (TARIFS[cle]) table[TARIFS[cle]] = cle;
+  return table;
+}, {});
+const AU_MOINS_UN_TARIF = Object.keys(TARIFS).some((cle) => TARIFS[cle]);
 const SECRET_WEBHOOK = process.env.STRIPE_WEBHOOK_SECRET || "";
 
 /* ————— Lecture des photos : Claude ————————————————————————————
@@ -82,9 +98,14 @@ const STATUTS_ACTIFS = new Set(["active", "trialing", "past_due"]);
 function licenceDe(abonnement, client) {
   if (!abonnement || !STATUTS_ACTIFS.has(abonnement.status)) return { actif: false };
   const fin = abonnement.current_period_end ? abonnement.current_period_end * 1000 : 0;
+  /* Quelle offre a-t-il prise ? Le tarif de l'abonnement le dit, donc on
+     n'a toujours rien à stocker : Stripe reste la seule source de vérité. */
+  const article = ((abonnement.items && abonnement.items.data) || [])[0];
+  const tarif = article && article.price && article.price.id;
   return {
     actif: true,
     cle: typeof client === "string" ? client : (client && client.id) || "",
+    offre: (tarif && OFFRE_DU_TARIF[tarif]) || "",
     expire: fin,
     statut: abonnement.status,
   };
@@ -94,7 +115,14 @@ function licenceDe(abonnement, client) {
 
 /** Crée la session de paiement et renvoie son adresse. */
 async function creerPaiement(corps, origine) {
-  if (!stripe || !PRIX) return { code: 500, corps: { erreur: "serveur_non_configure" } };
+  if (!stripe || !AU_MOINS_UN_TARIF) return { code: 500, corps: { erreur: "serveur_non_configure" } };
+
+  /* L'offre vient de la page, donc on ne lui fait pas confiance : seule une
+     clé connue ET dont le tarif est renseigné passe. Sans quoi un visiteur
+     pourrait demander une offre qu'on ne vend pas. */
+  const demandee = String((corps && corps.offre) || "").slice(0, 40);
+  const prix = TARIFS[demandee];
+  if (!prix) return { code: 400, corps: { erreur: "offre_inconnue", offres: Object.keys(TARIFS).filter((c) => TARIFS[c]) } };
 
   const appareil = String((corps && corps.appareil) || "").slice(0, 64) || undefined;
   const retour = String((corps && corps.retour) || "").slice(0, 500);
@@ -107,7 +135,7 @@ async function creerPaiement(corps, origine) {
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
-    line_items: [{ price: PRIX, quantity: 1 }],
+    line_items: [{ price: prix, quantity: 1 }],
     client_reference_id: appareil,
     allow_promotion_codes: true,
     locale: "fr",
@@ -424,7 +452,11 @@ async function router(requete, reponse) {
   if (requete.method === "OPTIONS") { reponse.writeHead(204, enTetes(origine)); reponse.end(); return; }
 
   if (chemin === "/sante") {
-    repondre(reponse, 200, { pret: Boolean(stripe && PRIX), lecture: Boolean(claude) }, origine);
+    repondre(reponse, 200, {
+      pret: Boolean(stripe && AU_MOINS_UN_TARIF),
+      offres: Object.keys(TARIFS).filter((cle) => TARIFS[cle]),
+      lecture: Boolean(claude),
+    }, origine);
     return;
   }
 
@@ -487,7 +519,11 @@ if (require.main === module) {
   }).listen(port, () => {
     console.log(`Paiement en écoute sur http://localhost:${port}`);
     if (!stripe) console.log("⚠ STRIPE_CLE_SECRETE manquante : les routes répondront « non configuré ».");
-    if (!PRIX) console.log("⚠ STRIPE_PRIX manquante : impossible de créer une session.");
+    if (!AU_MOINS_UN_TARIF) console.log("⚠ Aucun STRIPE_PRIX_* : impossible de créer une session.");
+    else {
+      const absentes = Object.keys(TARIFS).filter((cle) => !TARIFS[cle]);
+      if (absentes.length) console.log(`⚠ Offres sans tarif, donc invendables : ${absentes.join(", ")}`);
+    }
     if (!claude) console.log("⚠ CLAUDE_CLE manquante : /lecture répondra « non configuré ».");
   });
 }

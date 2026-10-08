@@ -97,9 +97,18 @@ résumé qu'on trouve soi-même pas clair.
 1. Vercel Hobby **interdit l'usage commercial**. Vendre un abonnement
    demande Pro (~20 $/mois), ou un déplacement vers Render (~7 $/mois).
    Choisis à ce moment-là.
-2. [stripe.com](https://stripe.com) → **Produits → Ajouter un produit** :
-   « Mathématique illimité », tarif **récurrent**, **9,90 €/mois**.
-   Note l'identifiant `price_…`
+2. [stripe.com](https://stripe.com) → **Produits → Ajouter un produit**,
+   **trois fois**, chacun avec un tarif **récurrent mensuel** :
+
+   | Produit | Prix | Ce qu'il donne |
+   | --- | --- | --- |
+   | Mathématique Essentiel | 4,90 € | 20 fiches/mois |
+   | Mathématique Régulier | 9,90 € | 60 fiches/mois |
+   | Mathématique Illimité | 14,90 € | sans compteur |
+
+   Note les trois identifiants `price_…`. Pour changer un prix affiché ou un
+   quota, c'est `abonnement.js` (`CONFIG.offres`) — Stripe ne connaît que
+   les montants.
 3. **Développeurs → Clés API** → la **clé secrète**. Prends `sk_test_…`
    d'abord.
 4. Variables d'environnement :
@@ -107,7 +116,9 @@ résumé qu'on trouve soi-même pas clair.
    | Nom | Valeur |
    | --- | --- |
    | `STRIPE_CLE_SECRETE` | `sk_test_…` |
-   | `STRIPE_PRIX` | `price_…` |
+   | `STRIPE_PRIX_ESSENTIEL` | `price_…` |
+   | `STRIPE_PRIX_REGULIER` | `price_…` |
+   | `STRIPE_PRIX_ILLIMITE` | `price_…` |
 
    Laisse `STRIPE_WEBHOOK_SECRET` vide : sur Vercel la signature n'est pas
    vérifiable, et le webhook est facultatif.

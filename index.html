@@ -360,43 +360,28 @@
       Retour
     </button>
 
-    <section class="tarif">
-      <span class="tarif-badge">Illimité</span>
-      <h2 class="tarif-titre">Révise sans compteur</h2>
-      <p class="tarif-raison" id="illimite-raison">Autant de fiches que tu veux, sur toutes tes matières.</p>
+    <p class="tarif-raison" id="illimite-raison">Choisis ce qui correspond à ton rythme.</p>
 
-      <p class="tarif-prix">
-        <span id="illimite-prix">9,90 €</span>
-        <span class="tarif-periode" id="illimite-periode">par mois</span>
-      </p>
-      <p class="tarif-note" id="illimite-note">Sans engagement · résiliable en un clic</p>
+    <!-- Les trois offres sont écrites par rendreOffres() depuis abonnement.js :
+         les prix et les quotas vivent à un seul endroit, pas aussi ici. -->
+    <div class="offres" id="illimite-offres"></div>
 
-      <button class="bouton-principal" type="button" id="illimite-payer">Payer avec Stripe</button>
-      <p class="mention" id="illimite-mention">Paiement chez Stripe : l'app ne voit jamais ta carte.</p>
-      <p class="ia-message" id="illimite-message" hidden aria-live="polite"></p>
-    </section>
+    <p class="mention" id="illimite-mention">Paiement chez Stripe : l'app ne voit jamais ta carte.</p>
+    <p class="ia-message" id="illimite-message" hidden aria-live="polite"></p>
 
-    <h3 class="titre-categorie">Ce que l'illimité débloque</h3>
+    <h3 class="titre-categorie">Ce que l'abonnement débloque</h3>
     <ul class="offre">
-      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Fiches sans limite</strong> — photographie tous tes cours, toute l'année</span></li>
+      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Lecture de tes photos</strong> — tes cours deviennent des fiches, écriture manuscrite comprise</span></li>
       <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Résumé, cartes et quiz</strong> sur chacune de tes fiches</span></li>
       <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Révision espacée</strong> sur tout ton programme, notion par notion</span></li>
       <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Entraînement libre</strong> sur l'ensemble de tes cartes</span></li>
       <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Sur tous tes appareils</strong> — une clé à coller, et c'est repris</span></li>
     </ul>
+    <p class="mention">Toutes les offres donnent accès à tout. Elles ne diffèrent que par le
+      nombre de fiches que tu peux créer chaque mois.</p>
 
-    <h3 class="titre-categorie">Gratuit ou illimité</h3>
-    <table class="comparatif">
-      <thead>
-        <tr><th scope="col">&nbsp;</th><th scope="col">Gratuit</th><th scope="col">Illimité</th></tr>
-      </thead>
-      <tbody>
-        <tr><th scope="row">Fiches de révision</th><td id="comparatif-gratuit">3</td><td class="comparatif-oui">sans limite</td></tr>
-        <tr><th scope="row">Résumé, cartes, quiz</th><td class="comparatif-oui">✓</td><td class="comparatif-oui">✓</td></tr>
-        <tr><th scope="row">Révision espacée</th><td class="comparatif-oui">✓</td><td class="comparatif-oui">✓</td></tr>
-        <tr><th scope="row">Lecture de tes photos</th><td class="comparatif-oui">✓</td><td class="comparatif-oui">✓</td></tr>
-      </tbody>
-    </table>
+    <h3 class="titre-categorie">Comparer</h3>
+    <table class="comparatif" id="illimite-comparatif"></table>
 
     <h3 class="titre-categorie">Questions courantes</h3>
     <details class="reglages">

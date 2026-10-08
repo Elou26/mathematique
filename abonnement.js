@@ -21,11 +21,36 @@ const ABONNEMENT = (function () {
      sans barre finale. Le reste est de l'affichage.
      ———————————————————————————————————————————————————————————— */
   const CONFIG = {
-    api: "",                                  // ex. « https://mathematique-paiement.vercel.app »
-    prix: "9,90 €",
-    periode: "par mois",
+    api: "",                                  // ex. « https://mathematique-mu.vercel.app/api »
     essai: "",                                // ex. « 7 jours offerts »
-    gratuit: { fiches: 3 },                   // ce que la version gratuite permet
+    gratuit: { fiches: 3 },                   // l'essai : 3 fiches en tout, pas par mois
+
+    /* ————— Les trois offres ————————————————————————————————————
+       Elles se distinguent par le nombre de fiches par mois, parce que
+       c'est le seul poste qui grandit avec l'usage : une fiche coûte
+       environ quatre centimes à produire. Un palier qui ne compterait pas
+       les fiches laisserait un gros utilisateur manger toute sa marge.
+
+       `fiches` est le plafond mensuel. `illimite` ne supprime pas le
+       plafond : il dit qu'on ne l'annonce pas comme une limite, parce
+       qu'aucun élève honnête ne l'atteindra. Le chiffre reste affiché —
+       un « illimité » qui cache un plafond est un mensonge qui se
+       découvre au pire moment.
+       ———————————————————————————————————————————————————————————— */
+    offres: [
+      {
+        cle: "essentiel", nom: "Essentiel", prix: "4,90 €", periode: "par mois",
+        fiches: 20, argument: "Pour une ou deux matières.",
+      },
+      {
+        cle: "regulier", nom: "Régulier", prix: "9,90 €", periode: "par mois",
+        fiches: 60, argument: "Toutes tes matières, toute l'année.", conseille: true,
+      },
+      {
+        cle: "illimite", nom: "Illimité", prix: "14,90 €", periode: "par mois",
+        fiches: 300, illimite: true, argument: "Sans compter, même en période de révisions.",
+      },
+    ],
   };
 
   /* Une mise en ligne peut renseigner l'adresse sans toucher à ce fichier :
@@ -40,6 +65,7 @@ const ABONNEMENT = (function () {
 
   const CLE_ABONNEMENT = "mathematique.abonnement";
   const CLE_APPAREIL = "mathematique.appareil";
+  const CLE_CONSOMMATION = "mathematique.consommation";
   const JOUR = 86400000;
   const DELAI_VERIFICATION = JOUR;            // on revérifie une fois par jour
   const DELAI_RESEAU = 15000;
@@ -93,6 +119,59 @@ const ABONNEMENT = (function () {
 
   function config() { return CONFIG; }
 
+  /* ————— Le compteur du mois ——————————————————————————————————
+     Les offres se comptent par mois, pas en tout : il faut donc savoir
+     combien de fiches ce navigateur a produites ce mois-ci.
+
+     Ce compteur vit sur l'appareil. Il guide l'élève, il ne le retient
+     pas : vider son navigateur le remet à zéro. Ce n'est pas une faille
+     à colmater ici — le vrai garde-fou de ta facture est côté serveur
+     (pages par heure et par appareil), et une vraie application du quota
+     demanderait des comptes et une base de données.
+     ———————————————————————————————————————————————————————————— */
+
+  function moisCourant(quand) {
+    const d = quand ? new Date(quand) : new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function journal() {
+    try {
+      const brut = JSON.parse(localStorage.getItem(CLE_CONSOMMATION) || "null");
+      if (brut && brut.mois === moisCourant()) return brut;
+    } catch (erreur) { /* illisible : on repart du mois courant */ }
+    return { mois: moisCourant(), fiches: 0 };
+  }
+
+  /** Combien de fiches ce mois-ci. */
+  function consommation() { return journal().fiches; }
+
+  /** Une fiche de plus ce mois-ci. Appelé quand une fiche est bel et bien créée. */
+  function noterFiche() {
+    const suivi = journal();
+    suivi.fiches += 1;
+    try { localStorage.setItem(CLE_CONSOMMATION, JSON.stringify(suivi)); }
+    catch (erreur) { /* navigation privée : le compte vaut pour la session */ }
+    return suivi.fiches;
+  }
+
+  function offres() { return CONFIG.offres.slice(); }
+
+  function offreParCle(cle) {
+    return CONFIG.offres.filter((o) => o.cle === cle)[0] || null;
+  }
+
+  /** L'offre à laquelle l'élève a souscrit, telle que le serveur l'a dite. */
+  function offreActive() {
+    const courant = etat();
+    if (!courant.actif) return null;
+    /* Une licence d'avant les paliers, ou une offre retirée du catalogue :
+       on ne bloque personne, on lui donne l'offre conseillée. */
+    return offreParCle(courant.offre)
+      || CONFIG.offres.filter((o) => o.conseille)[0]
+      || CONFIG.offres[CONFIG.offres.length - 1];
+  }
+
   /** L'abonnement est-il actif ? Une échéance dépassée ne compte plus. */
   function estIllimite() {
     const courant = etat();
@@ -109,13 +188,26 @@ const ABONNEMENT = (function () {
    * `dejaCreees` vient de la bibliothèque, seul endroit qui les compte.
    */
   function quotaFiches(dejaCreees) {
-    const max = CONFIG.gratuit.fiches;
     /* Pas de mur sans porte : tant que le paiement n'est pas branché, on ne
        limite rien. Le jour où `api` est renseignée, la gratuité s'applique. */
     if (!estConfigure()) return { illimite: true, max: Infinity, reste: Infinity, atteint: false, sansOffre: true };
-    if (estIllimite()) return { illimite: true, max: Infinity, reste: Infinity, atteint: false };
+
+    if (estIllimite()) {
+      const offre = offreActive();
+      const faites = consommation();
+      const reste = Math.max(offre.fiches - faites, 0);
+      return {
+        illimite: Boolean(offre.illimite),       // affiché comme sans limite
+        abonne: true, offre, periode: "mois",
+        max: offre.fiches, faites, reste, atteint: reste <= 0,
+      };
+    }
+
+    /* L'essai se compte en tout, pas par mois : c'est un essai, pas une
+       petite offre gratuite qui se recharge. */
+    const max = CONFIG.gratuit.fiches;
     const reste = Math.max(max - (dejaCreees || 0), 0);
-    return { illimite: false, max, reste, atteint: reste <= 0 };
+    return { illimite: false, abonne: false, essai: true, max, reste, atteint: reste <= 0 };
   }
 
   /* ————— Le dialogue avec le serveur de paiement ————————————————— */
@@ -145,11 +237,13 @@ const ABONNEMENT = (function () {
    * Ouvre le paiement : le serveur crée la session Stripe et renvoie son
    * adresse. La page ne voit jamais la clé secrète.
    */
-  async function ouvrirPaiement({ retour } = {}) {
+  async function ouvrirPaiement({ retour, offre } = {}) {
+    const choisie = offreParCle(offre) || CONFIG.offres.filter((o) => o.conseille)[0] || CONFIG.offres[0];
     const donnees = await demander("/paiement", {
       method: "POST",
       body: JSON.stringify({
         appareil: appareil(),
+        offre: choisie.cle,
         retour: retour || window.location.href.split("?")[0],
       }),
     });
@@ -178,6 +272,7 @@ const ABONNEMENT = (function () {
     ecrire({
       actif: true,
       cle: String(donnees.cle).slice(0, 80),
+      offre: String(donnees.offre || "").slice(0, 40),
       expire: Number(donnees.expire) || 0,
       verifieLe: Date.now(),
     });
@@ -224,6 +319,8 @@ const ABONNEMENT = (function () {
 
   return {
     config, configure, appareil,
+    offres, offreParCle, offreActive,
+    consommation, noterFiche, moisCourant,
     estIllimite, estConfigure, quotaFiches,
     ouvrirPaiement, confirmerSession, verifierLicence, rafraichir, oublier,
     sessionDeRetour, nettoyerAdresse, etat,

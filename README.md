@@ -667,7 +667,7 @@ Détail des routes et du déploiement dans [`serveur/LISEZMOI.md`](serveur/LISEZ
 
 ### Pour l'allumer
 
-1. Déployer `serveur/` (voir son LISEZMOI) avec `STRIPE_CLE_SECRETE`, `STRIPE_PRIX` et
+1. Déployer `serveur/` (voir son LISEZMOI) avec `STRIPE_CLE_SECRETE`, les trois `STRIPE_PRIX_*` et
    `ORIGINES_AUTORISEES`.
 2. Dans `abonnement.js`, renseigner `api: "https://ton-serveur"` — ou, sans toucher au fichier,
    poser `window.MATHEMATIQUE_PAIEMENT = { api: "…" }` avant son chargement.
