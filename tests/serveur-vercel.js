@@ -38,10 +38,11 @@ Module._load = function (demande) {
   if (demande === 'stripe') return function Stripe() { return {}; };
   if (demande === '@anthropic-ai/sdk') {
     return function Anthropic() {
-      return { messages: { create: async () => ({
+      const messages = { create: async () => ({
         stop_reason: 'tool_use',
         content: [{ type: 'tool_use', name: 'rendre_fiche', input: FICHE }],
-      }) } };
+      }) };
+      return { messages, beta: { messages } };
     };
   }
   return chargerOriginal.apply(this, arguments);

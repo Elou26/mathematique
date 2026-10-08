@@ -84,9 +84,10 @@ connais bien et relis les fiches obtenues ligne à ligne :
   l'élève puisse le savoir. Si tu en trouves un, dis-le-moi avec la photo
   et la fiche — c'est la consigne qu'il faut corriger, pas le code.
 
-Si une fiche est juste mais trop plate, essaie `CLAUDE_EFFORT=high`. Si
-elle est bonne et que tu veux baisser la facture, essaie
-`CLAUDE_MODELE=claude-sonnet-5-5` : environ deux fois moins cher par fiche.
+Le modèle par défaut est `claude-sonnet-5-5` : ~4 centimes la fiche. Si une
+fiche est juste mais trop plate, essaie `CLAUDE_EFFORT=high` d'abord — c'est
+le réglage le moins cher. Si ça ne suffit pas, `CLAUDE_MODELE=claude-opus-5-5`
+donne plus de finesse pour environ le double.
 
 ## Étape 4 — Le paiement (en dernier, jamais avant)
 
@@ -138,8 +139,8 @@ résumé qu'on trouve soi-même pas clair.
   par erreur se révoque et se recrée en dix secondes — fais-le.
 - **Ce que tu me transmets**, c'est la réponse de `/api/sante` ou le
   message d'erreur exact, jamais le secret.
-- **Les coûts réels** : 4 à 6 centimes par fiche sur Opus (3 sur Sonnet
-  5.5), plus ~1,5 % + 0,25 € par encaissement Stripe. Un élève qui fait
-  20 fiches par mois te coûte ~1 € sur ses 9,90 €.
+- **Les coûts réels** : ~4 centimes par fiche sur Sonnet 5.5 (~8 sur
+  Opus 5.5), plus ~1,5 % + 0,25 € par encaissement Stripe. Un élève qui
+  fait 20 fiches par mois te coûte ~80 centimes sur ses 9,90 €.
 
 Les détails techniques sont dans `serveur/LISEZMOI.md`.

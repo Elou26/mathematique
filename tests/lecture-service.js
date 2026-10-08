@@ -57,8 +57,7 @@ Module._load = function (demande) {
   if (demande === 'stripe') return function Stripe() { return {}; };
   if (demande === '@anthropic-ai/sdk') {
     return function Anthropic(options) {
-      return {
-        messages: {
+      const messages = {
           create: async (params) => {
             recu.appels.push({ cle: options.apiKey, params });
             if (mode === 'cle') { const e = new Error('unauthorized'); e.status = 401; throw e; }
@@ -73,8 +72,8 @@ Module._load = function (demande) {
             }
             return { stop_reason: 'tool_use', content: [{ type: 'tool_use', name: 'rendre_fiche', input: FICHE }] };
           },
-        },
       };
+      return { messages, beta: { messages } };
     };
   }
   return chargerOriginal.apply(this, arguments);
@@ -119,7 +118,12 @@ serveur.listen(0, async () => {
 
   const appel = recu.appels[recu.appels.length - 1];
   verifier('la clé reste au serveur, jamais dans la page', appel.cle === 'cle_de_test', appel.cle);
-  verifier('le modèle demandé est celui réglé', appel.params.model === 'claude-opus-5-5', appel.params.model);
+  verifier('le modèle demandé est celui réglé',
+    appel.params.model === 'claude-sonnet-5-5', appel.params.model);
+  verifier('un refus de sécurité repart sur un modèle de repli',
+    appel.params.fallbacks === 'default'
+    && (appel.params.betas || []).some((b) => /server-side-fallback/.test(b)),
+    JSON.stringify({ fallbacks: appel.params.fallbacks, betas: appel.params.betas }));
   verifier('la photo part comme image en base64',
     appel.params.messages[0].content[0].type === 'image'
     && appel.params.messages[0].content[0].source.media_type === 'image/jpeg'

@@ -35,9 +35,11 @@ const SECRET_WEBHOOK = process.env.STRIPE_WEBHOOK_SECRET || "";
    ensemble dans la même requête : un cours sur deux pages reste un cours.
    ———————————————————————————————————————————————————————————— */
 const CLE_CLAUDE = process.env.CLAUDE_CLE || process.env.ANTHROPIC_API_KEY || "";
-const MODELE = process.env.CLAUDE_MODELE || "claude-opus-5-5";
-/* Combien Claude a le droit de réfléchir : low | medium | high | xhigh | max.
-   « medium » suffit à lire un cours ; « high » aide sur un manuscrit ingrat. */
+const MODELE = process.env.CLAUDE_MODELE || "claude-sonnet-5-5";
+/* Combien le modèle a le droit de réfléchir : low | medium | high | xhigh | max.
+   « medium » suffit à lire un cours ; « high » aide sur un manuscrit ingrat.
+   Les paliers n'ont pas la même échelle d'un modèle à l'autre : en changeant
+   de modèle, il faut réessayer ce réglage plutôt que le supposer acquis. */
 const EFFORT = process.env.CLAUDE_EFFORT || "medium";
 const PAGES_MAX = Number(process.env.LECTURE_PAGES_MAX) || 4;
 const OCTETS_MAX = Number(process.env.LECTURE_OCTETS_MAX) || 14 * 1024 * 1024;
@@ -307,9 +309,15 @@ function blocImage(uri) {
  * en haut de la suivante.
  */
 async function demanderFiche(images) {
-  const reponse = await claude.messages.create({
+  const reponse = await claude.beta.messages.create({
     model: MODELE,
     max_tokens: 16000,
+    /* Un classificateur de sécurité peut décliner une page — un cours
+       d'histoire sur la guerre, un cours de chimie sur les explosifs. Sans
+       repli, l'élève lirait « illisible » sur une page parfaitement nette.
+       Avec, la demande repart sur un autre modèle dans le même appel. */
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
     system: CONSIGNE,
     output_config: { effort: EFFORT },
     tools: [OUTIL_FICHE],
@@ -324,8 +332,9 @@ async function demanderFiche(images) {
     }],
   });
 
-  /* Un refus de sécurité arrive en 200 : sans ce test, on lirait le contenu
-     d'une réponse qui n'en a pas. */
+  /* Un refus arrive en 200 : sans ce test, on lirait le contenu d'une
+     réponse qui n'en a pas. Ici, il signifie que même le modèle de repli
+     a décliné. */
   if (reponse.stop_reason === "refusal") throw { genre: "refus" };
   if (reponse.stop_reason === "max_tokens") throw { genre: "tronquee" };
 

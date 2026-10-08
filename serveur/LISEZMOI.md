@@ -44,7 +44,7 @@ de suite (envoyer un mail, journaliser).
 | `ORIGINES_AUTORISEES` | les adresses de l'app, séparées par des virgules — **à remplir en production** |
 | `STRIPE_WEBHOOK_SECRET` | facultatif, pour le webhook (`whsec_…`) |
 | `CLAUDE_CLE` | la clé Claude, pour la lecture des photos |
-| `CLAUDE_MODELE` | facultatif, `claude-opus-5-5` par défaut |
+| `CLAUDE_MODELE` | facultatif, `claude-sonnet-5-5` par défaut ; `claude-opus-5-5` pour plus de finesse, à ~2× le prix |
 | `CLAUDE_EFFORT` | facultatif, `medium` par défaut — `high` aide sur un manuscrit ingrat |
 | `LECTURE_PAGES_PAR_HEURE` | facultatif, 40 par défaut — le garde-fou de facture |
 
@@ -64,9 +64,9 @@ n'a plus rien à deviner — `OCR.structurerFiche()` ne fait que vérifier et ra
 
 | | |
 | --- | --- |
-| Modèle | `claude-opus-5-5` (réglable par `CLAUDE_MODELE`) |
+| Modèle | `claude-sonnet-5-5` (réglable par `CLAUDE_MODELE`) |
 | Clé | [console.anthropic.com](https://console.anthropic.com) → `CLAUDE_CLE` |
-| Coût | ≈ 4 à 6 centimes par fiche sur Opus, ≈ 3 centimes sur Sonnet 5.5 |
+| Coût | ≈ 4 centimes par fiche sur Sonnet 5.5, ≈ 8 sur Opus 5.5 |
 
 **Les pages partent ensemble**, dans la même requête : un cours étalé sur deux photos garde son
 fil, et une notion commencée en bas d'une page se termine en haut de la suivante. C'est la raison
@@ -84,10 +84,14 @@ vide de mémoire.
 2. Elle freine un appareil qui demande plus de 40 pages par heure — un garde-fou pour la facture,
    gardé en mémoire du processus, donc remis à zéro à chaque redéploiement. Ce n'est pas une
    sécurité : si tu ouvres l'app au public, mets une vraie limite devant (passerelle, WAF).
-3. Elle distingue les cinq façons d'échouer, au lieu de dire « panne » : clé refusée, surcharge,
+3. Un refus de sécurité ne devient pas un échec : la requête porte
+   `fallbacks: "default"`, donc elle repart sur un autre modèle dans le même
+   appel. Un cours d'histoire sur la guerre ou de chimie sur les explosifs ne
+   doit pas revenir « illisible » alors que la photo est nette.
+4. Elle distingue les cinq façons d'échouer, au lieu de dire « panne » : clé refusée, surcharge,
    réponse coupée (`lecture_tronquee`), refus de sécurité et page illisible. Un refus ou une
    réponse sans fiche deviennent `illisible` — jamais une fiche vide servie comme si de rien n'était.
-4. **La photo n'est ni stockée ni journalisée** : seule la fiche repart.
+5. **La photo n'est ni stockée ni journalisée** : seule la fiche repart.
 
 Elle répond `{ fiche, pages, moteur }`, ou `{ illisible: true }`. En cas de panne, l'app repasse
 toute seule sur Tesseract et le dit à l'élève.
