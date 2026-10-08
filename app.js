@@ -2141,6 +2141,9 @@
       propre.contenu.accroche = brute.contenu.accroche;
       propre.contenu.libelleFormules = brute.contenu.libelleFormules;
       propre.contenu.sections = brute.contenu.sections;
+      /* Ce que le service n'a pas su lire suit la fiche : une fiche muette
+         sur ses trous se révise comme si elle était complète. */
+      propre.contenu.aVerifier = brute.aVerifier || [];
       propre.contenu.texte = brute.contenu.texte;
       propre.texte = brute.texte;
 
@@ -2396,7 +2399,7 @@
     if (!Array.isArray(sections) || !sections.length) return "";
     return sections.map((section, rang) => `
       <section class="fiche-partie"${ancre ? ` id="${ancre}-${rang + 1}"` : ""}>
-        <h4 class="fiche-partie-titre"><span class="fiche-partie-numero">${rang + 1}</span>${echapper(section.titre)}</h4>
+        <h4 class="fiche-partie-titre"><span class="fiche-partie-numero">${echapper(section.numero || String(rang + 1))}</span>${echapper(section.titre)}</h4>
         ${section.texte ? `<p class="fiche-partie-texte">${echapper(section.texte)}</p>` : ""}
         ${(section.points || []).length
           ? `<ul class="fiche-partie-points">${section.points.map((p) => `<li>${echapper(p)}</li>`).join("")}</ul>`
@@ -2808,6 +2811,7 @@
         ) : ""}
       ${exemples ? sectionFiche("Exemples corrigés", contenu.exemples, "fiche-section--exemples") : ""}
       ${pieges ? sectionFiche("Pièges fréquents", contenu.pieges, "fiche-section--pieges") : ""}
+      ${sectionFiche("À vérifier sur ton cours", contenu.aVerifier, "fiche-section--verifier")}
       <div class="fiche-actions">
         <button class="bouton-principal" type="button" data-action="tester">Me tester sur cette fiche</button>
         <button class="bouton-secondaire" type="button" data-action="enregistrer">Enregistrer dans mes fiches</button>

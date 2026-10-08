@@ -180,27 +180,47 @@ const CONSIGNE = `Tu lis la photo du cours d'un élève et tu en fais une fiche 
 
 Les règles, par ordre d'importance :
 
-1. N'invente jamais rien. Tout ce que tu écris vient de la page. Si la photo
-   est illisible, floue, vide, ou n'est pas un cours, mets « illisible » à
-   vrai et laisse les notions vides. Le dire est une bonne réponse ; combler
-   le vide de mémoire n'en est pas une.
-2. Garde les titres du document. Si le cours annonce « II. Les milieux
-   froids », la notion s'appelle « Les milieux froids » : tu retires la
-   numérotation, jamais les mots. Tu ne réorganises pas le plan du professeur.
-3. Écris des phrases entières. Le résumé d'une notion fait deux à quatre
-   phrases complètes, qui se terminent. Une phrase coupée au milieu ne veut
-   rien dire : mieux vaut une phrase de moins qu'une phrase tronquée.
+1. Fidélité absolue. N'invente aucune définition, date, formule ni condition
+   absente du document. Un passage que tu ne lis pas devient « [illisible] »
+   à sa place, et tu l'ajoutes à « a_verifier ». Dire ce qu'on n'a pas lu est
+   une bonne réponse ; combler le trou de mémoire n'en est pas une. Si la page
+   entière est illisible, vide, ou n'est pas un cours, mets « illisible » à
+   vrai et laisse les notions vides.
+2. Garde le plan du professeur, dans son ordre. Chaque section du document
+   devient une notion, aucune n'est fusionnée ni déplacée. Si le cours annonce
+   « II. Les milieux froids », le titre de la notion est « Les milieux froids »
+   et son numéro est « II » : le numéro va dans son champ, pas dans le titre.
+3. Écris des phrases entières et courtes. Le résumé d'une notion fait deux à
+   quatre phrases complètes, qui se terminent. Une phrase coupée au milieu ne
+   veut rien dire : mieux vaut une phrase de moins qu'une phrase tronquée.
+   Aucune introduction, aucune conclusion, aucune formule de politesse.
 4. Les questions des cartes sonnent comme à l'oral : « Qu'est-ce que le
-   pergélisol ? », « Pourquoi la toundra est-elle peu peuplée ? ». Jamais de
+   pergélisol ? », « Aire entre C_f et C_g sur [a ; b] si f ≤ g ? ». Jamais de
    numéro de partie dans une question — « Explique le 2.1 » ne veut rien dire
-   loin du cours. La réponse tient en une ou deux phrases et dit ce que dit
-   le cours, avec les mots de l'élève quand c'est plus clair.
+   loin du cours. Le verso donne la réponse complète : la formule AVEC ses
+   conditions, ou la définition telle que le cours la pose.
 5. Le lexique ne retient que les termes que la page définit vraiment. Un mot
    employé sans être défini n'y entre pas.
-6. Les repères sont les dates, chiffres, formules et lignes de tableau de la
-   page, un par ligne, tels qu'ils y figurent.
+6. Les repères sont les dates, chiffres et lignes de tableau de la page, un
+   par ligne, tels qu'ils y figurent.
 
-Deux à six notions par fiche, deux à cinq cartes par notion. Écris en
+Quand le document est scientifique — mathématiques, physique, chimie, SI —
+trois règles de plus s'appliquent :
+
+7. Toute expression mathématique s'écrit en LaTeX : $...$ dans une phrase,
+   $$...$$ pour une formule isolée. Par exemple
+   $\\int_a^b f(x)\\,dx = F(b) - F(a)$, ou $\\mathcal{D}$ pour une lettre
+   calligraphique. Cela vaut partout : résumés, points, cartes, lexique.
+8. Chaque formule va dans « formules », avec son nom et surtout **ses
+   conditions** : « f continue sur [a ; b] », « pour tout x > 0 ». Une formule
+   sans ses hypothèses est fausse, et un élève qui la révise ainsi apprend une
+   erreur. Si le cours ne donne pas les conditions, laisse le champ vide
+   plutôt que d'en inventer.
+9. Un tableau ou une figure se reformule en cas distincts : « Si f ≥ 0 : … »,
+   « Si f ≤ 0 : … », « Si f change de signe : … ». Pour un graphique, une
+   phrase disant ce qu'il illustre.
+
+Une notion par section du document, une à quatre cartes par notion. Écris en
 français. Appelle l'outil rendre_fiche avec le résultat.`;
 
 /* Le schéma impose la forme ; « strict » la garantit, donc la page n'a
@@ -223,10 +243,22 @@ const OUTIL_FICHE = {
         items: {
           type: "object",
           properties: {
+            numero: texte,
             titre: texte,
             resume: texte,
             points: listeDeTextes,
             reperes: listeDeTextes,
+            /* Une formule sans ses hypothèses est fausse : les conditions
+               sont un champ à part pour qu'on ne puisse pas les oublier. */
+            formules: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: { nom: texte, latex: texte, conditions: texte },
+                required: ["nom", "latex", "conditions"],
+                additionalProperties: false,
+              },
+            },
             lexique: {
               type: "array",
               items: {
@@ -246,12 +278,15 @@ const OUTIL_FICHE = {
               },
             },
           },
-          required: ["titre", "resume", "points", "reperes", "lexique", "cartes"],
+          required: ["numero", "titre", "resume", "points", "reperes", "formules", "lexique", "cartes"],
           additionalProperties: false,
         },
       },
+      /* Ce que le modèle n'a pas pu lire. L'élève doit le savoir : une fiche
+         muette sur ses trous se révise comme si elle était complète. */
+      a_verifier: listeDeTextes,
     },
-    required: ["illisible", "titre", "matiere", "notions"],
+    required: ["illisible", "titre", "matiere", "notions", "a_verifier"],
     additionalProperties: false,
   },
 };

@@ -2108,3 +2108,15 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
+
+/* Les passages que la lecture n'a pas su déchiffrer. Un ton d'alerte douce :
+   ce n'est pas une erreur de l'élève, c'est une limite qu'on lui signale. */
+.fiche-section--verifier {
+  border-left: 3px solid #D9A441;
+  background: #FDF8EE;
+}
+.fiche-section--verifier .fiche-soustitre { color: #8A6214; }
+
+/* Une formule en bloc ne doit pas élargir la page sur un téléphone. */
+.katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.2rem 0; }
+.fiche-partie-texte .katex, .fiche-partie-points .katex { font-size: 1em; }

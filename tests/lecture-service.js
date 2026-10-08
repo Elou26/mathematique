@@ -21,25 +21,30 @@ const FICHE = {
   matiere: 'Histoire-Géo',
   notions: [
     {
-      titre: '1. Qu\'est-ce qu\'une contrainte naturelle ?',
+      numero: 'I',
+      titre: 'Qu\'est-ce qu\'une contrainte naturelle ?',
       resume: 'Une contrainte naturelle est un élément du milieu qui gêne l\'installation des hommes. '
         + 'Le relief, le froid et l\'aridité en sont les formes les plus courantes.',
       points: ['Seuls 10 % des terres émergées concentrent l\'essentiel de la population.'],
       reperes: ['Toundra · 1 hab./km²'],
+      formules: [{ nom: 'Densité', latex: '$d = \\frac{N}{S}$', conditions: 'S en km², N nombre d\'habitants' }],
       lexique: [{ terme: 'Densité', definition: 'Le nombre d\'habitants rapporté à la superficie du territoire.' }],
       cartes: [{ question: 'Qu\'est-ce que la densité de population ?',
                  reponse: 'Le nombre d\'habitants rapporté à la superficie du territoire.' }],
     },
     {
+      numero: 'II',
       titre: 'Les milieux froids',
       resume: 'Le pergélisol empêche toute construction durable, car le sol gelé se déforme au dégel.',
       points: [],
       reperes: [],
+      formules: [],
       lexique: [{ terme: 'Pergélisol', definition: 'Un sol gelé en permanence.' }],
       cartes: [{ question: 'Pourquoi le pergélisol empêche-t-il de construire ?',
                  reponse: 'Parce que le sol gelé se déforme au dégel et déstabilise les fondations.' }],
     },
   ],
+  a_verifier: ['La légende de la carte page 2 est [illisible].'],
 };
 
 /* ————— Faux Claude : on note ce qu'on lui envoie ————————————————— */
@@ -124,8 +129,11 @@ serveur.listen(0, async () => {
     appel.params.tools[0].name === 'rendre_fiche' && appel.params.tools[0].strict === true
     && appel.params.tools[0].input_schema.additionalProperties === false,
     JSON.stringify(appel.params.tools[0]).slice(0, 110));
-  verifier('la consigne interdit d\'inventer',
-    /N'invente jamais rien/.test(appel.params.system), (appel.params.system || '').slice(0, 60));
+  verifier('la consigne interdit d\'inventer, en première règle',
+    /Fidélité absolue/.test(appel.params.system)
+    && /N'invente aucune définition/.test(appel.params.system)
+    && appel.params.system.indexOf('Fidélité absolue') < appel.params.system.indexOf('Garde le plan'),
+    (appel.params.system || '').slice(0, 80));
 
   /* — 2. Plusieurs pages partent dans le même appel — */
   recu.appels.length = 0;
@@ -242,6 +250,22 @@ serveur.listen(0, async () => {
     JSON.stringify(f.contenu.sections.map((s) => s.lexique.map((e) => e.terme))));
   verifier('les repères remontent dans les formules', f.contenu.formules.some((r) => /Toundra/.test(r)),
     JSON.stringify(f.contenu.formules));
+  verifier('le numéro du document est gardé à part du titre',
+    f.contenu.sections[0].numero === 'I' && !/^I\./.test(f.contenu.sections[0].titre),
+    `${f.contenu.sections[0].numero} | ${f.contenu.sections[0].titre}`);
+  verifier('une formule arrive avec ses conditions, jamais seule',
+    f.contenu.sections[0].reperes.some((r) => /d = \\frac/.test(r) && /S en km²/.test(r)),
+    JSON.stringify(f.contenu.sections[0].reperes));
+  verifier('le LaTeX traverse sans être abîmé',
+    f.contenu.sections[0].reperes.some((r) => r.includes('$d = \\frac{N}{S}$')),
+    JSON.stringify(f.contenu.sections[0].reperes));
+  verifier('ce qui n\'a pas été lu suit la fiche',
+    f.aVerifier.length === 1 && /illisible/.test(f.aVerifier[0]), JSON.stringify(f.aVerifier));
+  verifier('la consigne exige les conditions de chaque formule',
+    /sans ses hypothèses est fausse/.test(appel.params.system), 'règle absente de la consigne');
+  verifier('la consigne demande du LaTeX pour les sciences',
+    /LaTeX/.test(appel.params.system), 'LaTeX non mentionné');
+
   verifier('les notions ne portent plus les cartes en double',
     f.contenu.sections.every((s) => s.cartes === undefined),
     JSON.stringify(f.contenu.sections.map((s) => Object.keys(s))));

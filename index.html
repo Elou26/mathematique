@@ -8,6 +8,9 @@
 <title>Mathématique</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231B2A6B'/><text x='16' y='23' font-size='18' font-family='Georgia,serif' fill='%23fff' text-anchor='middle'>π</text></svg>">
 <link rel="stylesheet" href="styles.css">
+<!-- KaTeX, embarqué dans maths/ : les formules des fiches scientifiques
+     arrivent en LaTeX et doivent s'afficher comme des formules. -->
+<link rel="stylesheet" href="maths/katex.min.css">
 </head>
 <body>
 
@@ -779,5 +782,8 @@
 <script src="ocr.js"></script>
 <script src="generateurs.js"></script>
 <script src="app.js"></script>
+<script src="maths/katex.min.js" defer></script>
+<script src="maths/auto-render.min.js" defer></script>
+<script src="maths.js" defer></script>
 </body>
 </html>
