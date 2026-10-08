@@ -2,7 +2,7 @@
   "name": "mathematique-paiement",
   "version": "1.0.0",
   "private": true,
-  "description": "Le serveur de paiement de Mathématique : crée les sessions Stripe et vérifie les abonnements.",
+  "description": "Le serveur de Mathématique : lit les photos de cours avec Claude et gère les abonnements Stripe.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -11,6 +11,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "stripe": "^17.0.0"
+    "stripe": "^17.0.0",
+    "@anthropic-ai/sdk": "^0.132.1"
   }
 }

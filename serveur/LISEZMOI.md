@@ -15,8 +15,8 @@ l'abonnement, on ne fait que le lui demander.
 | `GET /licence?session=cs_…` | au retour de Stripe : cet achat donne-t-il un abonnement actif ? |
 | `GET /licence?cle=cus_…` | plus tard : cet abonnement est-il **toujours** actif ? |
 | `POST /webhook` | facultatif — vérifie la signature Stripe et journalise l'événement |
-| `POST /lecture` | **lit une photo de cours** : elle part chez Mistral, le markdown revient |
-| `GET /sante` | dit si les clés sont bien en place (`pret` pour le paiement, `lecture` pour l'OCR) |
+| `POST /lecture` | **lit les photos d'un cours** : elles partent chez Claude, la fiche revient |
+| `GET /sante` | dit si les clés sont bien en place (`pret` pour le paiement, `lecture` pour la lecture) |
 
 La « licence » rendue à l'app est l'identifiant client Stripe (`cus_…`). Le connaître ne donne rien
 d'autre que la réponse « actif » ou « non » : aucune donnée personnelle, aucun moyen de paiement ne
@@ -43,30 +43,40 @@ de suite (envoyer un mail, journaliser).
 | `STRIPE_PRIX` | l'identifiant du tarif récurrent (`price_…`) |
 | `ORIGINES_AUTORISEES` | les adresses de l'app, séparées par des virgules — **à remplir en production** |
 | `STRIPE_WEBHOOK_SECRET` | facultatif, pour le webhook (`whsec_…`) |
-| `MISTRAL_CLE` | la clé Mistral, pour la lecture des photos |
-| `MISTRAL_MODELE` | facultatif, `mistral-ocr-latest` par défaut |
+| `CLAUDE_CLE` | la clé Claude, pour la lecture des photos |
+| `CLAUDE_MODELE` | facultatif, `claude-opus-5-5` par défaut |
+| `CLAUDE_EFFORT` | facultatif, `medium` par défaut — `high` aide sur un manuscrit ingrat |
 | `LECTURE_PAGES_PAR_HEURE` | facultatif, 40 par défaut — le garde-fou de facture |
 
 `ORIGINES_AUTORISEES` fait deux choses : elle limite qui peut appeler le serveur (CORS) et elle
 **impose l'adresse de retour** après paiement. Sans elle, le serveur accepte n'importe quel
 retour — commode pour essayer sur ta machine, à ne pas laisser en ligne.
 
-## La lecture des photos (Mistral Document AI)
+## La lecture des photos (Claude)
 
 Tesseract tourne gratuitement sur le téléphone de l'élève, mais il rend du **texte à plat** : il
-faut ensuite deviner où sont les titres, et le manuscrit lui échappe. Mistral Document AI rend du
-**markdown déjà structuré** — `##` pour les parties, `-` pour les listes, les tableaux en tableaux —
-et lit l'écriture manuscrite. Du coup la fiche garde les titres **du document** au lieu de les
-inventer, et le lexique sort des termes en gras.
+faut ensuite deviner où sont les titres, et le manuscrit lui échappe. Un OCR classique ne fait pas
+mieux sur ce point — il rend du texte, et tout le travail de mise en fiche reste à faire après.
+
+Ici, **un seul appel fait tout** : les photos partent chez Claude, qui lit l'écriture, garde le plan
+du professeur, écrit le résumé de chaque notion en phrases entières et rédige les cartes. La page
+n'a plus rien à deviner — `OCR.structurerFiche()` ne fait que vérifier et ranger.
 
 | | |
 | --- | --- |
-| Modèle | `mistral-ocr-latest` |
-| Adresse | `https://api.mistral.ai/v1/ocr` |
-| Prix | ≈ 3,50 € les 1 000 pages, soit **0,35 centime la page** |
+| Modèle | `claude-opus-5-5` (réglable par `CLAUDE_MODELE`) |
+| Clé | [console.anthropic.com](https://console.anthropic.com) → `CLAUDE_CLE` |
+| Coût | ≈ 4 à 6 centimes par fiche sur Opus, ≈ 3 centimes sur Sonnet 5.5 |
 
-Il te faut une clé sur [console.mistral.ai](https://console.mistral.ai), à mettre dans
-`MISTRAL_CLE`. Rien d'autre : la route est déjà là.
+**Les pages partent ensemble**, dans la même requête : un cours étalé sur deux photos garde son
+fil, et une notion commencée en bas d'une page se termine en haut de la suivante. C'est la raison
+principale de ne pas boucler page par page.
+
+**La forme est garantie, pas le fond.** L'outil `rendre_fiche` est déclaré `strict`, donc la
+réponse valide forcément le schéma : la page n'a jamais à se défendre contre un JSON mal bâti. Ce
+que le schéma ne garantit pas, c'est la justesse — d'où la consigne, rangée par ordre d'importance,
+dont la première règle est de ne rien inventer et de répondre `illisible` plutôt que de combler un
+vide de mémoire.
 
 **Ce que fait la route**
 
@@ -74,23 +84,24 @@ Il te faut une clé sur [console.mistral.ai](https://console.mistral.ai), à met
 2. Elle freine un appareil qui demande plus de 40 pages par heure — un garde-fou pour la facture,
    gardé en mémoire du processus, donc remis à zéro à chaque redéploiement. Ce n'est pas une
    sécurité : si tu ouvres l'app au public, mets une vraie limite devant (passerelle, WAF).
-3. Elle envoie la photo comme `image_url` ; si l'API refuse cette forme, elle retente en
-   `document_url`. C'est le seul endroit à corriger si leur schéma change.
-4. **La photo n'est ni stockée ni journalisée** : seul le texte repart.
+3. Elle distingue les cinq façons d'échouer, au lieu de dire « panne » : clé refusée, surcharge,
+   réponse coupée (`lecture_tronquee`), refus de sécurité et page illisible. Un refus ou une
+   réponse sans fiche deviennent `illisible` — jamais une fiche vide servie comme si de rien n'était.
+4. **La photo n'est ni stockée ni journalisée** : seule la fiche repart.
 
-Elle répond `{ markdown, pages, moteur }`, ou `{ illisible: true }` quand la page n'a presque rien
-donné. En cas de panne, l'app repasse toute seule sur Tesseract et le dit à l'élève.
+Elle répond `{ fiche, pages, moteur }`, ou `{ illisible: true }`. En cas de panne, l'app repasse
+toute seule sur Tesseract et le dit à l'élève.
 
 ## Essayer en local
 
 ```sh
 cd serveur
 npm install
-STRIPE_CLE_SECRETE=sk_test_… STRIPE_PRIX=price_… MISTRAL_CLE=… npm start
+STRIPE_CLE_SECRETE=sk_test_… STRIPE_PRIX=price_… CLAUDE_CLE=sk-ant-… npm start
 # → Paiement en écoute sur http://localhost:8787
 ```
 
-Les deux moitiés sont indépendantes : le paiement marche sans `MISTRAL_CLE`, la lecture marche sans
+Les deux moitiés sont indépendantes : le paiement marche sans `CLAUDE_CLE`, la lecture marche sans
 les clés Stripe. Chacune annonce ce qui lui manque au démarrage, et `/sante` le dit aussi.
 
 Puis, dans `abonnement.js`, mets `api: "http://localhost:8787"` et sers l'app

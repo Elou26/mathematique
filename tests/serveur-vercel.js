@@ -11,11 +11,23 @@ function verifier(nom, condition, vu) {
   else { echecs++; console.log(`[ÉCHEC] ${nom}\n        vu : ${vu}`); }
 }
 
-const MARKDOWN = '# Les séismes\n\n## 1. Une plaque qui glisse\n\nLa secousse part du foyer.\n\n- **Foyer** : le point de départ de la rupture.\n';
+/* Faux Claude : la fiche revient sans qu'aucun appel ne sorte. */
+const FICHE = {
+  illisible: false,
+  titre: 'Les séismes',
+  matiere: 'Physique-Chimie',
+  notions: [{
+    titre: '1. Une plaque qui glisse',
+    resume: 'La secousse part du foyer, en profondeur, et se propage jusqu\'à la surface.',
+    points: [],
+    reperes: [],
+    lexique: [{ terme: 'Foyer', definition: 'Le point de départ de la rupture, en profondeur.' }],
+    cartes: [{ question: 'Qu\'est-ce que le foyer d\'un séisme ?',
+               reponse: 'Le point de départ de la rupture, en profondeur.' }],
+  }],
+};
 
-global.fetch = async () => ({ ok: true, json: async () => ({ pages: [{ markdown: MARKDOWN }] }) });
-
-process.env.MISTRAL_CLE = 'cle_de_test';
+process.env.CLAUDE_CLE = 'cle_de_test';
 process.env.STRIPE_CLE_SECRETE = '';
 process.env.ORIGINES_AUTORISEES = '';
 
@@ -23,8 +35,17 @@ const Module = require('module');
 const chargerOriginal = Module._load;
 Module._load = function (demande) {
   if (demande === 'stripe') return function Stripe() { return {}; };
+  if (demande === '@anthropic-ai/sdk') {
+    return function Anthropic() {
+      return { messages: { create: async () => ({
+        stop_reason: 'tool_use',
+        content: [{ type: 'tool_use', name: 'rendre_fiche', input: FICHE }],
+      }) } };
+    };
+  }
   return chargerOriginal.apply(this, arguments);
 };
+
 const routeur = require(path.join(__dirname, '..', 'serveur', 'index.js'));
 
 const PHOTO = `data:image/jpeg;base64,${Buffer.from('x'.repeat(400)).toString('base64')}`;
@@ -73,12 +94,12 @@ function appeler(url, methode, corps) {
   /* — 2. Un corps déjà lu est utilisé tel quel, sans attendre le flux — */
   const lue = await appeler('/api/lecture', 'POST', { pages: [PHOTO], appareil: 'vercel-1' });
   verifier('une photo passe avec un corps déjà lu',
-    lue.code === 200 && /^# Les séismes/.test(lue.corps.markdown || ''),
+    lue.code === 200 && lue.corps.fiche && lue.corps.fiche.titre === 'Les séismes',
     JSON.stringify(lue.corps).slice(0, 120));
 
   /* — 3. Le plafond s'applique aussi à un corps déjà lu — */
   const enorme = await appeler('/api/lecture', 'POST', { pages: [PHOTO], gros: 'o'.repeat(20 * 1024 * 1024) });
-  verifier('un corps déjà lu trop gros est refusé, pas envoyé chez Mistral',
+  verifier('un corps déjà lu trop gros est refusé, pas envoyé au modèle',
     enorme.code === 413, JSON.stringify(enorme.corps).slice(0, 80));
 
   /* — 4. Le chemin sans préfixe marche toujours (Render, local) — */

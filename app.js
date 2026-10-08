@@ -2119,7 +2119,7 @@
         },
       });
 
-      const brute = OCR.structurerMarkdown(lecture.markdown, { moteur: "mistral" });
+      const brute = OCR.structurerFiche(lecture.fiche, { moteur: "claude" });
       const propre = validerLecture({
         lisible: true,
         titre: brute.titre,
@@ -2136,11 +2136,12 @@
         return { fait: true };
       }
 
-      propre.contenu.moteur = "mistral";
+      propre.contenu.moteur = "claude";
       propre.contenu.accroche = brute.contenu.accroche;
       propre.contenu.libelleFormules = brute.contenu.libelleFormules;
-      propre.contenu.texte = String(lecture.markdown || "").slice(0, 6000);
-      propre.texte = lecture.markdown;
+      propre.contenu.sections = brute.contenu.sections;
+      propre.contenu.texte = brute.contenu.texte;
+      propre.texte = brute.texte;
 
       fiche.lecture = propre;
       if (propre.matiere) fiche.matiere = propre.matiere;

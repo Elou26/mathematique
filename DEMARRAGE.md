@@ -25,19 +25,22 @@ sortir de là. Vercel sert le site **et** le serveur à la même adresse.
 
 ---
 
-## Étape 2 — La lecture des photos (gratuit, 20 min)
+## Étape 2 — La lecture des photos (~20 min, quelques centimes)
 
-C'est l'étape qui décide de tout le projet. Si Mistral ne lit pas bien tes
-cours, rien de ce qui suit ne sert.
+C'est l'étape qui décide de tout le projet. Si la lecture ne rend pas de
+bonnes fiches, rien de ce qui suit ne sert.
 
-1. [console.mistral.ai](https://console.mistral.ai) → compte → numéro de
-   téléphone vérifié → **API Keys** → nouvelle clé.
-   **Pas de carte bancaire** : le palier « Experiment » est gratuit.
+Un seul appel fait tout : les photos partent, la fiche revient — notions,
+résumé, lexique et cartes. Il n'y a plus d'étape de synthèse séparée.
+
+1. [console.anthropic.com](https://console.anthropic.com) → compte →
+   **API Keys** → nouvelle clé. Mets quelques euros de crédit : tu paies à
+   l'usage, il n'y a pas d'abonnement.
 2. Vercel → ton projet → **Settings → Environment Variables** :
 
    | Nom | Valeur |
    | --- | --- |
-   | `MISTRAL_CLE` | ta clé |
+   | `CLAUDE_CLE` | ta clé |
    | `LECTURE_OCTETS_MAX` | `4000000` |
 
 3. **Redeploy**
@@ -65,21 +68,25 @@ est lue par un service spécialisé ».
 
 ---
 
-## Étape 3 — La synthèse (pas encore faite)
+## Étape 3 — Juger les fiches
 
-À ce stade, les fiches sont **fidèles mais brutes** : les notions sont les
-titres de ton cours, les flashcards les termes en gras avec la définition
-telle qu'écrite. Rien n'est reformulé, rien n'est résumé.
+Il n'y a plus d'étape de synthèse à brancher : le même appel qui lit la
+photo écrit déjà le résumé et les cartes.
 
-Parce que tout ce qui raisonnait dans l'app passait par l'artifact, qui
-n'existe plus une fois le site hébergé ailleurs.
+Ce qu'il te reste à faire, c'est **juger**. Prends trois cours que tu
+connais bien et relis les fiches obtenues ligne à ligne :
 
-La même clé Mistral ouvre la porte qui manque :
-`/v1/chat/completions`. Un seul serveur, une seule facture.
+- les notions sont-elles celles de ton prof, dans son ordre ?
+- les résumés se terminent-ils sur des phrases entières ?
+- les questions des cartes sonnent-elles comme à l'oral ?
+- **y a-t-il quelque chose que ton cours ne dit pas ?** C'est le seul
+  défaut grave : une fiche inventée fait réviser une erreur sans que
+  l'élève puisse le savoir. Si tu en trouves un, dis-le-moi avec la photo
+  et la fiche — c'est la consigne qu'il faut corriger, pas le code.
 
-**Ce n'est pas branché.** Demande-le quand l'étape 2 est validée.
-
----
+Si une fiche est juste mais trop plate, essaie `CLAUDE_EFFORT=high`. Si
+elle est bonne et que tu veux baisser la facture, essaie
+`CLAUDE_MODELE=claude-sonnet-5-5` : environ deux fois moins cher par fiche.
 
 ## Étape 4 — Le paiement (en dernier, jamais avant)
 
@@ -125,14 +132,14 @@ résumé qu'on trouve soi-même pas clair.
 
 ## Les règles qui ne changent pas
 
-- **Aucune clé ne passe par la conversation.** Clés Mistral et Stripe ne
+- **Aucune clé ne passe par la conversation.** Clés Claude et Stripe ne
   vivent que dans les variables d'environnement de l'hébergeur. Ni dans la
   page, ni dans un fichier du dépôt, ni dans un message. Une clé collée
   par erreur se révoque et se recrée en dix secondes — fais-le.
 - **Ce que tu me transmets**, c'est la réponse de `/api/sante` ou le
   message d'erreur exact, jamais le secret.
-- **Les coûts réels** : 0,35 centime la page lue, ~1,5 % + 0,25 € par
-  encaissement Stripe. Un élève à 40 pages/mois te coûte 14 centimes sur
-  ses 9,90 €.
+- **Les coûts réels** : 4 à 6 centimes par fiche sur Opus (3 sur Sonnet
+  5.5), plus ~1,5 % + 0,25 € par encaissement Stripe. Un élève qui fait
+  20 fiches par mois te coûte ~1 € sur ses 9,90 €.
 
 Les détails techniques sont dans `serveur/LISEZMOI.md`.

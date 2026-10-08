@@ -8,6 +8,7 @@
      GET  /licence?session=  → au retour de Stripe : l'abonnement est-il actif ?
      GET  /licence?cle=      → plus tard : cet abonnement est-il toujours actif ?
      POST /webhook           → facultatif, pour journaliser les événements
+     POST /lecture           → lit les photos d'un cours et en rend la fiche
 
    La « licence » rendue à l'app est l'identifiant client Stripe (`cus_…`).
    Le connaître ne donne rien d'autre que la réponse « actif » ou « non » :
@@ -19,18 +20,25 @@
 "use strict";
 
 const Stripe = require("stripe");
+const Anthropic = require("@anthropic-ai/sdk");
 
 const CLE_SECRETE = process.env.STRIPE_CLE_SECRETE || process.env.STRIPE_SECRET_KEY || "";
 const PRIX = process.env.STRIPE_PRIX || process.env.STRIPE_PRICE_ID || "";
 const SECRET_WEBHOOK = process.env.STRIPE_WEBHOOK_SECRET || "";
 
-/* ————— Lecture des photos : Mistral Document AI ————————————————
+/* ————— Lecture des photos : Claude ————————————————————————————
    La clé ne doit pas plus se trouver dans la page que celle de Stripe :
-   la photo monte ici, repart chez Mistral, et seul le texte revient.
+   la photo monte ici, part chez Claude, et seule la fiche revient.
+
+   Un seul appel fait tout le travail — lire l'écriture, garder les titres
+   du document, écrire le résumé et les cartes. Les photos partent
+   ensemble dans la même requête : un cours sur deux pages reste un cours.
    ———————————————————————————————————————————————————————————— */
-const CLE_MISTRAL = process.env.MISTRAL_CLE || process.env.MISTRAL_API_KEY || "";
-const MODELE_OCR = process.env.MISTRAL_MODELE || "mistral-ocr-latest";
-const OCR_URL = process.env.MISTRAL_URL || "https://api.mistral.ai/v1/ocr";
+const CLE_CLAUDE = process.env.CLAUDE_CLE || process.env.ANTHROPIC_API_KEY || "";
+const MODELE = process.env.CLAUDE_MODELE || "claude-opus-5-5";
+/* Combien Claude a le droit de réfléchir : low | medium | high | xhigh | max.
+   « medium » suffit à lire un cours ; « high » aide sur un manuscrit ingrat. */
+const EFFORT = process.env.CLAUDE_EFFORT || "medium";
 const PAGES_MAX = Number(process.env.LECTURE_PAGES_MAX) || 4;
 const OCTETS_MAX = Number(process.env.LECTURE_OCTETS_MAX) || 14 * 1024 * 1024;
 /* Combien de pages un même appareil peut faire lire par heure. Ce n'est pas
@@ -42,6 +50,7 @@ const PAGES_PAR_HEURE = Number(process.env.LECTURE_PAGES_PAR_HEURE) || 40;
 const ORIGINES = (process.env.ORIGINES_AUTORISEES || "").split(",").map((o) => o.trim()).filter(Boolean);
 
 const stripe = CLE_SECRETE ? new Stripe(CLE_SECRETE) : null;
+const claude = CLE_CLAUDE ? new Anthropic({ apiKey: CLE_CLAUDE }) : null;
 
 /* ————— Outils ————————————————————————————————————————————————— */
 
@@ -161,50 +170,149 @@ function imageValide(valeur) {
     && valeur.length < OCTETS_MAX;
 }
 
-/**
- * Mistral attend un « document ». Pour une photo, c'est `image_url` ; pour
- * un PDF, `document_url`. Si la forme devait changer, c'est le seul endroit
- * à corriger — et l'erreur de l'API est renvoyée telle quelle pour qu'on la
- * voie tout de suite (voir docs.mistral.ai/api/endpoint/ocr).
- */
-function corpsOcr(image, type) {
+/* ————— La consigne ————————————————————————————————————————————
+   Elle est rangée par ordre d'importance, parce que c'est dans cet ordre
+   qu'un modèle arbitre quand deux règles se gênent. La première est la
+   seule qui ne se négocie pas : ne rien inventer. Un élève qui révise une
+   fiche inventée révise une erreur, et il n'a aucun moyen de le savoir.
+   ———————————————————————————————————————————————————————————— */
+const CONSIGNE = `Tu lis la photo du cours d'un élève et tu en fais une fiche de révision.
+
+Les règles, par ordre d'importance :
+
+1. N'invente jamais rien. Tout ce que tu écris vient de la page. Si la photo
+   est illisible, floue, vide, ou n'est pas un cours, mets « illisible » à
+   vrai et laisse les notions vides. Le dire est une bonne réponse ; combler
+   le vide de mémoire n'en est pas une.
+2. Garde les titres du document. Si le cours annonce « II. Les milieux
+   froids », la notion s'appelle « Les milieux froids » : tu retires la
+   numérotation, jamais les mots. Tu ne réorganises pas le plan du professeur.
+3. Écris des phrases entières. Le résumé d'une notion fait deux à quatre
+   phrases complètes, qui se terminent. Une phrase coupée au milieu ne veut
+   rien dire : mieux vaut une phrase de moins qu'une phrase tronquée.
+4. Les questions des cartes sonnent comme à l'oral : « Qu'est-ce que le
+   pergélisol ? », « Pourquoi la toundra est-elle peu peuplée ? ». Jamais de
+   numéro de partie dans une question — « Explique le 2.1 » ne veut rien dire
+   loin du cours. La réponse tient en une ou deux phrases et dit ce que dit
+   le cours, avec les mots de l'élève quand c'est plus clair.
+5. Le lexique ne retient que les termes que la page définit vraiment. Un mot
+   employé sans être défini n'y entre pas.
+6. Les repères sont les dates, chiffres, formules et lignes de tableau de la
+   page, un par ligne, tels qu'ils y figurent.
+
+Deux à six notions par fiche, deux à cinq cartes par notion. Écris en
+français. Appelle l'outil rendre_fiche avec le résultat.`;
+
+/* Le schéma impose la forme ; « strict » la garantit, donc la page n'a
+   jamais à se défendre contre une réponse mal bâtie. */
+const texte = { type: "string" };
+const listeDeTextes = { type: "array", items: texte };
+
+const OUTIL_FICHE = {
+  name: "rendre_fiche",
+  description: "Rend la fiche de révision tirée des photos du cours.",
+  strict: true,
+  input_schema: {
+    type: "object",
+    properties: {
+      illisible: { type: "boolean" },
+      titre: texte,
+      matiere: texte,
+      notions: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            titre: texte,
+            resume: texte,
+            points: listeDeTextes,
+            reperes: listeDeTextes,
+            lexique: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: { terme: texte, definition: texte },
+                required: ["terme", "definition"],
+                additionalProperties: false,
+              },
+            },
+            cartes: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: { question: texte, reponse: texte },
+                required: ["question", "reponse"],
+                additionalProperties: false,
+              },
+            },
+          },
+          required: ["titre", "resume", "points", "reperes", "lexique", "cartes"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["illisible", "titre", "matiere", "notions"],
+    additionalProperties: false,
+  },
+};
+
+/** « data:image/jpeg;base64,AAA… » → le bloc image attendu par l'API. */
+function blocImage(uri) {
+  const coupe = uri.indexOf(",");
+  const media = uri.slice(5, uri.indexOf(";"));
   return {
-    model: MODELE_OCR,
-    document: type === "document_url"
-      ? { type: "document_url", document_url: image }
-      : { type: "image_url", image_url: image },
-    include_image_base64: false,
+    type: "image",
+    source: { type: "base64", media_type: media, data: uri.slice(coupe + 1) },
   };
 }
 
-async function demanderOcr(image) {
-  const essais = ["image_url", "document_url"];
-  let derniere = null;
-  for (const type of essais) {
-    const reponse = await fetch(OCR_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${CLE_MISTRAL}` },
-      body: JSON.stringify(corpsOcr(image, type)),
-    });
-    if (reponse.ok) return await reponse.json();
-    derniere = { code: reponse.status, texte: (await reponse.text()).slice(0, 400) };
-    // Une 400 peut vouloir dire « mauvaise forme de document » : on tente l'autre.
-    if (reponse.status !== 400) break;
-  }
-  throw derniere || { code: 502, texte: "pas de réponse" };
+/**
+ * Toutes les photos partent dans le même message : un cours étalé sur deux
+ * pages garde son fil, et une notion commencée en bas d'une page se termine
+ * en haut de la suivante.
+ */
+async function demanderFiche(images) {
+  const reponse = await claude.messages.create({
+    model: MODELE,
+    max_tokens: 16000,
+    system: CONSIGNE,
+    output_config: { effort: EFFORT },
+    tools: [OUTIL_FICHE],
+    messages: [{
+      role: "user",
+      content: images.map(blocImage).concat([{
+        type: "text",
+        text: images.length > 1
+          ? `Voici ${images.length} pages du même cours, dans l'ordre. Fais-en une seule fiche.`
+          : "Voici une page de cours. Fais-en une fiche.",
+      }]),
+    }],
+  });
+
+  /* Un refus de sécurité arrive en 200 : sans ce test, on lirait le contenu
+     d'une réponse qui n'en a pas. */
+  if (reponse.stop_reason === "refusal") throw { genre: "refus" };
+  if (reponse.stop_reason === "max_tokens") throw { genre: "tronquee" };
+
+  const appel = reponse.content.find((bloc) => bloc.type === "tool_use");
+  if (!appel) throw { genre: "sans_fiche" };
+  return appel.input;
 }
 
-/** Le markdown de toutes les pages, mis bout à bout. */
-function markdownDe(resultat) {
-  const pages = (resultat && Array.isArray(resultat.pages)) ? resultat.pages : [];
-  return pages
-    .map((page) => String((page && (page.markdown || page.text)) || "").trim())
-    .filter(Boolean)
-    .join("\n\n");
+/** Ce qu'on accepte de rendre à la page : la forme est garantie, le fond non. */
+function ficheUtile(brute) {
+  const notions = (Array.isArray(brute && brute.notions) ? brute.notions : [])
+    .filter((n) => n && String(n.titre || "").trim())
+    .slice(0, 10);
+  if (brute && brute.illisible) return null;
+  const nourrie = notions.some((n) => String(n.resume || "").trim().length > 20
+    || (Array.isArray(n.lexique) && n.lexique.length)
+    || (Array.isArray(n.points) && n.points.length));
+  return nourrie ? Object.assign({}, brute, { notions }) : null;
 }
 
 async function lirePhotos(corps) {
-  if (!CLE_MISTRAL) return { code: 503, corps: { erreur: "lecture_non_configuree" } };
+  if (!claude) return { code: 503, corps: { erreur: "lecture_non_configuree" } };
 
   const images = Array.isArray(corps && corps.pages) ? corps.pages : [];
   if (!images.length) return { code: 400, corps: { erreur: "aucune_page" } };
@@ -216,24 +324,23 @@ async function lirePhotos(corps) {
     return { code: 429, corps: { erreur: "trop_de_lectures", parHeure: PAGES_PAR_HEURE } };
   }
 
-  const morceaux = [];
-  for (const image of images) {
-    try {
-      const resultat = await demanderOcr(image);
-      const markdown = markdownDe(resultat);
-      if (markdown) morceaux.push(markdown);
-    } catch (erreur) {
-      const code = erreur && erreur.code;
-      if (code === 401 || code === 403) return { code: 502, corps: { erreur: "cle_refusee" } };
-      if (code === 429) return { code: 429, corps: { erreur: "ocr_surcharge" } };
-      return { code: 502, corps: { erreur: "ocr_injoignable", detail: (erreur && erreur.texte) || "" } };
-    }
+  let brute;
+  try {
+    brute = await demanderFiche(images);
+  } catch (erreur) {
+    if (erreur && erreur.genre === "refus") return { code: 200, corps: { illisible: true } };
+    if (erreur && erreur.genre === "tronquee") return { code: 502, corps: { erreur: "lecture_tronquee" } };
+    if (erreur && erreur.genre === "sans_fiche") return { code: 200, corps: { illisible: true } };
+    const code = (erreur && erreur.status) || 0;
+    if (code === 401 || code === 403) return { code: 502, corps: { erreur: "cle_refusee" } };
+    if (code === 429) return { code: 429, corps: { erreur: "ocr_surcharge" } };
+    return { code: 502, corps: { erreur: "ocr_injoignable", detail: String((erreur && erreur.message) || "").slice(0, 200) } };
   }
 
-  const markdown = morceaux.join("\n\n").trim();
-  if (markdown.replace(/\s/g, "").length < 20) return { code: 200, corps: { illisible: true } };
-  // La photo n'est ni gardée ni journalisée : seul le texte repart.
-  return { code: 200, corps: { markdown, pages: morceaux.length, moteur: "mistral" } };
+  const fiche = ficheUtile(brute);
+  if (!fiche) return { code: 200, corps: { illisible: true } };
+  // La photo n'est ni gardée ni journalisée : seule la fiche repart.
+  return { code: 200, corps: { fiche, pages: images.length, moteur: "claude" } };
 }
 
 /* ————— Serveur ———————————————————————————————————————————————— */
@@ -273,7 +380,7 @@ async function router(requete, reponse) {
   if (requete.method === "OPTIONS") { reponse.writeHead(204, enTetes(origine)); reponse.end(); return; }
 
   if (chemin === "/sante") {
-    repondre(reponse, 200, { pret: Boolean(stripe && PRIX), lecture: Boolean(CLE_MISTRAL) }, origine);
+    repondre(reponse, 200, { pret: Boolean(stripe && PRIX), lecture: Boolean(claude) }, origine);
     return;
   }
 
@@ -337,7 +444,7 @@ if (require.main === module) {
     console.log(`Paiement en écoute sur http://localhost:${port}`);
     if (!stripe) console.log("⚠ STRIPE_CLE_SECRETE manquante : les routes répondront « non configuré ».");
     if (!PRIX) console.log("⚠ STRIPE_PRIX manquante : impossible de créer une session.");
-    if (!CLE_MISTRAL) console.log("⚠ MISTRAL_CLE manquante : /lecture répondra « non configuré ».");
+    if (!claude) console.log("⚠ CLAUDE_CLE manquante : /lecture répondra « non configuré ».");
   });
 }
 

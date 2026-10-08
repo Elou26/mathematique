@@ -1,7 +1,7 @@
 /* Éprouve la lecture payante de bout en bout, sans réseau ni clé :
-   - le serveur (serveur/index.js) avec un faux Mistral à la place de fetch ;
-   - la mise en fiche du markdown (OCR.structurerMarkdown), qui doit garder
-     les titres du document au lieu de les deviner.
+   - le serveur (serveur/index.js) avec un faux Claude à la place du SDK ;
+   - la mise en fiche de ce qu'il rend (OCR.structurerFiche), qui doit
+     garder les titres et les phrases du document sans rien réécrire.
    Aucun navigateur. Lancer : node tests/lecture-service.js */
 const http = require('http');
 const path = require('path');
@@ -14,54 +14,70 @@ function verifier(nom, condition, vu) {
   else { echecs++; console.log(`[ÉCHEC] ${nom}\n        vu : ${vu}`); }
 }
 
-const MARKDOWN = `# Les contraintes naturelles
-
-## 1. Qu'est-ce qu'une contrainte naturelle ?
-
-Une contrainte naturelle est un élément du milieu qui gêne l'installation des hommes.
-
-- **Densité** : le nombre d'habitants rapporté à la superficie du territoire.
-- Seuls 10 % des terres émergées concentrent l'essentiel de la population.
-
-| Milieu | Densité |
-| --- | --- |
-| Toundra | 1 hab./km² |
-
-## 2. Les milieux froids
-
-Le pergélisol empêche toute construction durable.
-
-- **Pergélisol** : un sol gelé en permanence.
-`;
-
-/* ————— Faux Mistral : on note ce qu'on lui envoie ————————————————— */
-const recu = { appels: [] };
-let modeMistral = 'ok';
-
-global.fetch = async (url, options) => {
-  const corps = JSON.parse(options.body);
-  recu.appels.push({ url, autorisation: options.headers.Authorization, corps });
-  if (modeMistral === 'cle') return { ok: false, status: 401, text: async () => 'unauthorized' };
-  if (modeMistral === 'quota') return { ok: false, status: 429, text: async () => 'rate limited' };
-  if (modeMistral === 'vide') return { ok: true, json: async () => ({ pages: [{ markdown: '   ' }] }) };
-  // Première forme refusée : le serveur doit retenter avec l'autre.
-  if (modeMistral === 'forme' && corps.document.type === 'image_url') {
-    return { ok: false, status: 400, text: async () => 'unsupported document type' };
-  }
-  return { ok: true, json: async () => ({ pages: [{ markdown: MARKDOWN }] }) };
+/* Ce qu'un vrai appel rendrait : la fiche déjà écrite. */
+const FICHE = {
+  illisible: false,
+  titre: 'Les contraintes naturelles',
+  matiere: 'Histoire-Géo',
+  notions: [
+    {
+      titre: '1. Qu\'est-ce qu\'une contrainte naturelle ?',
+      resume: 'Une contrainte naturelle est un élément du milieu qui gêne l\'installation des hommes. '
+        + 'Le relief, le froid et l\'aridité en sont les formes les plus courantes.',
+      points: ['Seuls 10 % des terres émergées concentrent l\'essentiel de la population.'],
+      reperes: ['Toundra · 1 hab./km²'],
+      lexique: [{ terme: 'Densité', definition: 'Le nombre d\'habitants rapporté à la superficie du territoire.' }],
+      cartes: [{ question: 'Qu\'est-ce que la densité de population ?',
+                 reponse: 'Le nombre d\'habitants rapporté à la superficie du territoire.' }],
+    },
+    {
+      titre: 'Les milieux froids',
+      resume: 'Le pergélisol empêche toute construction durable, car le sol gelé se déforme au dégel.',
+      points: [],
+      reperes: [],
+      lexique: [{ terme: 'Pergélisol', definition: 'Un sol gelé en permanence.' }],
+      cartes: [{ question: 'Pourquoi le pergélisol empêche-t-il de construire ?',
+                 reponse: 'Parce que le sol gelé se déforme au dégel et déstabilise les fondations.' }],
+    },
+  ],
 };
 
-process.env.MISTRAL_CLE = 'cle_de_test';
-process.env.STRIPE_CLE_SECRETE = '';
-process.env.ORIGINES_AUTORISEES = 'http://localhost:8321';
+/* ————— Faux Claude : on note ce qu'on lui envoie ————————————————— */
+const recu = { appels: [] };
+let mode = 'ok';
 
-// Le module charge `stripe` : on le neutralise, ce test ne parle pas de paiement.
 const Module = require('module');
 const chargerOriginal = Module._load;
 Module._load = function (demande) {
   if (demande === 'stripe') return function Stripe() { return {}; };
+  if (demande === '@anthropic-ai/sdk') {
+    return function Anthropic(options) {
+      return {
+        messages: {
+          create: async (params) => {
+            recu.appels.push({ cle: options.apiKey, params });
+            if (mode === 'cle') { const e = new Error('unauthorized'); e.status = 401; throw e; }
+            if (mode === 'quota') { const e = new Error('rate limited'); e.status = 429; throw e; }
+            if (mode === 'panne') { const e = new Error('boom'); e.status = 500; throw e; }
+            if (mode === 'refus') return { stop_reason: 'refusal', content: [] };
+            if (mode === 'tronquee') return { stop_reason: 'max_tokens', content: [] };
+            if (mode === 'bavard') return { stop_reason: 'end_turn', content: [{ type: 'text', text: 'voilà' }] };
+            if (mode === 'illisible') {
+              return { stop_reason: 'tool_use', content: [{ type: 'tool_use', name: 'rendre_fiche',
+                input: { illisible: true, titre: '', matiere: '', notions: [] } }] };
+            }
+            return { stop_reason: 'tool_use', content: [{ type: 'tool_use', name: 'rendre_fiche', input: FICHE }] };
+          },
+        },
+      };
+    };
+  }
   return chargerOriginal.apply(this, arguments);
 };
+
+process.env.CLAUDE_CLE = 'cle_de_test';
+process.env.STRIPE_CLE_SECRETE = '';
+process.env.ORIGINES_AUTORISEES = 'http://localhost:8321';
 
 const routeur = require(path.join(__dirname, '..', 'serveur', 'index.js'));
 const serveur = http.createServer((requete, reponse) => { routeur(requete, reponse); });
@@ -92,46 +108,57 @@ function appeler(chemin, corps) {
 serveur.listen(0, async () => {
   /* — 1. Une photo lue — */
   const lue = await appeler('/lecture', { pages: [PHOTO], appareil: 'a1' });
-  verifier('la photo revient en markdown',
-    lue.code === 200 && /^# Les contraintes naturelles/.test(lue.corps.markdown || ''),
-    JSON.stringify(lue.corps).slice(0, 120));
-  verifier('le moteur est annoncé', lue.corps.moteur === 'mistral', lue.corps.moteur);
+  verifier('la fiche revient', lue.code === 200 && lue.corps.fiche
+    && lue.corps.fiche.titre === 'Les contraintes naturelles', JSON.stringify(lue.corps).slice(0, 120));
+  verifier('le moteur est annoncé', lue.corps.moteur === 'claude', lue.corps.moteur);
 
   const appel = recu.appels[recu.appels.length - 1];
-  verifier('la clé part dans l\'en-tête, jamais dans la page',
-    appel.autorisation === 'Bearer cle_de_test', appel.autorisation);
-  verifier('le modèle demandé est celui d\'OCR',
-    appel.corps.model === 'mistral-ocr-latest', appel.corps.model);
-  verifier('la photo est envoyée comme image',
-    appel.corps.document.type === 'image_url' && appel.corps.document.image_url.startsWith('data:image/'),
-    JSON.stringify(appel.corps.document).slice(0, 80));
+  verifier('la clé reste au serveur, jamais dans la page', appel.cle === 'cle_de_test', appel.cle);
+  verifier('le modèle demandé est celui réglé', appel.params.model === 'claude-opus-5-5', appel.params.model);
+  verifier('la photo part comme image en base64',
+    appel.params.messages[0].content[0].type === 'image'
+    && appel.params.messages[0].content[0].source.media_type === 'image/jpeg'
+    && !/^data:/.test(appel.params.messages[0].content[0].source.data),
+    JSON.stringify(appel.params.messages[0].content[0].source).slice(0, 90));
+  verifier('l\'outil impose la forme de la fiche',
+    appel.params.tools[0].name === 'rendre_fiche' && appel.params.tools[0].strict === true
+    && appel.params.tools[0].input_schema.additionalProperties === false,
+    JSON.stringify(appel.params.tools[0]).slice(0, 110));
+  verifier('la consigne interdit d\'inventer',
+    /N'invente jamais rien/.test(appel.params.system), (appel.params.system || '').slice(0, 60));
 
-  /* — 2. Si la forme est refusée, le serveur en essaie une autre — */
-  modeMistral = 'forme';
+  /* — 2. Plusieurs pages partent dans le même appel — */
   recu.appels.length = 0;
-  const repli = await appeler('/lecture', { pages: [PHOTO], appareil: 'a2' });
-  verifier('une forme refusée est retentée autrement',
-    repli.code === 200 && recu.appels.length === 2
-    && recu.appels[1].corps.document.type === 'document_url',
-    recu.appels.map((a) => a.corps.document.type).join(' → '));
+  await appeler('/lecture', { pages: [PHOTO, PHOTO], appareil: 'a2' });
+  const groupe = recu.appels[0];
+  verifier('deux pages font un seul appel, pas deux',
+    recu.appels.length === 1 && groupe.params.messages[0].content.filter((b) => b.type === 'image').length === 2,
+    `${recu.appels.length} appel(s)`);
+  verifier('le texte dit combien de pages suivent',
+    /2 pages du même cours/.test(groupe.params.messages[0].content.slice(-1)[0].text),
+    groupe.params.messages[0].content.slice(-1)[0].text);
 
   /* — 3. Les refus sont dits, jamais inventés — */
-  modeMistral = 'cle';
-  const cle = await appeler('/lecture', { pages: [PHOTO], appareil: 'a3' });
-  verifier('une clé refusée est signalée',
-    cle.code === 502 && cle.corps.erreur === 'cle_refusee', JSON.stringify(cle.corps));
+  const cas = [
+    ['cle', 502, 'cle_refusee', 'une clé refusée est signalée'],
+    ['quota', 429, 'ocr_surcharge', 'une surcharge est signalée'],
+    ['panne', 502, 'ocr_injoignable', 'une panne est signalée'],
+    ['tronquee', 502, 'lecture_tronquee', 'une réponse coupée n\'est pas servie comme une fiche'],
+  ];
+  for (const [m, code, erreur, nom] of cas) {
+    mode = m;
+    const vu = await appeler('/lecture', { pages: [PHOTO], appareil: `e-${m}` });
+    verifier(nom, vu.code === code && vu.corps.erreur === erreur, JSON.stringify(vu.corps));
+  }
 
-  modeMistral = 'quota';
-  const quota = await appeler('/lecture', { pages: [PHOTO], appareil: 'a4' });
-  verifier('une surcharge est signalée',
-    quota.code === 429 && quota.corps.erreur === 'ocr_surcharge', JSON.stringify(quota.corps));
-
-  modeMistral = 'vide';
-  const vide = await appeler('/lecture', { pages: [PHOTO], appareil: 'a5' });
-  verifier('une page muette est annoncée illisible',
-    vide.code === 200 && vide.corps.illisible === true, JSON.stringify(vide.corps));
-
-  modeMistral = 'ok';
+  for (const [m, nom] of [['illisible', 'une page illisible est annoncée telle quelle'],
+                          ['refus', 'un refus de sécurité ne devient pas une fiche vide'],
+                          ['bavard', 'une réponse sans appel d\'outil n\'est pas inventée']]) {
+    mode = m;
+    const vu = await appeler('/lecture', { pages: [PHOTO], appareil: `i-${m}` });
+    verifier(nom, vu.code === 200 && vu.corps.illisible === true && !vu.corps.fiche, JSON.stringify(vu.corps));
+  }
+  mode = 'ok';
 
   /* — 4. Ce qu'on refuse d'envoyer — */
   const sansPage = await appeler('/lecture', { pages: [] });
@@ -139,8 +166,7 @@ serveur.listen(0, async () => {
 
   const pasUneImage = await appeler('/lecture', { pages: ['pas-une-image'] });
   verifier('une donnée qui n\'est pas une image est refusée',
-    pasUneImage.code === 400 && pasUneImage.corps.erreur === 'image_invalide',
-    JSON.stringify(pasUneImage.corps));
+    pasUneImage.code === 400 && pasUneImage.corps.erreur === 'image_invalide', JSON.stringify(pasUneImage.corps));
 
   const trop = await appeler('/lecture', { pages: [PHOTO, PHOTO, PHOTO, PHOTO, PHOTO] });
   verifier('au-delà de quatre pages, on refuse',
@@ -150,8 +176,7 @@ serveur.listen(0, async () => {
   let derniere = null;
   for (let i = 0; i < 45; i++) derniere = await appeler('/lecture', { pages: [PHOTO], appareil: 'glouton' });
   verifier('un appareil trop gourmand est freiné',
-    derniere.code === 429 && derniere.corps.erreur === 'trop_de_lectures',
-    JSON.stringify(derniere.corps));
+    derniere.code === 429 && derniere.corps.erreur === 'trop_de_lectures', JSON.stringify(derniere.corps));
   const autre = await appeler('/lecture', { pages: [PHOTO], appareil: 'sage' });
   verifier('mais les autres passent toujours', autre.code === 200, JSON.stringify(autre.corps).slice(0, 60));
 
@@ -159,38 +184,40 @@ serveur.listen(0, async () => {
   const sante = await appeler('/sante');
   verifier('la santé annonce la lecture', sante.corps.lecture === true, JSON.stringify(sante.corps));
 
-  /* — 7. Le markdown devient une fiche qui garde les titres du document — */
+  /* — 7. La fiche rendue devient une fiche de l'app, sans être réécrite — */
   const OCR = vm.runInContext(
     fs.readFileSync(path.join(__dirname, '..', 'ocr.js'), 'utf8') + '\n;OCR',
     vm.createContext({ console }));
-  const f = OCR.structurerMarkdown(MARKDOWN, { moteur: 'mistral' });
+  const f = OCR.structurerFiche(FICHE, { moteur: 'claude' });
 
-  verifier('le titre du document est repris tel quel',
-    f.titre === 'Les contraintes naturelles', f.titre);
+  verifier('le titre du document est repris tel quel', f.titre === 'Les contraintes naturelles', f.titre);
+  verifier('la matière annoncée est gardée', f.matiere === 'Histoire-Géo', f.matiere);
   verifier('les notions sont celles du document',
-    f.contenu.sections.length === 2
-    && /Qu'est-ce qu'une contrainte naturelle/.test(f.contenu.sections[0].titre)
-    && f.contenu.sections[1].titre === 'Les milieux froids',
+    f.contenu.sections.length === 2 && f.contenu.sections[1].titre === 'Les milieux froids',
     f.contenu.sections.map((s) => s.titre).join(' | '));
-  verifier('le numéro de partie ne reste pas dans le titre',
-    !/^\d/.test(f.contenu.sections[0].titre), f.contenu.sections[0].titre);
-  verifier('les termes en gras forment le lexique',
-    f.contenu.sections[0].lexique.some((e) => e.terme === 'Densité')
-    && f.contenu.sections[1].lexique.some((e) => e.terme === 'Pergélisol'),
-    JSON.stringify(f.contenu.sections.map((s) => s.lexique.map((e) => e.terme))));
-  verifier('une puce ordinaire reste un point, pas une définition',
-    f.contenu.sections[0].points.some((p) => /10 %/.test(p)),
-    JSON.stringify(f.contenu.sections[0].points));
-  verifier('le tableau devient un repère, sans sa ligne d\'en-tête',
-    f.contenu.sections[0].reperes.some((r) => /Toundra · 1 hab/.test(r))
-    && !f.contenu.sections[0].reperes.some((r) => /^Milieu · Densité$/.test(r)),
-    JSON.stringify(f.contenu.sections[0].reperes));
-  verifier('les cartes viennent du lexique, rattachées à leur notion',
-    f.cartes.length >= 2 && f.cartes.every((c) => /\?$/.test(c.recto) && typeof c.partie === 'number'),
+  verifier('le résumé est repris mot pour mot, sans être recoupé',
+    f.contenu.sections[1].texte === FICHE.notions[1].resume, f.contenu.sections[1].texte);
+  verifier('le résumé se termine sur une phrase entière',
+    f.contenu.sections.every((s) => /[.!?]$/.test(s.texte)),
+    f.contenu.sections.map((s) => s.texte.slice(-25)).join(' | '));
+  verifier('les cartes sont celles écrites, rattachées à leur notion',
+    f.cartes.length === 2 && f.cartes[0].partie === 0 && f.cartes[1].partie === 1
+    && f.cartes[0].recto === FICHE.notions[0].cartes[0].question,
     f.cartes.map((c) => `[${c.partie}] ${c.recto}`).join(' | '));
-  verifier('aucune définition n\'est répétée dans le paragraphe',
-    !/le nombre d'habitants rapporté/i.test(f.contenu.sections[0].texte),
-    f.contenu.sections[0].texte);
+  verifier('aucune question ne cite un numéro de partie',
+    f.cartes.every((c) => !/\b\d+\.\d+\b/.test(c.recto)), f.cartes.map((c) => c.recto).join(' | '));
+  verifier('une carte garde son terme quand le lexique le porte',
+    f.cartes[0].terme === 'Densité', f.cartes[0].terme);
+  verifier('le lexique est celui de la notion',
+    f.contenu.sections[1].lexique[0].terme === 'Pergélisol',
+    JSON.stringify(f.contenu.sections.map((s) => s.lexique.map((e) => e.terme))));
+  verifier('les repères remontent dans les formules', f.contenu.formules.some((r) => /Toundra/.test(r)),
+    JSON.stringify(f.contenu.formules));
+  verifier('les notions ne portent plus les cartes en double',
+    f.contenu.sections.every((s) => s.cartes === undefined),
+    JSON.stringify(f.contenu.sections.map((s) => Object.keys(s))));
+  verifier('une fiche vide ne produit rien',
+    OCR.structurerFiche({ illisible: true, notions: [] }).contenu.sections.length === 0, 'sections');
 
   serveur.close();
   console.log(echecs ? `\n${echecs} vérification(s) en échec` : '\nTout est vert.');

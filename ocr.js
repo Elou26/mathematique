@@ -14,11 +14,14 @@
 const OCR = (function () {
   "use strict";
 
-  /* ————— Lecture par service : Mistral Document AI —————————————————
+  /* ————— Lecture par service : Claude ——————————————————————————————
      Tesseract tourne sur l'appareil et ne coûte rien, mais il rend du
-     texte à plat où il faut deviner les titres. Un service payant rend du
-     markdown déjà structuré — titres, listes, tableaux — et lit le
-     manuscrit. La clé n'est pas ici : l'appel passe par `serveur/`, qui
+     texte à plat : il faut ensuite deviner où sont les titres, et le
+     manuscrit lui échappe. Le service payant, lui, rend la fiche déjà
+     faite — les notions du cours, leur résumé en phrases entières, le
+     lexique et les cartes. Il n'y a donc plus rien à deviner ici.
+
+     La clé n'est pas dans ce fichier : l'appel passe par `serveur/`, qui
      seul la connaît (voir serveur/LISEZMOI.md).
 
      L'adresse se règle sans toucher à ce fichier :
@@ -84,9 +87,9 @@ const OCR = (function () {
         throw { code: "service_panne" };
       }
       if (donnees.illisible) throw { code: "illisible" };
-      if (!donnees.markdown) throw { code: "illisible" };
+      if (!donnees.fiche) throw { code: "illisible" };
       avancer("lecture", 1);
-      return { markdown: donnees.markdown, pages: donnees.pages || images.length, moteur: "mistral" };
+      return { fiche: donnees.fiche, pages: donnees.pages || images.length, moteur: donnees.moteur || "claude" };
     } catch (erreur) {
       if (erreur && erreur.code) throw erreur;
       if (signal && signal.aborted) throw { code: "cancelled" };
@@ -1149,6 +1152,79 @@ const OCR = (function () {
     };
   }
 
+  /**
+   * La fiche rendue par le service, rangée comme l'app l'attend.
+   *
+   * Ici on n'interprète rien : les titres, le résumé et les cartes sont
+   * déjà écrits. On se contente de vérifier, de borner, et de rattacher
+   * chaque carte à sa notion — le travail de deviner, lui, n'a plus lieu
+   * d'être. C'est toute la différence avec `structurer()`, qui part d'un
+   * texte à plat et doit tout reconstruire.
+   */
+  function structurerFiche(donnees, options = {}) {
+    const brut = donnees && typeof donnees === "object" ? donnees : {};
+    const ligne = (valeur, max) => String(valeur == null ? "" : valeur).replace(/\s+/g, " ").trim().slice(0, max);
+
+    const sections = (Array.isArray(brut.notions) ? brut.notions : [])
+      .map((notion) => {
+        const n = notion && typeof notion === "object" ? notion : {};
+        const lexique = (Array.isArray(n.lexique) ? n.lexique : [])
+          .map((e) => ({ terme: ligne(e && e.terme, 60), definition: ligne(e && e.definition, 300) }))
+          .filter((e) => e.terme && e.definition)
+          .slice(0, 8);
+        return {
+          titre: ligne(n.titre, 90),
+          texte: ligne(n.resume, 600),
+          points: (Array.isArray(n.points) ? n.points : []).map((pt) => ligne(pt, 220)).filter(Boolean).slice(0, 6),
+          reperes: sansRedites((Array.isArray(n.reperes) ? n.reperes : []).map((r) => ligne(r, 120)).filter(Boolean)).slice(0, 4),
+          lexique,
+          cartes: (Array.isArray(n.cartes) ? n.cartes : [])
+            .map((c) => ({ recto: ligne(c && c.question, 180), verso: ligne(c && c.reponse, 400) }))
+            .filter((c) => c.recto && c.verso)
+            .slice(0, 5),
+        };
+      })
+      .filter((section) => section.titre && (section.texte.length > 15 || section.points.length || section.lexique.length))
+      .slice(0, 10);
+
+    /* Les cartes sont celles du service, rattachées à leur notion. Une
+       question posée deux fois ne sert qu'une fois. */
+    const cartes = [];
+    const vues = new Set();
+    sections.forEach((section, rang) => {
+      section.cartes.forEach((carte) => {
+        const cle = sansAccents(carte.recto);
+        if (vues.has(cle)) return;
+        vues.add(cle);
+        const entree = section.lexique.find((e) => sansAccents(carte.recto).includes(sansAccents(e.terme)));
+        cartes.push({ recto: carte.recto, verso: carte.verso, partie: rang, terme: entree ? entree.terme : "" });
+      });
+      delete section.cartes;                 // la notion ne les porte plus : la fiche les tient
+    });
+
+    const plat = sections.map((s) => `${s.titre} ${s.texte} ${s.points.join(" ")}`).join(" ");
+    const titre = ligne(brut.titre, 90) || (sections[0] && sections[0].titre) || "Document lu";
+
+    return {
+      titre,
+      matiere: ligne(brut.matiere, 40) || devinerMatiere(`${titre} ${plat}`),
+      contenu: {
+        lu: true,
+        moteur: options.moteur || "service",
+        accroche: accroche(sections, 100),
+        sections,
+        points: sections.map((s) => s.texte).filter(Boolean).slice(0, 6),
+        formules: sansRedites([].concat(...sections.map((s) => s.reperes))).slice(0, 6),
+        exemples: [],
+        pieges: [],
+        libelleFormules: "Formules et repères",
+        texte: plat.slice(0, 6000),
+      },
+      cartes: cartes.slice(0, 18),
+      texte: plat,
+    };
+  }
+
   function structurer(texte, confiance) {
     const lignes = lignesUtiles(texte);
     const titre = devinerTitre(lignes);
@@ -1247,7 +1323,7 @@ const OCR = (function () {
   // Exposés pour le banc d'essai (tests/qualite-lecture.js), pas pour l'app.
   return {
     charger, lire, structurer, qualiteTexte, SOURCES,
-    lireParService, structurerMarkdown, serviceConfigure, SERVICE,
+    lireParService, structurerMarkdown, structurerFiche, serviceConfigure, SERVICE,
     __preparerImage: preparerImage, __texteFiable: texteFiable,
   };
 })();

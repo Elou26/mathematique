@@ -314,7 +314,7 @@ repousse sa propre limite, une lecture muette rend la main avec un message qui d
 
 | Lecteur | Ce qu'il rend | Quand |
 | --- | --- | --- |
-| **Mistral Document AI** (`OCR.lireParService`) | du **markdown structuré** : titres, listes, tableaux ; lit le manuscrit | dès que `serveur/` a une `MISTRAL_CLE` |
+| **Claude** (`OCR.lireParService`) | la **fiche entière** : notions du cours, résumé en phrases entières, lexique, cartes ; lit le manuscrit | dès que `serveur/` a une `CLAUDE_CLE` |
 | L'IA du lecteur (`sample`) | une fiche rédigée | si le service n'est pas branché et que le lecteur est connecté |
 | **Tesseract**, sur l'appareil | du texte à plat, à structurer par règles | toujours, en dernier recours |
 
@@ -439,10 +439,13 @@ dans la page.
 `node tests/lecture-reelle.js` fait la **vraie** lecture : il imprime une page de cours avec le
 navigateur, la fait lire par le moteur embarqué (≈ 1 s), et vérifie le titre retenu, la matière
 devinée, les cartes tirées du texte — et qu'aucune requête ne sort du site.
-`node tests/lecture-service.js` éprouve la lecture payante sans réseau ni clé : un faux Mistral
-répond au serveur (clé dans l'en-tête, modèle d'OCR, photo en `image_url` avec repli `document_url`),
-les refus sont dits et non inventés, les garde-fous tiennent (pages, taille, cadence), et le
-markdown devient une fiche qui garde les titres du document.
+`node tests/lecture-service.js` éprouve la lecture payante sans réseau ni clé : un faux Claude
+répond au serveur (clé qui reste au serveur, photo en base64, outil `strict`, consigne qui interdit
+d'inventer, plusieurs pages dans un seul appel), les cinq façons d'échouer sont distinguées plutôt
+que confondues en « panne », les garde-fous tiennent (pages, taille, cadence), et la fiche rendue
+arrive dans l'app sans que ses phrases ni ses questions soient réécrites.
+`node tests/serveur-vercel.js` couvre ce qui change en fonction serverless : le préfixe `/api` et
+le corps déjà lu par l'hébergeur.
 `node tests/lecture-app-service.js` fait le parcours dans l'app : la photo part au service, la
 fiche en revient titrée, et quand le service flanche l'appareil prend le relais en le disant.
 `node tests/cartes-ia.js` éprouve l'écriture des cartes avec un faux runtime : l'invite part bien

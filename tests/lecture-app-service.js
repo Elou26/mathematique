@@ -9,21 +9,40 @@ const PIXEL = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
   'base64');
 
-const MARKDOWN = `# La guerre froide
-
-## 1. Un monde coupé en deux
-
-Après 1947, deux blocs s'opposent sans s'affronter directement.
-
-- **Doctrine Truman** : la politique américaine d'endiguement du communisme, annoncée en 1947.
-- **Rideau de fer** : la frontière fermée qui sépare l'Europe de l'Est de l'Europe de l'Ouest.
-
-## 2. Les crises
-
-Le blocus de Berlin, en 1948, est la première épreuve de force.
-
-- **Blocus de Berlin** : la fermeture des accès terrestres à Berlin-Ouest par l'URSS.
-`;
+/* Ce que le serveur rend : la fiche déjà écrite. */
+const FICHE = {
+  illisible: false,
+  titre: 'La guerre froide',
+  matiere: 'Histoire-Géo',
+  notions: [
+    {
+      titre: '1. Un monde coupé en deux',
+      resume: 'Après 1947, deux blocs s\'opposent sans s\'affronter directement. '
+        + 'Chacun arme ses alliés plutôt que de risquer la guerre ouverte.',
+      points: ['Le monde se range derrière Washington ou derrière Moscou.'],
+      reperes: ['1947 · doctrine Truman'],
+      lexique: [
+        { terme: 'Doctrine Truman', definition: 'La politique américaine d\'endiguement du communisme, annoncée en 1947.' },
+        { terme: 'Rideau de fer', definition: 'La frontière fermée qui sépare l\'Europe de l\'Est de l\'Europe de l\'Ouest.' },
+      ],
+      cartes: [
+        { question: 'Qu\'est-ce que la doctrine Truman ?',
+          reponse: 'La politique américaine d\'endiguement du communisme, annoncée en 1947.' },
+        { question: 'Qu\'est-ce que le rideau de fer ?',
+          reponse: 'La frontière fermée qui sépare l\'Europe de l\'Est de l\'Europe de l\'Ouest.' },
+      ],
+    },
+    {
+      titre: '2. Les crises',
+      resume: 'Le blocus de Berlin, en 1948, est la première épreuve de force entre les deux blocs.',
+      points: [],
+      reperes: ['1948 · blocus de Berlin'],
+      lexique: [{ terme: 'Blocus de Berlin', definition: 'La fermeture des accès terrestres à Berlin-Ouest par l\'URSS.' }],
+      cartes: [{ question: 'Qu\'est-ce que le blocus de Berlin ?',
+                 reponse: 'La fermeture des accès terrestres à Berlin-Ouest par l\'URSS.' }],
+    },
+  ],
+};
 
 let echecs = 0;
 function verifier(nom, condition, vu) {
@@ -48,7 +67,7 @@ const faux = http.createServer((requete, reponse) => {
     recu.lectures.push(corps);
     if (mode === 'panne') { reponse.writeHead(502, entetes); reponse.end(JSON.stringify({ erreur: 'ocr_injoignable' })); return; }
     reponse.writeHead(200, entetes);
-    reponse.end(JSON.stringify({ markdown: MARKDOWN, pages: 1, moteur: 'mistral' }));
+    reponse.end(JSON.stringify({ fiche: FICHE, pages: 1, moteur: 'claude' }));
   });
 });
 
@@ -114,13 +133,21 @@ window.Tesseract = {
     await page.click('[data-scan-outil="flashcards"]'); await page.waitForTimeout(400);
     await page.click('#nom-valider'); await page.waitForTimeout(1200);
     const rangee = await page.evaluate(() => JSON.parse(localStorage.getItem('mathematique.fiches'))[0]);
-    verifier('la fiche garde la trace du moteur', rangee.contenu.moteur === 'mistral', rangee.contenu.moteur);
+    verifier('la fiche garde la trace du moteur', rangee.contenu.moteur === 'claude', rangee.contenu.moteur);
     verifier('les notions sont rangées avec leur lexique',
       rangee.contenu.sections.length === 2
       && rangee.contenu.sections[0].lexique.some((e) => /Truman/.test(e.terme)),
       JSON.stringify(rangee.contenu.sections.map((s) => s.lexique.map((e) => e.terme))));
-    verifier('un nom propre garde sa majuscule dans la question',
-      rangee.cartes.some((c) => /Doctrine Truman/.test(c.recto)),
+    /* Les questions ne sont plus déduites du terme mais écrites par le
+       service : ce qu'on vérifie ici, c'est qu'elles arrivent intactes.
+       La règle de majuscule de questionDefinition() reste éprouvée sur le
+       chemin hors-ligne, par tests/questions-cartes.js. */
+    const attendues = FICHE.notions.flatMap((n) => n.cartes.map((c) => c.question));
+    verifier('les questions arrivent telles qu\'elles ont été écrites',
+      attendues.every((q) => rangee.cartes.some((c) => c.recto === q)),
+      rangee.cartes.map((c) => c.recto).join(' | '));
+    verifier('aucune question ne cite un numéro de partie',
+      rangee.cartes.every((c) => !/\b\d+\.\d+\b/.test(c.recto)),
       rangee.cartes.map((c) => c.recto).join(' | '));
     verifier('aucune erreur console', erreurs.length === 0, erreurs.join(' || '));
     await ctx.close();
