@@ -172,6 +172,35 @@ serveur.listen(0, async () => {
   verifier('au-delà de quatre pages, on refuse',
     trop.code === 400 && trop.corps.erreur === 'trop_de_pages', JSON.stringify(trop.corps));
 
+  /* — 4 bis. Un lot trop lourd est dit à l'élève, pas pris pour une panne — */
+  const codesVus = [];
+  for (const [statut, corps] of [[413, { erreur: 'corps_trop_gros' }], [413, null]]) {
+    /* ocr.js vit normalement dans un navigateur : on lui donne le strict
+       nécessaire, dont un FileReader, sans quoi il échoue avant l'appel. */
+    const bac = vm.createContext({
+      console, AbortController, setTimeout, clearTimeout,
+      FileReader: function () {
+        this.readAsDataURL = (valeur) => { this.result = String(valeur); this.onload(); };
+      },
+      fetch: async () => ({
+        ok: false, status: statut,
+        json: async () => { if (!corps) throw new Error('pas du json'); return corps; },
+      }),
+    });
+    const lecteur = vm.runInContext(
+      fs.readFileSync(path.join(__dirname, '..', 'ocr.js'), 'utf8') + '\n;OCR', bac);
+    lecteur.SERVICE.api = 'http://exemple.test';
+    try { await lecteur.lireParService(['data:image/jpeg;base64,AAAA']); codesVus.push('aucune erreur'); }
+    catch (e) { codesVus.push((e && e.code) || `inattendu: ${e && e.message}`); }
+  }
+  verifier('un lot trop lourd est annoncé comme tel, même sans JSON en retour',
+    codesVus.every((c) => c === 'service_trop_gros'), codesVus.join(' | '));
+  verifier('et le message dit quoi faire, au lieu d\'annoncer une panne',
+    /moins à la fois/.test((fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8')
+      .match(/service_trop_gros: "([^"]+)"/) || [, ''])[1]),
+    (fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8')
+      .match(/service_trop_gros: "([^"]+)"/) || [, 'absent'])[1]);
+
   /* — 5. Le garde-fou de facture — */
   let derniere = null;
   for (let i = 0; i < 45; i++) derniere = await appeler('/lecture', { pages: [PHOTO], appareil: 'glouton' });

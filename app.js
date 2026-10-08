@@ -2095,6 +2095,7 @@
     service_sature: "Trop de lectures d'affilée : laisse passer un moment.",
     service_refuse: "Le service de lecture a refusé la demande (clé invalide côté serveur).",
     service_panne: "Le service de lecture a répondu de travers. Réessaie dans un instant.",
+    service_trop_gros: "Tes photos pèsent trop lourd d'un coup. Reprends-en moins à la fois (deux suffisent).",
     illisible: "Presque rien n'a été lu sur cette photo. Reprends-la à plat, bien éclairée.",
   };
 

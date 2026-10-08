@@ -84,6 +84,11 @@ const OCR = (function () {
         if (reponse.status === 503 || erreur === "lecture_non_configuree") throw { code: "service_absent" };
         if (reponse.status === 429) throw { code: "service_sature" };
         if (erreur === "cle_refusee") throw { code: "service_refuse" };
+        /* 413 : le lot est plus lourd que ce que l'hébergeur laisse passer.
+           C'est l'élève qui peut y remédier — encore faut-il le lui dire, au
+           lieu de lui annoncer une panne qu'il ne peut pas réparer. Certains
+           hébergeurs coupent eux-mêmes, sans JSON : d'où le test sur le code. */
+        if (reponse.status === 413 || erreur === "corps_trop_gros") throw { code: "service_trop_gros" };
         throw { code: "service_panne" };
       }
       if (donnees.illisible) throw { code: "illisible" };
