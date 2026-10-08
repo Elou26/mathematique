@@ -172,6 +172,65 @@
 
   /** Porte unique : tout ce qui dépend de la bibliothèque se remet à jour ici. */
   const aRafraichir = [];
+  /* ————— Ce que les bulles ont le droit de dire ————————————————
+     Chaque fait est calculé sur les données de l'élève, ici et maintenant.
+     Rien n'est inventé, rien n'est arrondi vers le haut : une bulle qui
+     flatterait aurait exactement le défaut qu'on voulait éviter.
+
+     Un fait absent n'est pas remplacé : s'il n'y a rien à dire, on ne dit
+     rien. Une app qui vient d'être installée reste silencieuse, et c'est
+     la bonne réponse.
+     ———————————————————————————————————————————————————————————— */
+  function faitsDActivite() {
+    const faits = [];
+    const maintenant = Date.now();
+
+    const cetteSemaine = fiches.filter((f) => {
+      const creee = Date.parse(f.creee || "");
+      return creee && maintenant - creee < 7 * 86400000;
+    }).length;
+    if (cetteSemaine >= 2) {
+      faits.push({ icone: "✦", texte: `${cetteSemaine} fiches créées cette semaine` });
+    }
+
+    const serie = serieJours();
+    if (serie >= 2) faits.push({ icone: "🔥", texte: `${serie} jours de révision d'affilée` });
+
+    const aujourdhui = revisionsDuJour();
+    if (aujourdhui >= 5) faits.push({ icone: "✓", texte: `${aujourdhui} cartes revues aujourd'hui` });
+
+    const record = recordSurvie();
+    if (record >= 5) faits.push({ icone: "★", texte: `Ton record : ${record} cartes d'affilée` });
+
+    /* La matière la mieux sue, à condition qu'elle le soit vraiment :
+       annoncer « 12 % maîtrisé » comme une bonne nouvelle serait absurde. */
+    const parMatiere = {};
+    fiches.forEach((f) => {
+      if (!f.matiere) return;
+      const liste = parMatiere[f.matiere] || (parMatiere[f.matiere] = []);
+      liste.push(f.progression || 0);
+    });
+    let meilleure = null;
+    Object.keys(parMatiere).forEach((cle) => {
+      const notes = parMatiere[cle];
+      const moyenne = Math.round(notes.reduce((a, b) => a + b, 0) / notes.length);
+      if (moyenne >= 50 && (!meilleure || moyenne > meilleure.moyenne)) {
+        meilleure = { cle, moyenne };
+      }
+    });
+    if (meilleure) {
+      const nom = (MATIERES[meilleure.cle] && MATIERES[meilleure.cle].nom) || meilleure.cle;
+      faits.push({ icone: "◆", texte: `${nom} : ${meilleure.moyenne} % de tes notions sues` });
+    }
+
+    const aRevoir = echeancesFiches().filter((e) => e.etat === "aujourdhui").length;
+    if (aRevoir >= 1) {
+      faits.push({ icone: "●", texte: `${aRevoir} chapitre${aRevoir > 1 ? "s" : ""} à revoir aujourd'hui` });
+    }
+
+    return faits;
+  }
+
   function majBibliotheque() {
     ecrireBibliotheque();
     rendreDossiers();
@@ -180,6 +239,7 @@
     rendreAujourdhui();
     rendreAbonnement();
     majCredits();
+    if (typeof BULLES !== "undefined") BULLES.reveiller();
     rendreEntrainements($("#liste-entrainements"));
     majCloche();
     majProfil();
@@ -4398,6 +4458,11 @@
 
     // Retour d'un paiement, ou simple revérification quotidienne.
     verifierRetourDePaiement();
+
+    /* Les bulles d'activité. On leur passe une fonction, pas une liste :
+       ce qu'elles diront sera calculé au moment de le dire, donc toujours
+       à jour — et le module reste incapable d'inventer quoi que ce soit. */
+    if (typeof BULLES !== "undefined") BULLES.demarrer(faitsDActivite);
 
     // Première visite : on demande la classe avant tout le reste.
     appliquerNiveau(lireNiveau());
