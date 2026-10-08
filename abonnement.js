@@ -31,24 +31,27 @@ const ABONNEMENT = (function () {
        environ quatre centimes à produire. Un palier qui ne compterait pas
        les fiches laisserait un gros utilisateur manger toute sa marge.
 
-       `fiches` est le plafond mensuel. `illimite` ne supprime pas le
-       plafond : il dit qu'on ne l'annonce pas comme une limite, parce
-       qu'aucun élève honnête ne l'atteindra. Le chiffre reste affiché —
-       un « illimité » qui cache un plafond est un mensonge qui se
-       découvre au pire moment.
+       `fiches` est le plafond mensuel, et chaque offre annonce le sien.
+       Aucune ne se dit « illimitée » : un palier qui compte et qui promet
+       de ne pas compter est un mensonge qui se découvre au pire moment,
+       c'est-à-dire le soir où l'élève en a besoin.
+
+       Le drapeau `illimite` existe toujours, pour le jour où tu voudrais
+       une offre sans compteur affiché : il garde le plafond mais cesse de
+       l'annoncer comme une limite.
        ———————————————————————————————————————————————————————————— */
     offres: [
       {
         cle: "essentiel", nom: "Essentiel", prix: "4,90 €", periode: "par mois",
-        fiches: 20, argument: "Pour une ou deux matières.",
+        fiches: 15, argument: "Pour une matière, ou un trimestre tranquille.",
       },
       {
         cle: "regulier", nom: "Régulier", prix: "9,90 €", periode: "par mois",
-        fiches: 60, argument: "Toutes tes matières, toute l'année.", conseille: true,
+        fiches: 50, argument: "Toutes tes matières, toute l'année.", conseille: true,
       },
       {
-        cle: "illimite", nom: "Illimité", prix: "14,90 €", periode: "par mois",
-        fiches: 300, illimite: true, argument: "Sans compter, même en période de révisions.",
+        cle: "intensif", nom: "Intensif", prix: "14,90 €", periode: "par mois",
+        fiches: 100, argument: "Pour les semaines de révisions à plein régime.",
       },
     ],
   };

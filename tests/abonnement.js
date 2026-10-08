@@ -153,7 +153,7 @@ function semence(fiches, paiement) {
       'vue inattendue');
     verifier('elle annonce les trois tarifs et leurs volumes',
       /4,90 €/.test(await page.innerText('#illimite-offres'))
-      && /20 fiches par mois/.test(await page.innerText('#illimite-offres'))
+      && /15 fiches par mois/.test(await page.innerText('#illimite-offres'))
       && /par mois/.test(await page.innerText('#illimite-offres')),
       await page.innerText('#illimite-offres'));
     verifier('elle dit ce que l\'abonnement débloque',
@@ -161,8 +161,8 @@ function semence(fiches, paiement) {
       await page.innerText('.offre').then((t) => t.slice(0, 80)));
     verifier('le comparatif oppose l\'essai aux trois offres',
       /3 en tout/.test(await page.innerText('#illimite-comparatif'))
-      && /20 \/ mois/.test(await page.innerText('#illimite-comparatif'))
-      && /sans compter/.test(await page.innerText('#illimite-comparatif')),
+      && /15 \/ mois/.test(await page.innerText('#illimite-comparatif'))
+      && /100 \/ mois/.test(await page.innerText('#illimite-comparatif')),
       await page.innerText('#illimite-comparatif'));
     /* Cinq colonnes sur 390 px : si le tableau déborde, deux offres
        deviennent invisibles sans que l'élève sache qu'il faut faire
@@ -179,7 +179,7 @@ function semence(fiches, paiement) {
     verifier('le comparatif tient dans l\'écran, sans défilement latéral',
       !tableau.deborde && !tableau.page, JSON.stringify(tableau));
     verifier('les quatre colonnes sont nommées en entier',
-      tableau.titres.join('|') === 'Gratuit|Essentiel|Régulier|Illimité', tableau.titres.join(' | '));
+      tableau.titres.join('|') === 'Gratuit|Essentiel|Régulier|Intensif', tableau.titres.join(' | '));
 
     verifier('le mur dit pourquoi',
       /3 fiches d'essai sont utilisées/.test(await page.innerText('#illimite-raison')),
@@ -250,7 +250,7 @@ function semence(fiches, paiement) {
     verifier('le profil nomme l\'offre souscrite, pas une autre',
       /Essentiel/i.test(profil), profil.replace(/\n+/g, ' / '));
     verifier('et donne le compteur du mois, pas le total de la bibliothèque',
-      /sur 20 ce mois-ci/.test(profil), profil.replace(/\n+/g, ' / '));
+      /sur 15 ce mois-ci/.test(profil), profil.replace(/\n+/g, ' / '));
     verifier('la clé est donnée pour un autre appareil',
       (await page.inputValue('#profil-licence')) === 'cus_bon', await page.inputValue('#profil-licence'));
 

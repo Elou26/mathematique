@@ -31,7 +31,7 @@ function fauxStripe() {
             customer: 'cus_abc',
             subscription: {
               status: 'active', current_period_end: MOIS_PROCHAIN,
-              items: { data: [{ price: { id: 'price_illimite' } }] },
+              items: { data: [{ price: { id: 'price_intensif' } }] },
             },
           };
         },
@@ -61,7 +61,7 @@ Module._load = function (demande, parent, isMain) {
 process.env.STRIPE_CLE_SECRETE = 'sk_test_faux';
 process.env.STRIPE_PRIX_ESSENTIEL = 'price_essentiel';
 process.env.STRIPE_PRIX_REGULIER = 'price_regulier';
-process.env.STRIPE_PRIX_ILLIMITE = 'price_illimite';
+process.env.STRIPE_PRIX_INTENSIF = 'price_intensif';
 process.env.ORIGINES_AUTORISEES = 'http://localhost:8321';
 
 const routeur = require(path.join(__dirname, '..', 'serveur', 'index.js'));
@@ -99,14 +99,14 @@ serveur.listen(0, async () => {
 
   /* — 2. Créer un paiement — */
   const paiement = await appeler('/paiement', {
-    method: 'POST', corps: { appareil: 'a1234', offre: 'illimite', retour: 'http://localhost:8321/index.html' },
+    method: 'POST', corps: { appareil: 'a1234', offre: 'intensif', retour: 'http://localhost:8321/index.html' },
   });
   verifier('le paiement renvoie une adresse Stripe',
     paiement.code === 200 && /checkout\.stripe\.com/.test(paiement.corps.url), JSON.stringify(paiement.corps));
 
   const demande = journal.sessions[journal.sessions.length - 1];
   verifier('la session est un abonnement, au tarif de l\'offre demandée',
-    demande.mode === 'subscription' && demande.line_items[0].price === 'price_illimite',
+    demande.mode === 'subscription' && demande.line_items[0].price === 'price_intensif',
     JSON.stringify({ mode: demande.mode, prix: demande.line_items[0].price }));
 
   /* Chaque offre a son tarif : une erreur de correspondance ferait payer
@@ -153,7 +153,7 @@ serveur.listen(0, async () => {
     licence.corps.actif === true && licence.corps.cle === 'cus_abc' && licence.corps.expire > Date.now(),
     JSON.stringify(licence.corps));
   verifier('la licence dit quelle offre a été payée',
-    licence.corps.offre === 'illimite', JSON.stringify(licence.corps));
+    licence.corps.offre === 'intensif', JSON.stringify(licence.corps));
 
   const impayee = await appeler('/licence?session=cs_impayee');
   verifier('une session sans abonnement ne donne rien',

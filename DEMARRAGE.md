@@ -102,9 +102,9 @@ résumé qu'on trouve soi-même pas clair.
 
    | Produit | Prix | Ce qu'il donne |
    | --- | --- | --- |
-   | Mathématique Essentiel | 4,90 € | 20 fiches/mois |
-   | Mathématique Régulier | 9,90 € | 60 fiches/mois |
-   | Mathématique Illimité | 14,90 € | sans compteur |
+   | Mathématique Essentiel | 4,90 € | 15 fiches/mois |
+   | Mathématique Régulier | 9,90 € | 50 fiches/mois |
+   | Mathématique Intensif | 14,90 € | 100 fiches/mois |
 
    Note les trois identifiants `price_…`. Pour changer un prix affiché ou un
    quota, c'est `abonnement.js` (`CONFIG.offres`) — Stripe ne connaît que
@@ -118,7 +118,7 @@ résumé qu'on trouve soi-même pas clair.
    | `STRIPE_CLE_SECRETE` | `sk_test_…` |
    | `STRIPE_PRIX_ESSENTIEL` | `price_…` |
    | `STRIPE_PRIX_REGULIER` | `price_…` |
-   | `STRIPE_PRIX_ILLIMITE` | `price_…` |
+   | `STRIPE_PRIX_INTENSIF` | `price_…` |
 
    Laisse `STRIPE_WEBHOOK_SECRET` vide : sur Vercel la signature n'est pas
    vérifiable, et le webhook est facultatif.

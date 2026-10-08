@@ -32,7 +32,7 @@ const CLE_SECRETE = process.env.STRIPE_CLE_SECRETE || process.env.STRIPE_SECRET_
 const TARIFS = {
   essentiel: process.env.STRIPE_PRIX_ESSENTIEL || "",
   regulier: process.env.STRIPE_PRIX_REGULIER || process.env.STRIPE_PRIX || process.env.STRIPE_PRICE_ID || "",
-  illimite: process.env.STRIPE_PRIX_ILLIMITE || "",
+  intensif: process.env.STRIPE_PRIX_INTENSIF || "",
 };
 /* L'inverse, pour retrouver l'offre d'un abonnement existant. */
 const OFFRE_DU_TARIF = Object.keys(TARIFS).reduce((table, cle) => {
