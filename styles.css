@@ -2170,3 +2170,37 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
   padding-right: 0.25rem;
   white-space: nowrap;             /* « ESSENTIE / L » coupé en deux : non */
 }
+
+/* ————— Le solde de crédits, dans l'en-tête ————————————————————— */
+.credits {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  margin-left: auto;
+  margin-right: 0.5rem;
+  padding: 0.3rem 0.65rem 0.3rem 0.5rem;
+  border: 1px solid var(--bordure);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--marine);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.credits svg { width: 16px; height: 16px; }
+.credits-nombre { font-variant-numeric: tabular-nums; }
+
+/* Il reste une fiche ou moins : on prévient avant le mur, pas pendant. */
+.credits--bas { border-color: #D9A441; background: #FDF8EE; color: #8A6214; }
+.credits--vide { border-color: #B4232C; background: #FBEDEE; color: #B4232C; }
+
+/* La marque pousse déjà vers la gauche : sans cela, les deux se battent. */
+.header .marque { margin-right: 0; }
+
+.offre-equivalent {
+  margin: -0.15rem 0 0.3rem;
+  font-size: 0.82rem;
+  color: var(--gris-texte);
+}
+.comparatif small { font-weight: 400; color: var(--gris-texte); }

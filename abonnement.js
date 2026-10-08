@@ -25,6 +25,16 @@ const ABONNEMENT = (function () {
     essai: "",                                // ex. « 7 jours offerts »
     gratuit: { fiches: 3 },                   // l'essai : 3 fiches en tout, pas par mois
 
+    /* ————— Les crédits ————————————————————————————————————————
+       Ce que l'élève voit est un solde de crédits ; ce qu'on règle ici
+       reste un nombre de fiches. Une seule vérité, donc, et l'autre s'en
+       déduit : à 100 crédits la fiche, 30 fiches font 3 000 crédits.
+
+       L'intérêt viendra le jour où tout ne coûtera pas pareil — une fiche
+       relue, un quiz régénéré, une page de plus. Un solde sait dire ça,
+       un compteur de fiches non. */
+    creditsParFiche: 100,
+
     /* ————— Les trois offres ————————————————————————————————————
        Elles se distinguent par le nombre de fiches par mois, parce que
        c'est le seul poste qui grandit avec l'usage : une fiche coûte
@@ -193,7 +203,14 @@ const ABONNEMENT = (function () {
   function quotaFiches(dejaCreees) {
     /* Pas de mur sans porte : tant que le paiement n'est pas branché, on ne
        limite rien. Le jour où `api` est renseignée, la gratuité s'applique. */
-    if (!estConfigure()) return { illimite: true, max: Infinity, reste: Infinity, atteint: false, sansOffre: true };
+    if (!estConfigure()) {
+      return {
+        illimite: true, max: Infinity, reste: Infinity, atteint: false, sansOffre: true,
+        /* Rien n'est limité : un solde restant n'aurait aucun sens. On dit
+           ce qui a été dépensé, qui est vrai dans tous les cas. */
+        depenses: consommation() * CONFIG.creditsParFiche,
+      };
+    }
 
     if (estIllimite()) {
       const offre = offreActive();
@@ -203,6 +220,8 @@ const ABONNEMENT = (function () {
         illimite: Boolean(offre.illimite),       // affiché comme sans limite
         abonne: true, offre, periode: "mois",
         max: offre.fiches, faites, reste, atteint: reste <= 0,
+        credits: reste * CONFIG.creditsParFiche,
+        creditsMax: offre.fiches * CONFIG.creditsParFiche,
       };
     }
 
@@ -210,7 +229,11 @@ const ABONNEMENT = (function () {
        petite offre gratuite qui se recharge. */
     const max = CONFIG.gratuit.fiches;
     const reste = Math.max(max - (dejaCreees || 0), 0);
-    return { illimite: false, abonne: false, essai: true, max, reste, atteint: reste <= 0 };
+    return {
+      illimite: false, abonne: false, essai: true, max, reste, atteint: reste <= 0,
+      credits: reste * CONFIG.creditsParFiche,
+      creditsMax: max * CONFIG.creditsParFiche,
+    };
   }
 
   /* ————— Le dialogue avec le serveur de paiement ————————————————— */
@@ -323,6 +346,8 @@ const ABONNEMENT = (function () {
   return {
     config, configure, appareil,
     offres, offreParCle, offreActive,
+    creditsParFiche: () => CONFIG.creditsParFiche,
+    creditsDe: (fiches) => fiches * CONFIG.creditsParFiche,
     consommation, noterFiche, moisCourant,
     estIllimite, estConfigure, quotaFiches,
     ouvrirPaiement, confirmerSession, verifierLicence, rafraichir, oublier,

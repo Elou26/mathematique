@@ -37,9 +37,13 @@ de suite (envoyer un mail, journaliser).
 
    | Offre | Prix suggéré | Ce qu'elle donne |
    | --- | --- | --- |
-   | Essentiel | 4,90 € | 10 fiches par mois |
-   | Régulier | 9,90 € | 30 fiches par mois |
-   | Intensif | 14,90 € | 70 fiches par mois |
+   | Essentiel | 4,90 € | 1 000 crédits (10 fiches) |
+   | Régulier | 9,90 € | 3 000 crédits (30 fiches) |
+   | Intensif | 14,90 € | 7 000 crédits (70 fiches) |
+
+   L'élève voit des crédits, le réglage se fait en fiches : `CONFIG.offres`
+   donne le nombre de fiches, `CONFIG.creditsParFiche` (100) fait le reste.
+   Une seule vérité, et l'autre s'en déduit.
 
    Les prix et les quotas affichés vivent dans `abonnement.js` (`CONFIG.offres`) :
    change-les là, pas dans la page. Chez Stripe, seuls les montants comptent.

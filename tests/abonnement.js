@@ -128,13 +128,26 @@ function semence(fiches, paiement) {
     await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(500);
 
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
+    /* Le compteur de l'en-tête : c'est lui que l'élève regarde avant de
+       photographier, donc il doit être juste à la fiche près. */
+    verifier('le compteur de crédits est visible et chiffré',
+      (await page.isVisible('#credits-solde'))
+      && (await page.innerText('#credits-nombre')).replace(/\s/g, '') === '100',
+      await page.innerText('#credits-nombre'));
+    verifier('il dit à quoi correspond le solde',
+      /100 crédits par fiche/.test(await page.getAttribute('#credits-solde', 'title')),
+      await page.getAttribute('#credits-solde', 'title'));
+    verifier('il prévient avant le mur, pas pendant',
+      (await page.getAttribute('#credits-solde', 'class')).includes('credits--bas'),
+      await page.getAttribute('#credits-solde', 'class'));
+
     verifier('sous le quota, la création s\'ouvre normalement',
       await page.isVisible('#feuille-creation'), 'feuille de création masquée');
     await page.click('#fermer-creation'); await page.waitForTimeout(200);
 
     await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(250);
     verifier('le profil dit où en est le quota',
-      /2 fiches sur 3/.test(await page.innerText('#profil-abonnement')),
+      /100 crédits sur 300, soit 1 fiche/.test(await page.innerText('#profil-abonnement')),
       await page.innerText('#profil-abonnement'));
     verifier('aucune erreur console', erreurs.length === 0, erreurs.join(' || '));
     await ctx.close();
@@ -153,16 +166,18 @@ function semence(fiches, paiement) {
       'vue inattendue');
     verifier('elle annonce les trois tarifs et leurs volumes',
       /4,90 €/.test(await page.innerText('#illimite-offres'))
-      && /10 fiches par mois/.test(await page.innerText('#illimite-offres'))
+      && /1\s000 crédits par mois/.test(await page.innerText('#illimite-offres'))
+      && /soit 10 fiches/.test(await page.innerText('#illimite-offres'))
       && /par mois/.test(await page.innerText('#illimite-offres')),
       await page.innerText('#illimite-offres'));
     verifier('elle dit ce que l\'abonnement débloque',
       /Lecture de tes photos/.test(await page.innerText('.offre')),
       await page.innerText('.offre').then((t) => t.slice(0, 80)));
     verifier('le comparatif oppose l\'essai aux trois offres',
-      /3 en tout/.test(await page.innerText('#illimite-comparatif'))
-      && /10 \/ mois/.test(await page.innerText('#illimite-comparatif'))
-      && /70 \/ mois/.test(await page.innerText('#illimite-comparatif')),
+      /300/.test(await page.innerText('#illimite-comparatif'))
+      && /en tout/.test(await page.innerText('#illimite-comparatif'))
+      && /1\s000/.test(await page.innerText('#illimite-comparatif'))
+      && /7\s000/.test(await page.innerText('#illimite-comparatif')),
       await page.innerText('#illimite-comparatif'));
     /* Cinq colonnes sur 390 px : si le tableau déborde, deux offres
        deviennent invisibles sans que l'élève sache qu'il faut faire
@@ -182,7 +197,7 @@ function semence(fiches, paiement) {
       tableau.titres.join('|') === 'Gratuit|Essentiel|Régulier|Intensif', tableau.titres.join(' | '));
 
     verifier('le mur dit pourquoi',
-      /3 fiches d'essai sont utilisées/.test(await page.innerText('#illimite-raison')),
+      /300 crédits d'essai sont dépensés/.test(await page.innerText('#illimite-raison')),
       await page.innerText('#illimite-raison'));
     verifier('aucun abonnement n\'est inventé',
       (await page.evaluate(() => localStorage.getItem('mathematique.abonnement'))) === null,
@@ -250,7 +265,7 @@ function semence(fiches, paiement) {
     verifier('le profil nomme l\'offre souscrite, pas une autre',
       /Essentiel/i.test(profil), profil.replace(/\n+/g, ' / '));
     verifier('et donne le compteur du mois, pas le total de la bibliothèque',
-      /sur 10 ce mois-ci/.test(profil), profil.replace(/\n+/g, ' / '));
+      /1\s000 crédits sur 1\s000 ce mois-ci/.test(profil), profil.replace(/\n+/g, ' / '));
     verifier('la clé est donnée pour un autre appareil',
       (await page.inputValue('#profil-licence')) === 'cus_bon', await page.inputValue('#profil-licence'));
 

@@ -179,6 +179,7 @@
     rendreSalut();
     rendreAujourdhui();
     rendreAbonnement();
+    majCredits();
     rendreEntrainements($("#liste-entrainements"));
     majCloche();
     majProfil();
@@ -217,6 +218,35 @@
   function estIllimite() { return Boolean(OFFRE && OFFRE.estIllimite()); }
 
   /** Ce que la gratuité laisse encore faire, à cet instant. */
+  /* ————— Le solde de crédits ————————————————————————————————
+     Cent crédits la fiche : un chiffre rond, qui se lit d'un coup d'œil et
+     laisse la place à des actions moins chères qu'une fiche entière.
+
+     Le compteur reste masqué quand rien n'est limité. Un solde qui ne
+     descend jamais n'apprend rien à l'élève, et laisse croire à un
+     décompte qui n'existe pas.
+     ———————————————————————————————————————————————————————————— */
+  function majCredits() {
+    const bouton = $("#credits-solde");
+    if (!bouton || !OFFRE) return;
+    const quota = quotaFiches();
+    const nombre = $("#credits-nombre");
+
+    if (quota.sansOffre) { bouton.hidden = true; return; }
+
+    const reste = quota.credits || 0;
+    bouton.hidden = false;
+    nombre.textContent = reste.toLocaleString("fr-FR");
+    bouton.classList.toggle("credits--bas", quota.reste <= 1);
+    bouton.classList.toggle("credits--vide", quota.atteint);
+    bouton.setAttribute("aria-label", quota.atteint
+      ? "Plus de crédits — voir les offres"
+      : `${reste} crédits restants, soit ${quota.reste} fiche${quota.reste > 1 ? "s" : ""}`);
+    bouton.title = quota.abonne
+      ? `${reste} crédits sur ${quota.creditsMax} ce mois-ci · 100 crédits par fiche`
+      : `${reste} crédits d'essai · 100 crédits par fiche`;
+  }
+
   function quotaFiches() {
     if (!OFFRE) return { illimite: true, max: Infinity, reste: Infinity, atteint: false };
     return OFFRE.quotaFiches(fiches.length);
@@ -233,8 +263,8 @@
        curieux au bout de son essai : lui dire « passe à l'illimité » alors
        qu'il paie déjà serait absurde. */
     const raison = quota.abonne
-      ? `Tes ${quota.max} fiches du mois sont utilisées. Le compteur repart le 1er, ou passe à l'offre au-dessus.`
-      : `Tes ${quota.max} fiches d'essai sont utilisées. Choisis une offre pour continuer.`;
+      ? `Tes ${quota.creditsMax.toLocaleString("fr-FR")} crédits du mois sont dépensés. Ils reviennent le 1er, ou passe à l'offre au-dessus.`
+      : `Tes ${quota.creditsMax.toLocaleString("fr-FR")} crédits d'essai sont dépensés. Choisis une offre pour continuer.`;
     if (!silencieux) ouvrirPageIllimite(raison, vueCourante());
     return false;
   }
@@ -277,9 +307,10 @@
 
     bloc.innerHTML = OFFRE.offres().map((offre) => {
       const sienne = active && active.cle === offre.cle;
+      const credits = OFFRE.creditsDe(offre.fiches).toLocaleString("fr-FR");
       const volume = offre.illimite
-        ? "Fiches sans compter"
-        : `${offre.fiches} fiches par mois`;
+        ? "Crédits sans compter"
+        : `${credits} crédits par mois`;
       return `
         <article class="offre-carte${offre.conseille ? " offre-carte--conseillee" : ""}${sienne ? " offre-carte--actuelle" : ""}">
           ${offre.conseille ? `<span class="offre-ruban">Le plus choisi</span>` : ""}
@@ -288,6 +319,7 @@
           <p class="offre-prix"><strong>${echapper(offre.prix)}</strong>
             <span class="tarif-periode">${echapper(offre.periode)}</span></p>
           <p class="offre-volume">${echapper(volume)}</p>
+          ${offre.illimite ? "" : `<p class="offre-equivalent">soit ${offre.fiches} fiches</p>`}
           <p class="offre-argument">${echapper(offre.argument)}</p>
           ${offre.illimite
             ? `<p class="offre-loyaute">Usage loyal : ${offre.fiches} fiches par mois.
@@ -309,8 +341,11 @@
 
     const colonnes = [`<th scope="col">Gratuit</th>`]
       .concat(offres.map((o) => `<th scope="col">${echapper(o.nom)}</th>`)).join("");
-    const volumes = [`<td>${gratuit} en tout</td>`]
-      .concat(offres.map((o) => `<td class="comparatif-oui">${o.illimite ? "sans compter" : `${o.fiches} / mois`}</td>`)).join("");
+    const credits = (n) => OFFRE.creditsDe(n).toLocaleString("fr-FR");
+    const volumes = [`<td>${credits(gratuit)}<br><small>en tout</small></td>`]
+      .concat(offres.map((o) => `<td class="comparatif-oui">${o.illimite
+        ? "sans compter"
+        : `${credits(o.fiches)}<br><small>/ mois</small>`}</td>`)).join("");
     const partout = (libelle) => `<tr><th scope="row">${libelle}</th>`
       + [`<td class="comparatif-oui">✓</td>`]
         .concat(offres.map(() => `<td class="comparatif-oui">✓</td>`)).join("") + `</tr>`;
@@ -318,7 +353,10 @@
     table.innerHTML = `
       <thead><tr><th scope="col">&nbsp;</th>${colonnes}</tr></thead>
       <tbody>
-        <tr><th scope="row">Fiches de révision</th>${volumes}</tr>
+        <tr><th scope="row">Crédits</th>${volumes}</tr>
+        <tr><th scope="row">Coût d'une fiche</th>${
+          [`<td>${OFFRE.creditsParFiche()}</td>`]
+            .concat(offres.map(() => `<td>${OFFRE.creditsParFiche()}</td>`)).join("")}</tr>
         ${partout("Lecture de tes photos")}
         ${partout("Résumé, cartes, quiz")}
         ${partout("Révision espacée")}
@@ -426,8 +464,9 @@
         : "";
       const compte = quota.illimite
         ? `${quota.faites} fiche${quota.faites > 1 ? "s" : ""} ce mois-ci.`
-        : `${quota.faites} fiche${quota.faites > 1 ? "s" : ""} sur ${quota.max} ce mois-ci.`
-          + (quota.reste ? ` Il t'en reste ${quota.reste}.` : " Le compteur repart le 1er.");
+        : `${quota.credits.toLocaleString("fr-FR")} crédits sur ${quota.creditsMax.toLocaleString("fr-FR")} ce mois-ci,`
+          + ` soit ${quota.reste} fiche${quota.reste > 1 ? "s" : ""}.`
+          + (quota.reste ? "" : " Le compteur repart le 1er.");
       bloc.innerHTML = `
         <p class="offre-etiquette offre-etiquette--actif">${echapper(quota.offre.nom)}</p>
         <p class="offre-detail">${compte} ${fin}</p>
@@ -439,8 +478,9 @@
     } else {
       bloc.innerHTML = `
         <p class="offre-etiquette">Essai gratuit</p>
-        <p class="offre-detail">${fiches.length} fiche${fiches.length > 1 ? "s" : ""} sur ${quota.max}.
-          ${quota.reste ? `Il t'en reste ${quota.reste}.` : "Tu les as toutes utilisées."}</p>
+        <p class="offre-detail">${quota.credits.toLocaleString("fr-FR")} crédits sur
+          ${quota.creditsMax.toLocaleString("fr-FR")},
+          ${quota.reste ? `soit ${quota.reste} fiche${quota.reste > 1 ? "s" : ""}.` : "tous dépensés."}</p>
         <button class="bouton-secondaire" type="button" data-offre="payer">Voir les offres</button>`;
     }
 
