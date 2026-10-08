@@ -43,15 +43,15 @@ const ABONNEMENT = (function () {
     offres: [
       {
         cle: "essentiel", nom: "Essentiel", prix: "4,90 €", periode: "par mois",
-        fiches: 15, argument: "Pour une matière, ou un trimestre tranquille.",
+        fiches: 10, argument: "Pour une matière, ou un trimestre tranquille.",
       },
       {
         cle: "regulier", nom: "Régulier", prix: "9,90 €", periode: "par mois",
-        fiches: 40, argument: "Toutes tes matières, toute l'année.", conseille: true,
+        fiches: 30, argument: "Toutes tes matières, toute l'année.", conseille: true,
       },
       {
         cle: "intensif", nom: "Intensif", prix: "14,90 €", periode: "par mois",
-        fiches: 80, argument: "Pour les semaines de révisions à plein régime.",
+        fiches: 70, argument: "Pour les semaines de révisions à plein régime.",
       },
     ],
   };
