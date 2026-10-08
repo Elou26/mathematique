@@ -89,6 +89,9 @@ function verifier(nom, condition, vu) {
   /* — 1. Une fiche rangée s'ouvre en pleine page — */
   {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    /* Ces suites éprouvent la lecture SANS service : on l'éteint
+       explicitement, au lieu de compter sur le défaut de la page. */
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
     await ctx.addInitScript(SEMEE);
     const page = await ctx.newPage();
     const erreurs = [];
@@ -136,6 +139,9 @@ function verifier(nom, condition, vu) {
   /* — 2. Retour : on revient d'où l'on vient — */
   {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    /* Ces suites éprouvent la lecture SANS service : on l'éteint
+       explicitement, au lieu de compter sur le défaut de la page. */
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
     await ctx.addInitScript(SEMEE);
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(400);
@@ -150,6 +156,9 @@ function verifier(nom, condition, vu) {
   /* — 3. Une photo trop mal lue ne fabrique pas de fiche — */
   {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    /* Ces suites éprouvent la lecture SANS service : on l'éteint
+       explicitement, au lieu de compter sur le défaut de la page. */
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
     await ctx.addInitScript(FAUX(BOUILLIE, 88));
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/index.html');
@@ -172,6 +181,9 @@ function verifier(nom, condition, vu) {
   /* — 4. Après une lecture réussie, la fiche s'ouvre en pleine page — */
   {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    /* Ces suites éprouvent la lecture SANS service : on l'éteint
+       explicitement, au lieu de compter sur le défaut de la page. */
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
     await ctx.addInitScript(FAUX(COURS, 90));
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/index.html');

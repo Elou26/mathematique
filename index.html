@@ -754,20 +754,23 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- ————— Branchement du serveur —————————————————————————————————
-     Décommente la ligne qui te concerne et remplace l'adresse par celle de
-     ton serveur (dossier serveur/, voir serveur/LISEZMOI.md).
+     La lecture des photos passe par serveur/, qui seul connaît la clé.
+     Sur Vercel, le site et le serveur partent ensemble : l'adresse est
+     donc "/api". Ailleurs (Render…), mets l'adresse complète du service.
+     ———————————————————————————————————————————————————————————— -->
+<script>
+  /* « ||= » et non « = » : un réglage déjà posé avant cette page — un test,
+     un autre hébergeur — doit gagner. La page donne le défaut, pas la loi. */
+  window.MATHEMATIQUE_LECTURE = window.MATHEMATIQUE_LECTURE || { api: "/api" };
+</script>
 
-     Sur Vercel, le site et le serveur partent ensemble : l'adresse est "/api".
-     Sur Render ou ailleurs, c'est l'adresse complète du service.
-
-     · MATHEMATIQUE_LECTURE  → fait lire les photos par le service payant.
-     · MATHEMATIQUE_PAIEMENT → allume AUSSI la limite de la version gratuite
-       (3 fiches) et la page de tarif. Ne la mets qu'une fois Stripe prêt :
-       sinon tes élèves butent sur un mur qu'ils ne peuvent pas franchir.
+<!-- Le paiement n'est pas branché, et c'est volontaire : MATHEMATIQUE_PAIEMENT
+     allume AUSSI la limite de la version gratuite (3 fiches) et la page de
+     tarif. Tant que Stripe n'est pas prêt, l'ajouter dresserait devant les
+     élèves un mur qu'ils ne pourraient pas franchir.
 
 <script>
-  window.MATHEMATIQUE_LECTURE  = { api: "https://ton-serveur.onrender.com" };
-  window.MATHEMATIQUE_PAIEMENT = { api: "https://ton-serveur.onrender.com" };
+  window.MATHEMATIQUE_PAIEMENT = { api: "/api" };
 </script>
      ———————————————————————————————————————————————————————————— -->
 
