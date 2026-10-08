@@ -62,7 +62,7 @@ const OCR = (function () {
     const images = [];
     for (let rang = 0; rang < Math.min(pages.length, SERVICE.pagesMax); rang++) {
       if (signal && signal.aborted) throw { code: "cancelled" };
-      images.push(await enDataURI(pages[rang]));
+      images.push(await enDataURI(await photoPourService(pages[rang])));
       avancer("envoi", (rang + 1) / pages.length);
     }
 
@@ -252,6 +252,42 @@ const OCR = (function () {
       return blob || fichier;
     } catch (erreur) {
       return fichier;                 // un traitement raté ne doit jamais bloquer la lecture
+    }
+  }
+
+  /* ————— La photo envoyée au service ——————————————————————————
+     Rien à voir avec preparerImage() : celle-là aplatit l'éclairage et
+     passe en noir et blanc dur, ce qui aide Tesseract mais effacerait les
+     nuances du crayon pour un lecteur qui voit vraiment l'image.
+
+     Ici on réduit, et c'est tout. 1568 px est la taille au-delà de laquelle
+     le service redimensionne lui-même : envoyer plus gros ne fait gagner
+     aucun détail, et coûte une photo de 12 Mpx à téléverser depuis un
+     téléphone en 4G — soit plusieurs mégaoctets pour rien, et le plafond
+     de l'hébergeur atteint dès la première page.
+     ———————————————————————————————————————————————————————————— */
+  const COTE_SERVICE = 1568;
+
+  async function photoPourService(fichier) {
+    try {
+      if (typeof createImageBitmap !== "function" || typeof document === "undefined") return fichier;
+      const bitmap = await createImageBitmap(fichier);
+      const cote = Math.max(bitmap.width, bitmap.height);
+      const facteur = cote > COTE_SERVICE ? COTE_SERVICE / cote : 1;
+      if (facteur === 1) { if (bitmap.close) bitmap.close(); return fichier; }
+
+      const toile = toileDepuis(bitmap, Math.round(bitmap.width * facteur), Math.round(bitmap.height * facteur));
+      if (typeof bitmap.close === "function") bitmap.close();
+
+      /* JPEG et non PNG : sur une photo de cours, le PNG pèse cinq à dix
+         fois plus pour un texte qu'on lit tout aussi bien. */
+      const blob = await new Promise((resoudre) => {
+        if (typeof toile.toBlob === "function") toile.toBlob(resoudre, "image/jpeg", 0.82);
+        else resoudre(null);
+      });
+      return blob && blob.size < fichier.size ? blob : fichier;
+    } catch (erreur) {
+      return fichier;              // un traitement raté ne doit jamais bloquer la lecture
     }
   }
 
@@ -1346,6 +1382,6 @@ const OCR = (function () {
   return {
     charger, lire, structurer, qualiteTexte, SOURCES,
     lireParService, structurerMarkdown, structurerFiche, serviceConfigure, SERVICE,
-    __preparerImage: preparerImage, __texteFiable: texteFiable,
+    __preparerImage: preparerImage, __photoPourService: photoPourService, __texteFiable: texteFiable,
   };
 })();
