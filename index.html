@@ -164,7 +164,10 @@
     <!-- Ce qui est dû aujourd'hui passe avant tout le reste -->
     <section class="aujourdhui" id="bloc-aujourdhui" hidden aria-live="polite"></section>
 
-    <h2 class="titre-categorie">Créer une fiche</h2>
+    <!-- Masquée tant que l'élève n'a aucune fiche : la salutation propose
+         déjà « Créer ma première fiche », et deux fois le même bouton l'un
+         sous l'autre ne fait pas deux choix, ça fait une hésitation. -->
+    <h2 class="titre-categorie" id="titre-creation">Créer une fiche</h2>
     <button class="carte-scan" type="button" id="ouvrir-creation">
       <span class="carte-scan-icone" aria-hidden="true"><svg><use href="#i-camera"></use></svg></span>
       <span class="carte-scan-texte">

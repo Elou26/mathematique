@@ -2248,6 +2248,150 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
   .bulle { transition: none; }
 }
 
+
+/* ————— Les chiffres de l'élève ————————————————————————————————
+   La série de jours était une ligne de texte perdue entre deux phrases,
+   alors que c'est ce qui donne envie de revenir demain. En tuiles, elle se
+   lit en un regard — et le chiffre, pas la phrase, est ce qu'on retient. */
+.chiffres {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.5rem;
+  margin: 0.9rem 0 1rem;
+}
+
+.chiffre {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.65rem 0.4rem 0.55rem;
+  border-radius: 14px;
+  background: var(--blanc);
+  box-shadow: var(--ombre);
+}
+.chiffre-emoji { font-size: 1.05rem; line-height: 1; }
+.chiffre-valeur {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--marine);
+  font-variant-numeric: tabular-nums;
+}
+.chiffre-libelle {
+  font-size: 0.72rem;
+  color: var(--gris-texte);
+  text-align: center;
+  line-height: 1.15;
+}
+
+/* ————— L'anneau de progression ————————————————————————————————
+   Il remplace « 30 % maîtrisé » en fin de ligne, que personne ne lisait.
+   Sa couleur est celle de la matière : la ligne se repère avant d'être lue. */
+.anneau { flex: 0 0 auto; }
+.anneau circle:last-of-type { transition: stroke-dasharray 0.6s cubic-bezier(0.2, 0.8, 0.3, 1); }
+.anneau-texte {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--marine);
+  font-family: inherit;
+}
+
+/* ————— L'étiquette d'échéance ——————————————————————————————————
+   « J+3 » et « en retard de 2 j » étaient noyés dans du gris. En pastille,
+   le retard se voit avant d'être lu — c'est lui qui doit alerter. */
+.etiquette {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--gris-fond);
+  color: var(--gris-texte);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+.etiquette--retard { background: #FBEDEE; color: #B4232C; }
+
+/* La pastille de la ligne prend la teinte de sa matière. */
+.aujourdhui-liste li { --teinte: var(--marine); }
+.aujourdhui-liste .ligne-pastille {
+  background: color-mix(in srgb, var(--teinte) 14%, white);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--teinte) 22%, transparent);
+}
+
+/* ————— Pas encore de cartes ———————————————————————————————————— */
+.entrainement-vide { list-style: none; padding: 0.3rem 0 0; }
+.entrainement-vide-ligne {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin: 0;
+}
+.entrainement-vide-emoji { font-size: 1.5rem; line-height: 1.2; flex: none; }
+.entrainement-vide-texte { font-size: 0.87rem; color: var(--gris-texte); }
+.entrainement-vide-texte strong { display: block; color: var(--noir); font-size: 0.95rem; }
+
+/* ————— La réponse au doigt ————————————————————————————————————
+   Sur un téléphone il n'y a pas de survol : sans retour au contact, on ne
+   sait pas si l'appui a été pris. Un enfoncement bref suffit. */
+@media (prefers-reduced-motion: no-preference) {
+  .bouton-principal,
+  .bouton-secondaire,
+  .bouton-reviser,
+  .carte-action,
+  .dossier-tete,
+  .chiffre { transition: transform 0.12s ease; }
+
+  .bouton-principal:active,
+  .bouton-secondaire:active,
+  .bouton-reviser:active,
+  .carte-action:active,
+  .dossier-tete:active { transform: scale(0.975); }
+}
+
+/* ————— Les cartes de matière ————————————————————————————————
+   Elles étaient dix rectangles blancs identiques, distingués par un seul
+   emoji. Un liseré de couleur en tête suffit à les rendre repérables sans
+   les transformer en confettis. */
+.matiere-carte {
+  --teinte: var(--marine);
+  position: relative;
+  overflow: hidden;
+}
+.matiere-carte::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: var(--teinte);
+}
+.matiere-carte .matiere-emoji {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--teinte) 12%, white);
+}
+
+/* ————— La file terminée ————————————————————————————————————
+   La barre atteignait 100 % et rien ne se passait. Finir sa file est le
+   moment de la journée qu'il faut marquer : c'est ce qui donne envie de
+   recommencer demain. */
+.barre-progression--pleine .barre-progression-remplie { background: #2E9E5B; }
+.aujourdhui-fini {
+  margin: 0.55rem 0 0;
+  font-weight: 600;
+  color: #22734A;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .aujourdhui-fini { animation: surgit 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3); }
+  @keyframes surgit {
+    from { opacity: 0; transform: translateY(6px) scale(0.96); }
+    to   { opacity: 1; transform: none; }
+  }
+}
+
 /* ————— Le filet de « hidden » ————————————————————————————————————
    L'attribut `hidden` ne masque rien dès qu'une règle donne un `display`
    explicite à l'élément : celle du navigateur perd, et l'élément reste à

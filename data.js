@@ -1,17 +1,21 @@
 /* Données de démonstration — remplaçables par un appel API plus tard.
    Le site couvre toutes les matières : chaque cours porte une `matiere`. */
 
+/* Chaque matière a sa teinte. Sans elle, toute l'app est du même marine et
+   rien ne se distingue d'un coup d'œil — or un élève cherche « son cours de
+   physique », pas « la troisième carte ». Les tons sont assez soutenus pour
+   porter du texte blanc, et assez proches du marine pour rester une famille. */
 const MATIERES = {
-  maths:    { nom: "Mathématiques",   court: "Maths",    emoji: "📐" },
-  physique: { nom: "Physique-Chimie", court: "Physique", emoji: "🧪" },
-  svt:      { nom: "SVT",             court: "SVT",      emoji: "🧬" },
-  histoire: { nom: "Histoire-Géo",    court: "Histoire", emoji: "🗺️" },
-  philo:    { nom: "Philosophie",     court: "Philo",    emoji: "💭" },
-  francais: { nom: "Français",        court: "Français", emoji: "📖" },
-  info:     { nom: "Informatique",    court: "Info",     emoji: "💻" },
-  economie: { nom: "Économie-Gestion",court: "Éco",      emoji: "📊" },
-  methodo:  { nom: "Méthodologie",    court: "Méthodo",  emoji: "🎓" },
-  autre:    { nom: "Autre",           court: "Autre",    emoji: "🗂️" },
+  maths:    { nom: "Mathématiques",    court: "Maths",    emoji: "📐", teinte: "#4F5BD5" },
+  physique: { nom: "Physique-Chimie",  court: "Physique", emoji: "🧪", teinte: "#0E8F8E" },
+  svt:      { nom: "SVT",              court: "SVT",      emoji: "🧬", teinte: "#2E9E5B" },
+  histoire: { nom: "Histoire-Géo",     court: "Histoire", emoji: "🗺️", teinte: "#C07A17" },
+  philo:    { nom: "Philosophie",      court: "Philo",    emoji: "💭", teinte: "#7A4FBF" },
+  francais: { nom: "Français",         court: "Français", emoji: "📖", teinte: "#BE3F66" },
+  info:     { nom: "Informatique",     court: "Info",     emoji: "💻", teinte: "#3A6EA5" },
+  economie: { nom: "Économie-Gestion", court: "Éco",      emoji: "📊", teinte: "#8A6B22" },
+  methodo:  { nom: "Méthodologie",     court: "Méthodo",  emoji: "🎓", teinte: "#566B8F" },
+  autre:    { nom: "Autre",            court: "Autre",    emoji: "🗂️", teinte: "#6B7280" },
 };
 
 /* Chaque classe renvoie vers un programme du catalogue (voir CATALOGUE). */

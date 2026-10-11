@@ -48,12 +48,12 @@ function verifier(nom, condition, vu) {
   verifier('l\'avancement du jour est chiffré',
     /0 sur 2 faites/.test(bloc), bloc.replace(/\n+/g, ' / '));
   // palier 2 → J+7 ; revue il y a 9 jours → deux jours de retard
-  verifier('le retard est dit', /en retard de 2 jours/.test(bloc), bloc.replace(/\n+/g, ' / '));
+  verifier('le retard est dit', /en retard de 2 j/.test(bloc), bloc.replace(/\n+/g, ' / '));
   verifier('la plus en retard passe devant',
     (await page.$$eval('[data-revoir]', (n) => n.map((b) => b.dataset.revoir)))[0] === 'f1',
     (await page.$$eval('[data-revoir]', (n) => n.map((b) => b.dataset.revoir))).join(','));
   verifier('la série est réelle',
-    /3 jours d'affilée/.test(await page.innerText('#bloc-salut')),
+    /3\s+jours d'affilée/.test(await page.innerText('#bloc-salut')),
     await page.innerText('#bloc-salut'));
 
   // 2. Réviser depuis l'accueil lance le quiz de cette fiche.
@@ -95,7 +95,7 @@ function verifier(nom, condition, vu) {
   const apres = await page.innerText('#bloc-aujourdhui');
   verifier('le compte du jour a avancé', /1 sur 2 faites/.test(apres), apres.replace(/\n+/g, ' / '));
   verifier('la série a grandi',
-    /4 jours d'affilée/.test(await page.innerText('#bloc-salut')),
+    /4\s+jours d'affilée/.test(await page.innerText('#bloc-salut')),
     await page.innerText('#bloc-salut'));
 
   // 6. Les cartes : trois niveaux, et une carte ratée revient dans la séance.

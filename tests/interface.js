@@ -68,10 +68,23 @@ function verifier(nom, condition, vu) {
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(500);
     const salut = await page.innerText('#bloc-salut');
-    verifier('sans fiche, l\'accueil propose d\'en créer une',
-      /Créer ma première fiche/.test(salut), salut.replace(/\n+/g, ' / '));
-    await page.click('[data-salut="creer"]'); await page.waitForTimeout(400);
-    verifier('le bouton mène bien à la photo', await page.isVisible('#vue-scan'), 'vue scan masquée');
+    verifier('sans fiche, l\'accueil invite à en créer une',
+      /premier cours en photo/.test(salut), salut.replace(/\n+/g, ' / '));
+
+    /* Un seul appel à l'action sur le premier écran. Il y en avait deux,
+       identiques, l'un sous l'autre : la salutation et la carte disaient la
+       même chose, ce qui fait hésiter au lieu d'ouvrir un choix. */
+    const appels = await page.evaluate(() => {
+      const vue = document.getElementById('vue-accueil');
+      return [...vue.querySelectorAll('button')]
+        .filter((b) => b.offsetParent !== null && /créer/i.test(b.textContent))
+        .map((b) => b.textContent.trim().slice(0, 40));
+    });
+    verifier('et une seule fois, pas deux', appels.length === 1, appels.join(' | '));
+
+    await page.click('#ouvrir-creation'); await page.waitForTimeout(250);
+    await page.click('[data-creation="scan"]'); await page.waitForTimeout(400);
+    verifier('la carte mène bien à la photo', await page.isVisible('#vue-scan'), 'vue scan masquée');
     await ctx.close();
   }
 

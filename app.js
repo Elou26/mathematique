@@ -844,12 +844,34 @@
     if (!conteneur) return;
     conteneur.textContent = "";
     const stock = cartesDeToutesLesFiches().length;
+
+    /* Sans cartes, les trois modes disaient la même phrase morte, trois fois
+       de suite. Une seule invitation vaut mieux qu'un triple refus : on dit
+       ce qui manque et on ouvre la porte. */
+    if (!stock) {
+      const vide = document.createElement("li");
+      vide.className = "entrainement-vide";
+      vide.innerHTML = `
+        <p class="entrainement-vide-ligne">
+          <span class="entrainement-vide-emoji" aria-hidden="true">🗂️</span>
+          <span class="entrainement-vide-texte">
+            <strong>Pas encore de cartes.</strong>
+            Crée une fiche : les cartes en sortent toutes seules.
+          </span>
+        </p>
+        <button class="bouton-secondaire" type="button">Créer une fiche</button>`;
+      vide.querySelector("button").addEventListener("click", () => {
+        if (peutCreerUneFiche()) afficherVue("scan");
+      });
+      conteneur.appendChild(vide);
+      return;
+    }
+
     ENTRAINEMENTS.forEach((mode) => {
-      const assez = stock > 0;
       conteneur.appendChild(ligne({
         pastille: '<svg aria-hidden="true"><use href="#i-epee"></use></svg>',
         nom: mode.nom,
-        detail: assez ? mode.detail : "il te faut d'abord des cartes",
+        detail: mode.detail,
         onClick: () => lancerEntrainement(mode),
       }));
     });
@@ -974,6 +996,47 @@
      doit pas avoir à chercher par quoi commencer.
      ———————————————————————————————————————————————————————————— */
 
+  /** La couleur d'une matière, pour que chaque cours se repère d'un coup d'œil. */
+  function teinteDe(cle) {
+    return (MATIERES[cle] && MATIERES[cle].teinte) || "#6B7280";
+  }
+
+  /**
+   * Un petit anneau de progression. Plus lisible qu'un « 30 % » noyé dans
+   * une ligne de texte : l'élève voit où il en est sans lire.
+   */
+  function anneau(pourcentage, couleur, taille = 34) {
+    const part = Math.max(0, Math.min(100, Math.round(pourcentage || 0)));
+    const rayon = (taille - 5) / 2;
+    const tour = 2 * Math.PI * rayon;
+    const plein = (part / 100) * tour;
+    return `<svg class="anneau" viewBox="0 0 ${taille} ${taille}" width="${taille}" height="${taille}"
+                 role="img" aria-label="${part} % maîtrisé">
+      <circle cx="${taille / 2}" cy="${taille / 2}" r="${rayon}" fill="none" stroke="#E6E8EF" stroke-width="4"/>
+      <circle cx="${taille / 2}" cy="${taille / 2}" r="${rayon}" fill="none" stroke="${couleur}" stroke-width="4"
+              stroke-linecap="round" stroke-dasharray="${plein.toFixed(1)} ${tour.toFixed(1)}"
+              transform="rotate(-90 ${taille / 2} ${taille / 2})"/>
+      <text class="anneau-texte" x="50%" y="50%" dominant-baseline="central" text-anchor="middle">${part}</text>
+    </svg>`;
+  }
+
+  /** Les chiffres de l'élève, en tuiles. Une tuile vide ne s'affiche pas. */
+  function tuilesChiffres() {
+    const serie = serieJours();
+    const record = recordSurvie();
+    const tuiles = [];
+    if (serie >= 1) tuiles.push({ emoji: "🔥", valeur: serie, libelle: serie > 1 ? "jours d'affilée" : "jour entamé" });
+    if (fiches.length) tuiles.push({ emoji: "📚", valeur: fiches.length, libelle: fiches.length > 1 ? "fiches" : "fiche" });
+    if (record >= 3) tuiles.push({ emoji: "⚡", valeur: record, libelle: "record" });
+    if (!tuiles.length) return "";
+    return `<div class="chiffres">${tuiles.map((t) => `
+      <div class="chiffre">
+        <span class="chiffre-emoji" aria-hidden="true">${t.emoji}</span>
+        <span class="chiffre-valeur">${t.valeur}</span>
+        <span class="chiffre-libelle">${t.libelle}</span>
+      </div>`).join("")}</div>`;
+  }
+
   function rendreSalut() {
     const bloc = $("#bloc-salut");
     if (!bloc) return;
@@ -987,8 +1050,10 @@
     let phrase;
     let action = "";
     if (!fiches.length) {
-      phrase = "Prends ton premier cours en photo : fiche, cartes et quiz en sortent.";
-      action = `<button class="bouton-principal" type="button" data-salut="creer">Créer ma première fiche</button>`;
+      /* Pas de bouton ici : la carte « Nouvelle fiche » est juste en dessous
+         et dit la même chose en mieux. Deux appels à l'action identiques
+         l'un sur l'autre ne font pas deux choix, ils font une hésitation. */
+      phrase = "Prends ton premier cours en photo : fiche, cartes et quiz en sortent. ↓";
     } else if (dues.length) {
       phrase = `${dues.length} fiche${dues.length > 1 ? "s" : ""} à revoir aujourd'hui.`;
       action = `<button class="bouton-principal" type="button" data-salut="reviser">Réviser maintenant</button>`;
@@ -997,10 +1062,13 @@
       action = `<button class="bouton-principal" type="button" data-salut="entrainement">Lancer un entraînement</button>`;
     }
 
+    const titreCreation = $("#titre-creation");
+    if (titreCreation) titreCreation.hidden = !fiches.length;
+
     bloc.innerHTML = `
       <p class="salut-titre">${moment}${nom} 👋</p>
       <p class="salut-phrase">${phrase}</p>
-      ${serie > 1 ? `<p class="salut-serie">🔥 ${serie} jours d'affilée — ne casse pas la série.</p>` : ""}
+      ${tuilesChiffres()}
       ${action}`;
 
     $$("[data-salut]", bloc).forEach((bouton) => {
@@ -1034,10 +1102,12 @@
       </div>
       <p class="aujourdhui-detail">${faites} sur ${dues.length + faites} ${
         dues.length + faites > 1 ? "faites" : "faite"}</p>
-      <div class="barre-progression" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${part}"
+      <div class="barre-progression${part >= 100 ? " barre-progression--pleine" : ""}"
+           role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${part}"
            aria-label="Avancement des révisions du jour">
         <div class="barre-progression-remplie" style="width:${part}%"></div>
-      </div>`;
+      </div>
+      ${part >= 100 ? `<p class="aujourdhui-fini">🎉 File du jour terminée.</p>` : ""}`;
 
     // Rien à revoir : la salutation propose déjà la suite, le bloc s'efface.
     if (!dues.length) {
@@ -1051,12 +1121,15 @@
       bloc.innerHTML = `${entete}
         <ul class="aujourdhui-liste">
           ${dues.slice(0, 3).map((e) => `
-            <li>
+            <li style="--teinte:${teinteDe(e.fiche.matiere)}">
               <span class="ligne-pastille">${MATIERES[e.fiche.matiere] ? MATIERES[e.fiche.matiere].emoji : "📘"}</span>
               <span class="ligne-texte">
                 <span class="ligne-nom">${echapper(e.fiche.titre)}</span>
-                <span class="ligne-detail">${e.retard > 1 ? `en retard de ${e.retard} jours` : e.palier} · ${e.fiche.progression} % maîtrisé</span>
+                <span class="ligne-detail">${e.retard > 1
+                  ? `<span class="etiquette etiquette--retard">en retard de ${e.retard} j</span>`
+                  : `<span class="etiquette">${e.palier}</span>`}</span>
               </span>
+              ${anneau(e.fiche.progression, teinteDe(e.fiche.matiere))}
               <button class="bouton-reviser bouton-reviser--petit" type="button" data-revoir="${e.fiche.id}">Réviser</button>
             </li>`).join("")}
         </ul>
@@ -1357,6 +1430,7 @@
       carte.type = "button";
       carte.className = "matiere-carte";
       carte.dataset.matiere = matiere;
+      carte.style.setProperty("--teinte", teinteDe(matiere));
       carte.setAttribute("aria-expanded", "false");
       carte.innerHTML = `
         <span class="matiere-emoji" aria-hidden="true">${MATIERES[matiere].emoji}</span>
