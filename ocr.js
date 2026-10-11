@@ -1213,26 +1213,27 @@ const OCR = (function () {
           .map((e) => ({ terme: ligne(e && e.terme, 60), definition: ligne(e && e.definition, 300) }))
           .filter((e) => e.terme && e.definition)
           .slice(0, 8);
-        /* Une formule devient un repère portant ses conditions : « Une
-           formule sans ses hypothèses est fausse » n'est pas qu'une
-           consigne, c'est ce qu'on affiche. */
+        /* Les formules restent des objets jusqu'à l'affichage. Aplaties en
+           « nom : latex — conditions », elles finissaient dans la même liste
+           grise que les dates, et la page ne pouvait plus mettre la formule
+           en valeur ni détacher ses hypothèses. Or sur une fiche de maths,
+           c'est l'essentiel du contenu. */
         const formules = (Array.isArray(n.formules) ? n.formules : [])
-          .map((f) => {
-            const latex = ligne(f && f.latex, 200);
-            const nom = ligne(f && f.nom, 60);
-            const conditions = ligne(f && f.conditions, 160);
-            if (!latex) return "";
-            return `${nom ? nom + " : " : ""}${latex}${conditions ? " — " + conditions : ""}`;
-          })
-          .filter(Boolean)
+          .map((f) => ({
+            nom: ligne(f && f.nom, 60),
+            latex: ligne(f && f.latex, 200),
+            conditions: ligne(f && f.conditions, 160),
+          }))
+          .filter((f) => f.latex)
           .slice(0, 6);
         return {
           numero: ligne(n.numero, 12),
           titre: ligne(n.titre, 90),
           texte: ligne(n.resume, 600),
           points: (Array.isArray(n.points) ? n.points : []).map((pt) => ligne(pt, 220)).filter(Boolean).slice(0, 6),
-          reperes: sansRedites(formules.concat(
-            (Array.isArray(n.reperes) ? n.reperes : []).map((r) => ligne(r, 120)).filter(Boolean))).slice(0, 8),
+          formules,
+          reperes: sansRedites((Array.isArray(n.reperes) ? n.reperes : [])
+            .map((r) => ligne(r, 120)).filter(Boolean)).slice(0, 6),
           lexique,
           cartes: (Array.isArray(n.cartes) ? n.cartes : [])
             .map((c) => ({ recto: ligne(c && c.question, 180), verso: ligne(c && c.reponse, 400) }))
@@ -1270,7 +1271,9 @@ const OCR = (function () {
         accroche: accroche(sections, 100),
         sections,
         points: sections.map((s) => s.texte).filter(Boolean).slice(0, 6),
-        formules: sansRedites([].concat(...sections.map((s) => s.reperes))).slice(0, 6),
+        formules: sansRedites([].concat(...sections.map((s) => s.formules
+          .map((f) => `${f.nom ? f.nom + " : " : ""}${f.latex}${f.conditions ? " — " + f.conditions : ""}`)
+          .concat(s.reperes)))).slice(0, 6),
         exemples: [],
         pieges: [],
         libelleFormules: "Formules et repères",

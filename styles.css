@@ -2431,6 +2431,99 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
 /* Supprimer n'est plus à côté des trois portes : il se fait discret. */
 .carte-cours .carte-actions { justify-content: flex-end; margin-top: 0.2rem; }
 
+/* ————— La fiche : des formules, pas du code ————————————————————
+   Les repères étaient rendus en chasse fixe, dans la même liste grise que
+   les dates. Sur une fiche de sciences, la formule est le contenu qu'on
+   vient chercher : elle mérite sa carte, au large, avec ses hypothèses
+   détachées — « une formule sans ses conditions est fausse » doit se voir,
+   pas seulement s'écrire. */
+#page-fiche { --teinte: var(--marine); }
+
+.notion-soustitre {
+  margin: 1rem 0 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gris-texte);
+}
+
+.formule {
+  margin: 0 0 0.6rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--teinte) 7%, white);
+  border-left: 3px solid var(--teinte);
+}
+.formule-nom {
+  margin: 0 0 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--teinte);
+}
+.formule-corps {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.6;
+  overflow-x: auto;        /* une longue expression glisse, la page ne s'élargit pas */
+}
+.formule-conditions {
+  margin: 0.45rem 0 0;
+  padding-top: 0.4rem;
+  border-top: 1px dashed color-mix(in srgb, var(--teinte) 30%, transparent);
+  font-size: 0.82rem;
+  color: var(--gris-texte);
+}
+.formule-conditions span { color: #C07A17; font-weight: 700; }
+
+/* Le vocabulaire : le terme en tête, lisible, pas noyé dans le gris. */
+.lexique dt {
+  font-weight: 700;
+  color: var(--teinte);
+  font-size: 0.92rem;
+}
+.lexique dd { margin: 0.1rem 0 0.6rem; }
+
+/* Le numéro de la notion prend la couleur de la matière. */
+.notion-numero {
+  background: color-mix(in srgb, var(--teinte) 14%, white);
+  color: var(--teinte);
+}
+.notion-jauge-remplie { background: var(--teinte); }
+
+/* ————— Le parcours du chapitre ————————————————————————————————
+   Un pourcentage aligné à droite ne se lit pas au premier regard. */
+/* L'anneau porte déjà le rang et la maîtrise : le numéro de liste faisait
+   doublon et se télescopait avec lui. */
+.page-fiche-sommaire ol { list-style: none; padding-left: 0; margin: 0; counter-reset: none; }
+.page-fiche-sommaire ol li::marker { content: none; }
+
+.page-fiche-sommaire ol li button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  text-align: left;
+}
+.page-fiche-sommaire .sommaire-nom { flex: 1; font-weight: 600; }
+.page-fiche-sommaire .sommaire-note {
+  font-size: 0.74rem;
+  color: var(--gris-texte);
+  white-space: nowrap;
+}
+
+/* ————— Ce que la lecture n'a pas su déchiffrer ————————————————— */
+.page-fiche-verifier {
+  margin: 0.9rem 0;
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+  border-left: 3px solid #D9A441;
+  background: #FDF8EE;
+}
+.page-fiche-verifier h3 { margin: 0 0 0.2rem; font-size: 0.95rem; color: #8A6214; }
+.page-fiche-verifier-intro { margin: 0 0 0.4rem; font-size: 0.82rem; color: var(--gris-texte); }
+.page-fiche-verifier ul { margin: 0; padding-left: 1.1rem; font-size: 0.88rem; }
+
 /* ————— Le filet de « hidden » ————————————————————————————————————
    L'attribut `hidden` ne masque rien dès qu'une règle donne un `display`
    explicite à l'élément : celle du navigateur perd, et l'élément reste à

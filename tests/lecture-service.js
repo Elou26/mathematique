@@ -257,11 +257,17 @@ serveur.listen(0, async () => {
   verifier('le numéro du document est gardé à part du titre',
     f.contenu.sections[0].numero === 'I' && !/^I\./.test(f.contenu.sections[0].titre),
     `${f.contenu.sections[0].numero} | ${f.contenu.sections[0].titre}`);
-  verifier('une formule arrive avec ses conditions, jamais seule',
-    f.contenu.sections[0].reperes.some((r) => /d = \\frac/.test(r) && /S en km²/.test(r)),
-    JSON.stringify(f.contenu.sections[0].reperes));
+  /* Les formules restent des objets : la page doit pouvoir mettre la
+     formule en valeur et détacher ses hypothèses, ce qu'une chaîne
+     « nom : latex — conditions » ne permet plus. */
+  const formule = f.contenu.sections[0].formules[0];
+  verifier('une formule arrive avec ses conditions, dans leur propre champ',
+    formule && formule.nom === 'Densité' && /S en km²/.test(formule.conditions),
+    JSON.stringify(f.contenu.sections[0].formules));
   verifier('le LaTeX traverse sans être abîmé',
-    f.contenu.sections[0].reperes.some((r) => r.includes('$d = \\frac{N}{S}$')),
+    formule && formule.latex === '$d = \\frac{N}{S}$', formule && formule.latex);
+  verifier('les repères ne mélangent plus formules et lignes de tableau',
+    f.contenu.sections[0].reperes.every((r) => !/\\frac/.test(r)),
     JSON.stringify(f.contenu.sections[0].reperes));
   verifier('ce qui n\'a pas été lu suit la fiche',
     f.aVerifier.length === 1 && /illisible/.test(f.aVerifier[0]), JSON.stringify(f.aVerifier));

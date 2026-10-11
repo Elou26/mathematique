@@ -2742,16 +2742,67 @@
   }
 
   /** Une notion du parcours : son titre, sa maîtrise, son contenu et ses deux gestes. */
+  /**
+   * Les formules d'une notion, sous forme d'objets.
+   *
+   * Les fiches d'avant stockaient « nom : formule — conditions » à plat
+   * dans les repères : on les redécoupe plutôt que de les laisser en gris,
+   * sinon ces fiches-là resteraient froides pour toujours.
+   */
+  function formulesDeLaNotion(notion) {
+    if (Array.isArray(notion.formules) && notion.formules.length) return notion.formules;
+    return (notion.reperes || [])
+      .map((brut) => {
+        const texte = String(brut || "");
+        if (!/\$/.test(texte)) return null;             // pas une formule : une date, une ligne de tableau
+        const [avant, conditions = ""] = texte.split(/\s+—\s+/);
+        const coupe = avant.indexOf(" : ");
+        return coupe > 0
+          ? { nom: avant.slice(0, coupe).trim(), latex: avant.slice(coupe + 3).trim(), conditions: conditions.trim() }
+          : { nom: "", latex: avant.trim(), conditions: conditions.trim() };
+      })
+      .filter(Boolean);
+  }
+
+  /** Les repères qui ne sont pas des formules : dates, chiffres, tableaux. */
+  function reperesSimples(notion) {
+    if (Array.isArray(notion.formules) && notion.formules.length) return notion.reperes || [];
+    return (notion.reperes || []).filter((r) => !/\$/.test(String(r)));
+  }
+
+  /**
+   * Une formule, présentée comme une formule : son nom, l'expression seule
+   * et au large, ses hypothèses détachées en dessous.
+   *
+   * Elles finissaient dans la même liste grise que les dates, en chasse
+   * fixe — donc elles ressemblaient à du code. Sur une fiche de sciences,
+   * c'est pourtant le contenu qu'on vient chercher.
+   */
+  function carteFormule(formule) {
+    const nom = String(formule.nom || "").trim();
+    const conditions = String(formule.conditions || "").trim();
+    return `
+      <div class="formule">
+        ${nom ? `<p class="formule-nom">${echapper(nom)}</p>` : ""}
+        <p class="formule-corps">${echapper(formule.latex)}</p>
+        ${conditions
+          ? `<p class="formule-conditions"><span aria-hidden="true">⚠︎</span> ${echapper(conditions)}</p>`
+          : ""}
+      </div>`;
+  }
+
   function blocNotion(fiche, notion, rang) {
     const note = maitriseNotion(fiche, rang);
     const cartes = cartesDeLaFiche(fiche, rang);
     const etat = note === null ? "Pas encore testée" : `${note} % maîtrisé`;
     const lexique = (notion.lexique || []).slice(0, 8);
+    const formules = formulesDeLaNotion(notion);
+    const reperes = reperesSimples(notion);
 
     return `
       <section class="notion" id="partie-${rang + 1}">
         <header class="notion-entete">
-          <span class="notion-numero">${rang + 1}</span>
+          <span class="notion-numero">${echapper(notion.numero || String(rang + 1))}</span>
           <h3 class="notion-titre">${echapper(notion.titre)}</h3>
         </header>
         <div class="notion-jauge" role="progressbar" aria-valuemin="0" aria-valuemax="100"
@@ -2765,15 +2816,24 @@
           ? `<ul class="notion-points">${notion.points.map((point) => `<li>${echapper(point)}</li>`).join("")}</ul>`
           : ""}
 
-        ${lexique.length ? `
-          <dl class="lexique">
-            ${lexique.map((entree) => `
-              <dt>${echapper(entree.terme)}</dt>
-              <dd>${echapper(entree.definition)}</dd>`).join("")}
-          </dl>` : ""}
+        ${formules.length ? `
+          <div class="formules">
+            <h4 class="notion-soustitre">${formules.length > 1 ? "À retenir" : "La formule"}</h4>
+            ${formules.map(carteFormule).join("")}
+          </div>` : ""}
 
-        ${(notion.reperes || []).length
-          ? `<ul class="notion-reperes">${notion.reperes.map((repere) => `<li>${echapper(repere)}</li>`).join("")}</ul>`
+        ${lexique.length ? `
+          <div class="lexique">
+            <h4 class="notion-soustitre">Le vocabulaire</h4>
+            <dl>
+              ${lexique.map((entree) => `
+                <dt>${echapper(entree.terme)}</dt>
+                <dd>${echapper(entree.definition)}</dd>`).join("")}
+            </dl>
+          </div>` : ""}
+
+        ${reperes.length
+          ? `<ul class="notion-reperes">${reperes.map((repere) => `<li>${echapper(repere)}</li>`).join("")}</ul>`
           : ""}
 
         <div class="notion-actions">
@@ -2808,6 +2868,11 @@
       ? notions.map((notion, rang) => blocNotion(fiche, notion, rang)).join("")
       : sectionFiche("L'essentiel", points, "fiche-section--points");
 
+    hote.style.setProperty("--teinte", teinteDe(fiche.matiere));
+    /* Selon le chemin emprunté, la liste atterrit sur la fiche ou dans son
+       contenu : on regarde les deux plutôt que de taire les trous de lecture. */
+    const aVerifier = (contenu && contenu.aVerifier) || fiche.aVerifier || [];
+
     hote.innerHTML = `
       <header class="page-fiche-entete">
         <span class="page-fiche-matiere">${matiere ? echapper(matiere.nom) : "Fiche"}</span>
@@ -2832,6 +2897,13 @@
 
       ${contenu && contenu.accroche ? `<p class="page-fiche-avis">${contenu.accroche}</p>` : ""}
 
+      ${aVerifier.length ? `
+        <section class="page-fiche-verifier">
+          <h3>À vérifier sur ton cours</h3>
+          <p class="page-fiche-verifier-intro">Ces passages n'ont pas pu être lus sur ta photo.</p>
+          <ul>${aVerifier.map((v) => `<li>${echapper(v)}</li>`).join("")}</ul>
+        </section>` : ""}
+
       ${(contenu && (contenu.objectifs || []).length) ? `
         <section class="page-fiche-objectifs">
           <h3>Ce que tu dois savoir</h3>
@@ -2843,9 +2915,12 @@
           <h3>Parcours du chapitre</h3>
           <ol>${notions.map((notion, rang) => {
             const note = maitriseNotion(fiche, rang);
+            /* Un pourcentage aligné à droite ne dit rien au premier regard.
+               L'anneau montre où l'on en est sans qu'on ait à lire. */
             return `<li><button type="button" data-ancre="partie-${rang + 1}">
-              <span>${echapper(notion.titre)}</span>
-              <span class="sommaire-note">${note === null ? "—" : `${note} %`}</span>
+              ${anneau(note === null ? 0 : note, note === null ? "#D4D8E4" : teinteDe(fiche.matiere), 30)}
+              <span class="sommaire-nom">${echapper(notion.titre)}</span>
+              <span class="sommaire-note">${note === null ? "jamais testée" : "maîtrisé"}</span>
             </button></li>`;
           }).join("")}</ol>
         </nav>` : ""}

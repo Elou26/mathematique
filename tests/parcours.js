@@ -81,9 +81,17 @@ async function ouvrirFiche(page) {
     verifier('l\'en-tête compte les notions',
       /3 notions/.test(await page.innerText('.page-fiche-meta')),
       await page.innerText('.page-fiche-meta'));
+    /* La maîtrise s'affiche désormais dans un anneau : un pourcentage aligné
+       à droite ne se lisait pas au premier regard. Le chiffre est dans le
+       SVG, le libellé à côté. */
     verifier('le parcours liste les notions et leur maîtrise',
       (await page.$$eval('.page-fiche-sommaire li', (n) => n.length)) === 3
-      && /80 %/.test(await page.innerText('.page-fiche-sommaire')),
+      && (await page.$$eval('.page-fiche-sommaire .anneau text',
+            (n) => n.map((e) => e.textContent.trim()))).includes('80')
+      && /maîtrisé/.test(await page.innerText('.page-fiche-sommaire')),
+      await page.innerText('.page-fiche-sommaire'));
+    verifier('une notion jamais testée est dite telle quelle',
+      /jamais testée/.test(await page.innerText('.page-fiche-sommaire')),
       await page.innerText('.page-fiche-sommaire'));
     verifier('les objectifs sont affichés',
       /Définir une contrainte naturelle/.test(await page.innerText('.page-fiche-objectifs')),

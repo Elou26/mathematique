@@ -202,6 +202,70 @@ function verifier(nom, condition, vu) {
     await ctx.close();
   }
 
+  /* — Une fiche de sciences : les formules sont le contenu qu'on vient
+     chercher, pas une ligne grise de plus. Elles étaient rendues en chasse
+     fixe, dans la même liste que les dates — donc elles ressemblaient à du
+     code, et leurs hypothèses se noyaient dedans. — */
+  {
+    const hier = new Date(Date.now() - 86400000).toISOString();
+    const MATHS = [{
+      id: 'fm', matiere: 'maths', titre: 'Intégrales', source: 'scan', banqueId: null,
+      contenu: {
+        lu: true, moteur: 'claude', accroche: 'Deux notions.',
+        sections: [{
+          numero: 'II', titre: 'L\u2019intégrale', texte: 'L\u2019intégrale vaut l\u2019aire sous la courbe.',
+          points: [], reperes: ['Repère de date · 1700'],
+          formules: [{ nom: 'Théorème fondamental', latex: '$\\int_a^b f(x)\\,dx = F(b) - F(a)$',
+                       conditions: 'f continue sur [a ; b]' }],
+          lexique: [{ terme: 'Primitive', definition: 'Fonction dont la dérivée est $f$.' }],
+        }],
+        points: [], formules: [], exemples: [], pieges: [], texte: '',
+        aVerifier: ['La légende du graphique est [illisible].'],
+      },
+      cartes: [{ recto: 'Que vaut l\u2019intégrale ?', verso: '$F(b) - F(a)$.', partie: 0, terme: '' }],
+      creee: hier, derniereRevision: hier, palier: 1, progression: 50,
+    }];
+
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };
+      localStorage.setItem('mathematique.niveau','lyceen');
+      localStorage.setItem('mathematique.fiches', ${JSON.stringify(JSON.stringify(MATHS))});`);
+    const page = await ctx.newPage();
+    const erreurs = [];
+    page.on('pageerror', (e) => erreurs.push(String(e)));
+    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(400);
+    await page.click('.barre-bas [data-onglet="cours"]'); await page.waitForTimeout(300);
+    await page.click('.dossier-tete:has-text("Math")'); await page.waitForTimeout(300);
+    await page.click('[data-reprise="resume"]'); await page.waitForTimeout(900);
+
+    verifier('la formule a sa carte, pas une ligne de liste',
+      (await page.locator('.formule').count()) === 1, await page.locator('.formule').count());
+    verifier('son nom est donné',
+      /Théorème fondamental/.test(await page.innerText('.formule-nom')),
+      await page.innerText('.formule-nom'));
+    verifier('ses conditions sont détachées, pas noyées dans la formule',
+      /f continue sur \[a ; b\]/.test(await page.innerText('.formule-conditions')),
+      await page.innerText('.formule-conditions'));
+    verifier('le LaTeX est rendu, aucun $ ne subsiste',
+      (await page.locator('.formule .katex').count()) >= 1
+      && !/\$/.test(await page.innerText('#page-fiche')),
+      await page.locator('.formule .katex').count());
+    verifier('un repère qui n\'est pas une formule reste un repère',
+      /1700/.test(await page.innerText('.notion-reperes')),
+      await page.innerText('.notion-reperes'));
+    verifier('la numérotation du document est gardée',
+      (await page.innerText('.notion-numero')).trim() === 'II',
+      await page.innerText('.notion-numero'));
+    verifier('ce que la lecture n\'a pas su lire est dit à l\'élève',
+      /illisible/.test(await page.innerText('.page-fiche-verifier')),
+      await page.innerText('.page-fiche-verifier'));
+    verifier('la page ne déborde pas en largeur',
+      !(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)),
+      'débordement horizontal');
+    verifier('aucune erreur de page', erreurs.length === 0, erreurs.join(' || '));
+    await ctx.close();
+  }
+
   await nav.close();
   console.log(echecs ? `\n${echecs} vérification(s) en échec` : '\nTout est vert.');
   process.exit(echecs ? 1 : 0);
