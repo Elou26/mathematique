@@ -3950,6 +3950,59 @@
   }
 
   /** Tire `taille` questions d'un chapitre (mode classique). */
+  /**
+   * Un tirage bâti sur la fiche elle-même, sans banque ni modèle réseau.
+   *
+   * Le quiz ne savait partir que d'un chapitre du catalogue. Une fiche
+   * photographiée n'en a aucun : il renonçait, alors que son lexique et ses
+   * cartes sont exactement de quoi poser des questions. C'était le dernier
+   * endroit où l'app avait encore besoin de l'IA de l'artifact pour marcher.
+   *
+   * Rend `null` quand il n'y a pas de quoi faire un QCM honnête : il faut
+   * quatre propositions distinctes, donc au moins quatre entrées.
+   */
+  function tirageDeLaFiche(fiche, partie) {
+    if (!fiche || typeof qcm !== "function" || typeof fausses !== "function") return null;
+    const cible = typeof partie === "number" ? partie : null;
+
+    const lexique = lexiqueDeLaFiche(fiche)
+      .filter((e) => cible === null || e.partie === cible)
+      .filter((e) => e.terme && e.definition);
+    const cartes = cartesDeLaFiche(fiche, cible)
+      .filter((c) => c.recto && c.verso);
+
+    const modeles = [];
+    // Le lexique donne les deux sens : reconnaître le terme, reconnaître sa définition.
+    if (lexique.length >= 4) modeles.push(...questionsNotions(lexique));
+    // Les cartes : la question au recto, la réponse au verso, les leurres chez les voisines.
+    if (cartes.length >= 4) {
+      modeles.push(() => {
+        const carte = Alea.choix(cartes);
+        const autres = Alea.melanger(cartes.filter((c) => c.verso !== carte.verso));
+        return qcm(
+          carte.recto,
+          carte.verso,
+          fausses(carte.verso, autres.slice(0, 3).map((c) => c.verso), () => Alea.choix(autres).verso),
+          carte.terme ? `${carte.terme} : ${carte.verso}` : carte.verso
+        );
+      });
+    }
+    if (!modeles.length) return null;
+
+    const vues = new Set();
+    return function tirer() {
+      for (let essai = 0; essai < 60; essai++) {
+        const brute = Alea.choix(modeles)();
+        if (!brute || brute.choix.length < 4) continue;      // pas assez de leurres distincts
+        const signature = normaliser(brute.q);
+        if (vues.has(signature)) continue;
+        vues.add(signature);
+        return formaterQuestion(brute);
+      }
+      return null;
+    };
+  }
+
   function preparerQuestions(coursId, taille) {
     const tirer = ouvrirTirage(coursId);
     const questions = [];
@@ -4303,6 +4356,7 @@
   function lancerQuizLocal() {
     let coursId = null;
     let contexte = "";
+    let tirage = null;              // un tirage déjà prêt, quand il vient de la fiche
 
     if (etatQuiz.source === "sujet") {
       const sujet = etatQuiz.sujet.trim();
@@ -4311,17 +4365,25 @@
       const couverture = etatQuiz.couvertureSujet === undefined ? 0.5 : etatQuiz.couvertureSujet;
       const banque = chercherBanque(sujet, etatQuiz.matiereTheme, couverture);
       etatQuiz.couvertureSujet = undefined;
-      if (!banque) { panneauSujetIndisponible(sujet); return; }
 
-      coursId = banque.id;
-      const resume = sujet.length > 48 ? `${sujet.slice(0, 45)}…` : sujet;
-      contexte = `${resume} — questions du chapitre « ${banque.titre} »`;
+      if (banque) {
+        coursId = banque.id;
+        const resume = sujet.length > 48 ? `${sujet.slice(0, 45)}…` : sujet;
+        contexte = `${resume} — questions du chapitre « ${banque.titre} »`;
+      } else {
+        /* Aucune banque : la fiche elle-même fait l'affaire. C'est le cas
+           de toutes les fiches photographiées, donc le cas courant. */
+        const fiche = etatQuiz.ficheId ? trouverFiche(etatQuiz.ficheId) : null;
+        tirage = tirageDeLaFiche(fiche, etatQuiz.partie);
+        if (!tirage) { panneauSujetIndisponible(sujet); return; }
+        contexte = "questions tirées de ta fiche";
+      }
     }
 
-    if (!coursId) { toast("Indique d'abord le sujet du quiz."); return; }
+    if (!coursId && !tirage) { toast("Indique d'abord le sujet du quiz."); return; }
 
     const sansFin = etatQuiz.taille === "infini";
-    const tirer = ouvrirTirage(coursId);
+    const tirer = tirage || ouvrirTirage(coursId);
     const questions = [];
     const voulues = sansFin ? 1 : etatQuiz.taille;
     for (let i = 0; i < voulues; i++) {
