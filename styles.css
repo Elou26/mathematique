@@ -2524,6 +2524,19 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
 .page-fiche-verifier-intro { margin: 0 0 0.4rem; font-size: 0.82rem; color: var(--gris-texte); }
 .page-fiche-verifier ul { margin: 0; padding-left: 1.1rem; font-size: 0.88rem; }
 
+/* ————— La feuille « reprendre » ————————————————————————————— */
+.feuille-surtitre {
+  margin: 0 0 0.1rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gris-texte);
+}
+#feuille-reprise .feuille-titre { margin-top: 0; }
+#feuille-reprise .reprises { margin-bottom: 0.6rem; }
+#feuille-reprise .reprise { padding: 0.8rem 0.35rem 0.7rem; }
+
 /* ————— Le filet de « hidden » ————————————————————————————————————
    L'attribut `hidden` ne masque rien dès qu'une règle donne un `display`
    explicite à l'élément : celle du navigateur perd, et l'élément reste à

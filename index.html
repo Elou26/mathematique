@@ -708,6 +708,19 @@
   <button class="bouton-texte" type="button" id="fermer-creation">Annuler</button>
 </div>
 
+<!-- ————— Feuille « Reprendre une fiche » ——————————————————————————————
+     « Réviser » lançait un quiz sans le dire. La file du jour propose
+     désormais les trois mêmes portes que la bibliothèque, dans une feuille
+     plutôt qu'en ligne : la file montre jusqu'à trois chapitres, et trois
+     boutons sous chacun rallongeraient l'accueil de moitié. ————— -->
+<div class="feuille" id="feuille-reprise" hidden role="dialog" aria-modal="true" aria-labelledby="reprise-titre">
+  <div class="feuille-poignee" aria-hidden="true"></div>
+  <p class="feuille-surtitre" id="reprise-surtitre"></p>
+  <h2 class="feuille-titre" id="reprise-titre">Reprendre</h2>
+  <div id="reprise-choix"></div>
+  <button class="bouton-texte" type="button" id="fermer-reprise">Annuler</button>
+</div>
+
 <!-- ————— Feuille « Nommer la fiche » : le titre du chapitre avant l'enregistrement ————— -->
 <div class="feuille" id="feuille-nom" hidden role="dialog" aria-modal="true" aria-labelledby="nom-titre">
   <div class="feuille-poignee" aria-hidden="true"></div>

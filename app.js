@@ -606,6 +606,36 @@
       </button>`).join("")}</div>`;
   }
 
+  /**
+   * La feuille « reprendre » : les trois mêmes portes, depuis la file du
+   * jour. En ligne, trois boutons sous chacun des trois chapitres
+   * rallongeraient l'accueil de moitié ; en feuille, le choix est explicite
+   * et la file reste lisible.
+   */
+  function ouvrirFeuilleReprise(fiche) {
+    if (!fiche) return;
+    const choix = $("#reprise-choix");
+    if (!choix) { reviserFiche(fiche); return; }   // feuille absente : on ne bloque personne
+
+    $("#reprise-surtitre").textContent = (MATIERES[fiche.matiere] || {}).nom || "";
+    $("#reprise-titre").textContent = fiche.titre;
+    choix.innerHTML = troisReprises(fiche);
+    brancherReprises(choix, fiche, vueCourante());
+    $$("[data-reprise]", choix).forEach((bouton) => {
+      bouton.addEventListener("click", fermerFeuilleReprise);
+    });
+
+    $("#feuille-fond").hidden = false;
+    $("#feuille-reprise").hidden = false;
+    document.body.classList.add("corps--bloque");
+  }
+
+  function fermerFeuilleReprise() {
+    $("#feuille-reprise").hidden = true;
+    $("#feuille-fond").hidden = true;
+    document.body.classList.remove("corps--bloque");
+  }
+
   /** Branche les trois reprises présentes dans un bloc. */
   function brancherReprises(hote, fiche, depuis) {
     $$("[data-reprise]", hote).forEach((bouton) => {
@@ -1025,7 +1055,9 @@
         </span>
         <svg class="ligne-fleche" aria-hidden="true"><use href="#i-horloge"></use></svg>
       `;
-      bloc.addEventListener("click", () => reviserFiche(e.fiche));
+      /* Même file, même choix : toucher un chapitre lançait un quiz sans
+         prévenir, ici comme sur l'accueil. */
+      bloc.addEventListener("click", () => ouvrirFeuilleReprise(e.fiche));
       conteneur.appendChild(bloc);
     });
   }
@@ -1182,10 +1214,12 @@
     }
 
     bloc.hidden = false;
+    /* « Réviser » lançait un quiz sans le dire. Il ouvre maintenant les
+       trois mêmes portes que la bibliothèque : résumé, cartes ou quiz. */
     $$("[data-revoir]", bloc).forEach((bouton) => {
       bouton.addEventListener("click", () => {
         const fiche = trouverFiche(bouton.dataset.revoir);
-        if (fiche) reviserFiche(fiche);
+        if (fiche) ouvrirFeuilleReprise(fiche);
       });
     });
     $$("[data-aujourdhui]", bloc).forEach((bouton) => {
@@ -1788,6 +1822,12 @@
     });
     $("#feuille-fond").addEventListener("click", fermerLesFeuilles);
     $("#fermer-creation").addEventListener("click", fermerFeuilleCreation);
+    $("#fermer-reprise").addEventListener("click", fermerFeuilleReprise);
+    /* Le fond sert les deux feuilles : on ferme celle qui est ouverte. */
+    $("#feuille-fond").addEventListener("click", () => {
+      if (!$("#feuille-reprise").hidden) fermerFeuilleReprise();
+      else if (!$("#feuille-creation").hidden) fermerFeuilleCreation();
+    });
     $$("[data-creation]").forEach((tuile) => {
       tuile.addEventListener("click", () => lancerCreation(tuile.dataset.creation));
     });

@@ -56,9 +56,19 @@ function verifier(nom, condition, vu) {
     /3\s+jours d'affilée/.test(await page.innerText('#bloc-salut')),
     await page.innerText('#bloc-salut'));
 
-  // 2. Réviser depuis l'accueil lance le quiz de cette fiche.
-  await page.click('[data-revoir="f1"]'); await page.waitForTimeout(1800);
-  verifier('réviser lance le quiz', await page.isVisible('#jeu-quiz'), 'quiz absent');
+  /* 2. Réviser depuis l'accueil : le bouton ouvre les trois portes au lieu
+     de lancer un quiz sans le dire, puis le quiz part de la fiche. */
+  await page.click('[data-revoir="f1"]'); await page.waitForTimeout(400);
+  verifier('réviser propose les trois portes',
+    (await page.$$eval('#reprise-choix .reprise-nom', (n) => n.map((e) => e.textContent.trim())))
+      .join('|') === 'Résumé|Cartes|Quiz',
+    await page.innerText('#reprise-choix'));
+  verifier('la feuille nomme la fiche visée',
+    /Dérivées et taux de variation/.test(await page.innerText('#reprise-titre')),
+    await page.innerText('#reprise-titre'));
+
+  await page.click('#reprise-choix [data-reprise="quiz"]'); await page.waitForTimeout(1800);
+  verifier('et « Quiz » lance bien le quiz', await page.isVisible('#jeu-quiz'), 'quiz absent');
 
   for (let i = 0; i < 5; i++) {
     await page.click('#quiz-reponses button'); await page.waitForTimeout(280);
