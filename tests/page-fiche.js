@@ -101,7 +101,7 @@ function verifier(nom, condition, vu) {
 
     await page.click('.barre-bas [data-onglet="cours"]'); await page.waitForTimeout(300);
     await page.click('.dossier-tete:has-text("Histoire")'); await page.waitForTimeout(300);
-    await page.click('[data-fiche="ouvrir"]'); await page.waitForTimeout(400);
+    await page.click('[data-reprise="resume"]'); await page.waitForTimeout(400);
 
     verifier('la fiche s\'ouvre sur sa propre page', await page.isVisible('#vue-fiche'), 'vue masquée');
     verifier('le titre est en tête',
@@ -147,7 +147,7 @@ function verifier(nom, condition, vu) {
     await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(400);
     await page.click('.barre-bas [data-onglet="cours"]'); await page.waitForTimeout(300);
     await page.click('.dossier-tete:has-text("Histoire")'); await page.waitForTimeout(300);
-    await page.click('[data-fiche="ouvrir"]'); await page.waitForTimeout(300);
+    await page.click('[data-reprise="resume"]'); await page.waitForTimeout(300);
     await page.click('#fiche-retour'); await page.waitForTimeout(300);
     verifier('le retour ramène à mes fiches', await page.isVisible('#vue-cours'), 'vue cours masquée');
     await ctx.close();

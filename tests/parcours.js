@@ -53,10 +53,10 @@ function verifier(nom, condition, vu) {
 
 async function ouvrirFiche(page) {
   await page.click('.barre-bas [data-onglet="cours"]'); await page.waitForTimeout(250);
-  if (!(await page.isVisible('[data-fiche="ouvrir"]'))) {
+  if (!(await page.isVisible('[data-reprise="resume"]'))) {
     await page.click('.dossier-tete:has-text("Histoire")'); await page.waitForTimeout(250);
   }
-  await page.click('[data-fiche="ouvrir"]'); await page.waitForTimeout(400);
+  await page.click('[data-reprise="resume"]'); await page.waitForTimeout(400);
 }
 
 (async () => {
@@ -77,7 +77,7 @@ async function ouvrirFiche(page) {
       /À reprendre : Les milieux froids/.test(await page.innerText('.carte-reprise')),
       await page.innerText('.carte-reprise'));
 
-    await page.click('[data-fiche="ouvrir"]'); await page.waitForTimeout(400);
+    await page.click('[data-reprise="resume"]'); await page.waitForTimeout(400);
     verifier('l\'en-tête compte les notions',
       /3 notions/.test(await page.innerText('.page-fiche-meta')),
       await page.innerText('.page-fiche-meta'));

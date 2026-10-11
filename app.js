@@ -577,6 +577,48 @@
   /* ————— Vue « Mes fiches » : une catégorie par matière ————————— */
   /* ————— Vue « Mes fiches » : une catégorie par matière ————————— */
 
+  /**
+   * Ouvre les cartes d'une fiche. Le même chemin pour la bibliothèque, la
+   * page de fiche et une notion : trois entrées, un seul comportement.
+   */
+  function ouvrirCartesDeLaFiche(fiche, partie) {
+    if (!fiche) return;
+    const rang = typeof partie === "number" ? partie : null;
+    etatCartes.ficheId = fiche.id;
+    etatCartes.partie = rang;
+    afficherVue("flashcards");
+    lancerCartes(rang);
+  }
+
+  /** Les trois façons de reprendre une fiche, sous la même forme partout. */
+  function troisReprises(fiche, { compact = false } = {}) {
+    const cartes = cartesDeLaFiche(fiche).length;
+    const reprises = [
+      { cle: "resume", emoji: "📄", nom: "Résumé", detail: "la fiche" },
+      { cle: "cartes", emoji: "🃏", nom: "Cartes", detail: cartes ? `${cartes} à réviser` : "à préparer" },
+      { cle: "quiz", emoji: "✓", nom: "Quiz", detail: "se tester" },
+    ].filter((r) => !(compact && r.cle === "resume"));   // on y est déjà
+    return `<div class="reprises">${reprises.map((r) => `
+      <button class="reprise" type="button" data-reprise="${r.cle}" data-fiche-id="${fiche.id}">
+        <span class="reprise-emoji" aria-hidden="true">${r.emoji}</span>
+        <span class="reprise-nom">${r.nom}</span>
+        <span class="reprise-detail">${r.detail}</span>
+      </button>`).join("")}</div>`;
+  }
+
+  /** Branche les trois reprises présentes dans un bloc. */
+  function brancherReprises(hote, fiche, depuis) {
+    $$("[data-reprise]", hote).forEach((bouton) => {
+      bouton.addEventListener("click", (evenement) => {
+        evenement.stopPropagation();
+        const quoi = bouton.dataset.reprise;
+        if (quoi === "resume") { ouvrirFiche(fiche, depuis); return; }
+        if (quoi === "cartes") { ouvrirCartesDeLaFiche(fiche); return; }
+        reviserFiche(fiche);
+      });
+    });
+  }
+
   function carteFiche(fiche) {
     const jours = joursEntre(fiche.creee, new Date());
     // La notion la plus fragile s'annonce dès la liste : on sait par où reprendre.
@@ -596,19 +638,22 @@
       <p class="barre-legende">${detailFiche(fiche)} · ${fiche.progression} % maîtrisé</p>
       ${reprise ? `<p class="carte-reprise">À reprendre : ${echapper(reprise.titre)}${
         reprise.maitrise === null ? "" : ` (${reprise.maitrise} %)`}</p>` : ""}
+      ${troisReprises(fiche)}
       <div class="carte-actions">
-        <button class="bouton-reviser" type="button" data-fiche="reviser">Réviser maintenant</button>
-        <button class="bouton-texte" type="button" data-fiche="ouvrir">Lire la fiche</button>
         <button class="bouton-texte" type="button" data-fiche="supprimer">Supprimer</button>
       </div>
     `;
 
+    /* Trois portes nommées, au lieu d'un « Réviser maintenant » qui lançait
+       un quiz sans le dire et d'un chemin vers les cartes qui n'existait
+       qu'au bas de la page de fiche. */
+    brancherReprises(carte, fiche, "cours");
+
     $$("[data-fiche]", carte).forEach((bouton) => {
-      bouton.addEventListener("click", () => {
-        const action = bouton.dataset.fiche;
-        if (action === "reviser") reviserFiche(fiche);
-        else if (action === "ouvrir") ouvrirFiche(fiche, "cours");
-        else { supprimerFiche(fiche.id); toast("Fiche supprimée"); }
+      bouton.addEventListener("click", (evenement) => {
+        evenement.stopPropagation();
+        supprimerFiche(fiche.id);
+        toast("Fiche supprimée");
       });
     });
 
@@ -2775,6 +2820,8 @@
         <p class="page-fiche-meta">${fiche.progression} % maîtrisé</p>
       </header>
 
+      ${troisReprises(fiche, { compact: true })}
+
       ${faible && notions.length > 1 ? `
         <button class="page-fiche-reprise" type="button" data-page="reprendre" data-rang="${faible.rang}">
           <span class="page-fiche-reprise-titre">Reprendre par ${echapper(faible.titre)}</span>
@@ -2855,6 +2902,10 @@
       });
     });
 
+    /* Les mêmes reprises qu'en bibliothèque, en tête de page : la fiche est
+       longue, et personne ne défile jusqu'en bas pour lancer ses cartes. */
+    brancherReprises(hote, fiche, retourFiche);
+
     $$("[data-page]", hote).forEach((bouton) => {
       bouton.addEventListener("click", () => {
         const action = bouton.dataset.page;
@@ -2865,11 +2916,12 @@
           return;
         }
         if (action === "tester") { reviserFiche(fiche); return; }
-        if (action === "cartes" || action === "refaire-cartes") {
+        if (action === "cartes") { ouvrirCartesDeLaFiche(fiche); return; }
+        if (action === "refaire-cartes") {
           etatCartes.ficheId = fiche.id;
           etatCartes.partie = null;
           afficherVue("flashcards");
-          lancerCartes(null, { refaire: action === "refaire-cartes" });
+          lancerCartes(null, { refaire: true });
           return;
         }
         afficherVue("scan");

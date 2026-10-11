@@ -2392,6 +2392,45 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
   }
 }
 
+/* ————— Les trois reprises ——————————————————————————————————
+   Résumé, cartes, quiz : les trois façons de revenir sur une fiche, sous
+   la même forme en bibliothèque et en tête de fiche. Avant, « Réviser
+   maintenant » lançait un quiz sans le dire, et les cartes ne
+   s'atteignaient qu'au bas d'une longue page. */
+.reprises {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.45rem;
+  margin: 0.8rem 0 0.4rem;
+}
+
+.reprise {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  padding: 0.6rem 0.3rem 0.55rem;
+  border: 1px solid var(--bordure);
+  border-radius: 12px;
+  background: var(--blanc);
+  text-align: center;
+}
+.reprise-emoji { font-size: 1.05rem; line-height: 1.2; }
+.reprise-nom { font-weight: 700; color: var(--marine); font-size: 0.88rem; }
+.reprise-detail { font-size: 0.72rem; color: var(--gris-texte); line-height: 1.2; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .reprise { transition: transform 0.12s ease, border-color 0.12s ease; }
+  .reprise:active { transform: scale(0.97); border-color: var(--marine); }
+}
+
+/* En tête de fiche, le fond est déjà blanc : on détache par le gris. */
+#page-fiche .reprise { background: var(--gris-fond); border-color: transparent; }
+
+/* Supprimer n'est plus à côté des trois portes : il se fait discret. */
+.carte-cours .carte-actions { justify-content: flex-end; margin-top: 0.2rem; }
+
 /* ————— Le filet de « hidden » ————————————————————————————————————
    L'attribut `hidden` ne masque rien dès qu'une règle donne un `display`
    explicite à l'élément : celle du navigateur perd, et l'élément reste à

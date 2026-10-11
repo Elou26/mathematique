@@ -109,7 +109,8 @@ function verifier(nom, condition, vu) {
   await ouvrir("Histoire-Géo");
   const rempli = await page.innerText('.dossier--ouvert .dossier-contenu');
   verifier('la fiche apparaît dans sa catégorie',
-    /La guerre froide \(1947-1991\)/.test(rempli) && /Réviser maintenant/.test(rempli), rempli.replace(/\n+/g, ' / '));
+    /La guerre froide \(1947-1991\)/.test(rempli)
+    && /Résumé/.test(rempli) && /Cartes/.test(rempli) && /Quiz/.test(rempli), rempli.replace(/\n+/g, ' / '));
 
   await page.click('.cloche');
   await page.waitForTimeout(300);
@@ -130,11 +131,42 @@ function verifier(nom, condition, vu) {
   await page.waitForTimeout(1200);
   verifier('les cartes partent de la fiche', await page.isVisible('#jeu-cartes'), 'paquet non lancé');
 
-  // 7. « Réviser maintenant » relance un quiz sur la fiche.
+  /* Les trois reprises. Avant, « Réviser maintenant » lançait un quiz sans
+     le dire, et les cartes ne s'atteignaient qu'au bas de la page de fiche :
+     une fiche déjà créée doit se reprendre par n'importe laquelle des trois
+     portes, depuis la bibliothèque comme depuis la fiche. */
+  {
+    // L'étape 6 a forcé la vue des cartes : on revient à la bibliothèque.
+    await page.click('.barre-bas [data-onglet="cours"]'); await page.waitForTimeout(350);
+
+    const noms = await page.$$eval('.dossier--ouvert .reprise .reprise-nom',
+      (n) => n.map((e) => e.textContent.trim()));
+    verifier('la fiche offre les trois reprises, nommées',
+      noms.join('|') === 'Résumé|Cartes|Quiz', noms.join(' | '));
+    verifier('les cartes annoncent leur nombre',
+      /\d+ à réviser/.test(await page.innerText('.dossier--ouvert [data-reprise="cartes"]')),
+      await page.innerText('.dossier--ouvert [data-reprise="cartes"]'));
+
+    await page.click('.dossier--ouvert [data-reprise="cartes"]'); await page.waitForTimeout(800);
+    verifier('« Cartes » mène aux flashcards', await page.isVisible('#vue-flashcards'), 'vue inattendue');
+
+    await page.click('.barre-bas [data-onglet="cours"]'); await page.waitForTimeout(300);
+    await page.click('.dossier--ouvert [data-reprise="resume"]'); await page.waitForTimeout(400);
+    verifier('« Résumé » mène à la fiche', await page.isVisible('#vue-fiche'), 'vue inattendue');
+
+    const enTete = await page.$$eval('#page-fiche .reprise .reprise-nom',
+      (n) => n.map((e) => e.textContent.trim()));
+    verifier('la page de fiche reprend les deux autres en tête, sans défiler',
+      enTete.join('|') === 'Cartes|Quiz', enTete.join(' | '));
+
+    await page.click('.barre-bas [data-onglet="cours"]'); await page.waitForTimeout(300);
+  }
+
+  // 7. « Quiz » relance un quiz sur la fiche, et le dit dans son nom.
   await page.click('.barre-bas [data-onglet="cours"]');
   await page.waitForTimeout(300);
   await ouvrir("Histoire-Géo");
-  await page.click('.dossier--ouvert [data-fiche="reviser"]');
+  await page.click('.dossier--ouvert [data-reprise="quiz"]');
   await page.waitForTimeout(1800);
   verifier('réviser une fiche lance un quiz', (await page.innerText('#quiz-question')).length > 5,
     await page.innerText('#quiz-question'));
