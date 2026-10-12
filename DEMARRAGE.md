@@ -1,4 +1,4 @@
-# Mettre Mathématique en ligne
+# Mettre Brainoko en ligne
 
 Cinq étapes, chacune avec une **porte** : si la porte ne s'ouvre pas, on
 s'arrête là et on corrige — on ne paie rien avant.
@@ -130,8 +130,8 @@ mineures.** C'est ce qui rend l'étape 7 ci-dessous non négociable.
    | `BASE_CLE` | la clé `service_role` |
    | `SECRET_COMPTES` | 32 caractères au hasard (voir ci-dessous) |
    | `BREVO_CLE` *ou* `RESEND_CLE` | la clé du service choisi |
-   | `COURRIEL_EXPEDITEUR` | `Mathématique <ton-adresse-verifiee>` |
-   | `SITE_URL` | `https://mathematique-mu.vercel.app` |
+   | `COURRIEL_EXPEDITEUR` | `Brainoko <ton-adresse-verifiee>` |
+   | `SITE_URL` | `https://brainoko.com` |
 
    Pour le secret :
 
@@ -167,7 +167,7 @@ mineures.** C'est ce qui rend l'étape 7 ci-dessous non négociable.
    projet → **APIs et services → Écran de consentement OAuth** (externe, nom
    de l'app, ton adresse d'assistance) → **Identifiants → Créer → ID client
    OAuth → Application Web**. Dans **Origines JavaScript autorisées**, mets
-   `https://mathematique-mu.vercel.app` (et `http://localhost:8321` si tu
+   `https://brainoko.com` (et `http://localhost:8321` si tu
    essaies en local). Copie l'**ID client** dans la variable
    `GOOGLE_CLIENT_ID` chez Vercel.
 
@@ -203,9 +203,9 @@ résumé qu'on trouve soi-même pas clair.
 
    | Produit | Prix | Ce qu'il donne |
    | --- | --- | --- |
-   | Mathématique Essentiel | 4,90 € | 1 000 crédits (10 fiches) |
-   | Mathématique Régulier | 9,90 € | 3 000 crédits (30 fiches) |
-   | Mathématique Intensif | 14,90 € | 7 000 crédits (70 fiches) |
+   | Brainoko Essentiel | 4,90 € | 1 000 crédits (10 fiches) |
+   | Brainoko Régulier | 9,90 € | 3 000 crédits (30 fiches) |
+   | Brainoko Intensif | 14,90 € | 7 000 crédits (70 fiches) |
 
    Une fiche coûte 100 crédits. Le site affiche des crédits ; tu règles des
    fiches dans `abonnement.js`.

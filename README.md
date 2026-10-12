@@ -1,4 +1,4 @@
-# Mathématique — app de révision (version mobile)
+# Brainoko — app de révision (version mobile)
 
 Site statique mobile-first de révision **toutes matières confondues** (maths, physique-chimie,
 SVT, histoire-géo, philosophie), construit en HTML/CSS/JS vanille (aucune dépendance, aucun build).
@@ -39,7 +39,7 @@ python3 -m http.server 8000
 ## La vitrine (`index.html`)
 
 L'adresse publique ouvre sur une page de vente ; l'app vit sur `app.html`. Un visiteur qui
-arrive par un lien partagé ne sait pas ce qu'est Mathématique : le lâcher directement dans
+arrive par un lien partagé ne sait pas ce qu'est Brainoko : le lâcher directement dans
 une bibliothèque vide, c'est le perdre. Celui qui revient, lui, est reconnu (`vitrine.js` lit
 `mathematique.fiches`) et se voit proposer de **reprendre**, pas d'acheter.
 

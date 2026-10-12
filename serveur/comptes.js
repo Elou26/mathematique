@@ -29,8 +29,8 @@
      SECRET_COMPTES    une phrase au hasard, 32 caractères ou plus
      RESEND_CLE        re_… (si tu as un nom de domaine)
      BREVO_CLE         xkeysib-… (sinon : adresse d'expéditeur vérifiée)
-     COURRIEL_EXPEDITEUR   "Mathématique <bonjour@tondomaine.fr>"
-     SITE_URL          https://mathematique-mu.vercel.app
+     COURRIEL_EXPEDITEUR   "Brainoko <bonjour@tondomaine.fr>"
+     SITE_URL          https://brainoko.com
    ========================================================================== */
 
 "use strict";
@@ -46,7 +46,7 @@ const BASE_CLE = process.env.BASE_CLE
 const SECRET = process.env.SECRET_COMPTES || "";
 const RESEND_CLE = process.env.RESEND_CLE || "";
 const BREVO_CLE = process.env.BREVO_CLE || "";
-const EXPEDITEUR = process.env.COURRIEL_EXPEDITEUR || "Mathématique <onboarding@resend.dev>";
+const EXPEDITEUR = process.env.COURRIEL_EXPEDITEUR || "Brainoko <onboarding@resend.dev>";
 const SITE = (process.env.SITE_URL || "").replace(/\/+$/, "");
 
 /* Les adresses des services, surchargeables : les tests les pointent vers
@@ -159,7 +159,7 @@ function tropDeDemandes(cle, plafond, fenetre) {
 
 function messageDuLien(lien) {
   const texte = [
-    "Voici ton lien pour entrer sur Mathématique :",
+    "Voici ton lien pour entrer sur Brainoko :",
     "",
     lien,
     "",
@@ -169,11 +169,11 @@ function messageDuLien(lien) {
 
   const html = `<div style="font-family:system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
       font-size:16px;line-height:1.5;color:#11182F;max-width:520px">
-    <p>Voici ton lien pour entrer sur&nbsp;Mathématique&nbsp;:</p>
+    <p>Voici ton lien pour entrer sur&nbsp;Brainoko&nbsp;:</p>
     <p style="margin:28px 0">
       <a href="${lien}" style="background:#1B2A6B;color:#fff;text-decoration:none;
          padding:14px 24px;border-radius:999px;font-weight:700;display:inline-block">
-        Ouvrir Mathématique</a></p>
+        Ouvrir Brainoko</a></p>
     <p style="color:#5B6170;font-size:14px">Il est valable 20&nbsp;minutes et ne sert qu'une fois.<br>
       Si tu n'as rien demandé, ignore ce message&nbsp;: personne ne peut entrer sans ce lien.</p>
   </div>`;
@@ -195,7 +195,7 @@ async function envoyerCourriel(destinataire, sujet, { texte, html }) {
 
   /* Brevo accepte une simple adresse d'expéditeur vérifiée, sans domaine :
      c'est la porte d'entrée quand on n'a pas encore acheté de nom. */
-  const nom = (EXPEDITEUR.match(/^(.*?)\s*</) || [, "Mathématique"])[1];
+  const nom = (EXPEDITEUR.match(/^(.*?)\s*</) || [, "Brainoko"])[1];
   const adresse = (EXPEDITEUR.match(/<(.+)>/) || [, EXPEDITEUR])[1];
   const reponse = await fetch(BREVO_URL, {
     method: "POST",
@@ -234,7 +234,7 @@ async function demanderLien(corps, venantDe) {
 
   const racine = SITE || "";
   const lien = `${racine}/api/compte-entrer?jeton=${encodeURIComponent(jeton)}`;
-  await envoyerCourriel(courriel, "Ton lien pour entrer sur Mathématique", messageDuLien(lien));
+  await envoyerCourriel(courriel, "Ton lien pour entrer sur Brainoko", messageDuLien(lien));
 
   return reponsePolie;
 }

@@ -139,7 +139,7 @@ function appeler(routeur, url, { methode = 'GET', corps, jeton } = {}) {
   process.env.SECRET_COMPTES = 'un-secret-de-test-assez-long-pour-faire-illusion';
   process.env.BREVO_CLE = 'cle_brevo_de_test';
   process.env.BREVO_URL = `http://localhost:${port}/faux-courriel`;
-  process.env.COURRIEL_EXPEDITEUR = 'Mathématique <bonjour@exemple.fr>';
+  process.env.COURRIEL_EXPEDITEUR = 'Brainoko <bonjour@exemple.fr>';
   process.env.SITE_URL = 'https://mon-site.vercel.app';
   process.env.GOOGLE_CLIENT_ID = CLIENT_GOOGLE;
   process.env.GOOGLE_JWKS_URL = `http://localhost:${port}/faux-jwks`;

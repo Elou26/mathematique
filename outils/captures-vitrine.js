@@ -323,7 +323,7 @@ async function ouvrirReprise(page, rang, porte) {
                   stroke-width="2.8" stroke-linecap="round"/>
             <circle cx="30.5" cy="12.5" r="2.7" fill="#4F5BD5"/>
           </svg>
-          Mathématique
+          Brainoko
         </div>
         <h1>Photographie ton cours.<br><em>Révise-le ce soir.</em></h1>
         <p>Une photo devient une fiche claire, des flashcards et un quiz.

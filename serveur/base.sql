@@ -1,5 +1,5 @@
 -- ==========================================================================
--- Mathématique — les deux tables des comptes
+-- Brainoko — les deux tables des comptes
 -- --------------------------------------------------------------------------
 -- À coller dans l'éditeur SQL de ta base (Supabase : « SQL Editor », puis
 -- « Run »). Une seule fois : la commande est écrite pour pouvoir être

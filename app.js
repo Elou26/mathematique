@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Mathématique — logique de l'interface mobile
+   Brainoko — logique de l'interface mobile
    ========================================================================== */
 
 (function () {

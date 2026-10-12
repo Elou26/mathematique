@@ -80,7 +80,7 @@ de suite (envoyer un mail, journaliser).
 | `SECRET_COMPTES` | ce qui signe les sessions (32 caractères au hasard) ; en changer déconnecte tout le monde |
 | `RESEND_CLE` | l'envoi des liens, si tu as un nom de domaine |
 | `BREVO_CLE` | l'envoi des liens sans domaine, avec une adresse d'expéditeur vérifiée |
-| `COURRIEL_EXPEDITEUR` | `Mathématique <bonjour@exemple.fr>` |
+| `COURRIEL_EXPEDITEUR` | `Brainoko <bonjour@exemple.fr>` |
 | `SITE_URL` | l'adresse publique du site : c'est elle qui part dans le courriel |
 | `GOOGLE_CLIENT_ID` | facultatif — l'identifiant client OAuth, public, qui fait apparaître le bouton Google |
 

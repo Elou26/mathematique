@@ -21,7 +21,7 @@ const ABONNEMENT = (function () {
      sans barre finale. Le reste est de l'affichage.
      ———————————————————————————————————————————————————————————— */
   const CONFIG = {
-    api: "",                                  // ex. « https://mathematique-mu.vercel.app/api »
+    api: "",                                  // ex. « https://brainoko.com/api »
     essai: "",                                // ex. « 7 jours offerts »
     gratuit: { fiches: 3 },                   // l'essai : 3 fiches en tout, pas par mois
 
