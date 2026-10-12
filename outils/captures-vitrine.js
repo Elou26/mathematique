@@ -227,6 +227,13 @@ async function ouvrirReprise(page, rang, porte) {
   await page.click(`#reprise-choix [data-reprise="${porte}"]`);
 }
 
+/* Les fiches de démonstration servent aussi ailleurs (l'aperçu du PDF, par
+   exemple) : on les expose, et on ne lance le navigateur que si ce fichier
+   est appelé directement. */
+module.exports = { MATHS, HISTOIRE, SVT, SEMENCE, ECRAN };
+
+if (require.main !== module) return;
+
 (async () => {
   const nav = await chromium.launch();
 

@@ -359,11 +359,23 @@
 
   <!-- Vue : la fiche en pleine page — on la lit, on ne la règle pas -->
   <section class="vue" id="vue-fiche" hidden>
-    <button class="retour" type="button" id="fiche-retour">
-      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
-      <span id="fiche-retour-nom">Mes fiches</span>
-    </button>
+    <div class="fiche-barre">
+      <button class="retour" type="button" id="fiche-retour">
+        <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+        <span id="fiche-retour-nom">Mes fiches</span>
+      </button>
+      <button class="bouton-pdf" type="button" id="fiche-pdf"
+              aria-label="Exporter cette fiche en PDF">
+        <svg aria-hidden="true" viewBox="0 0 24 24" width="17" height="17" fill="none"
+             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v11m0 0 4-4m-4 4-4-4"/><path d="M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17"/>
+        </svg>
+        PDF
+      </button>
+    </div>
     <article class="page-fiche" id="page-fiche" aria-live="polite"></article>
+    <!-- Ne se voit qu'à l'impression : une fiche qui circule dit d'où elle vient. -->
+    <p class="impression-pied">Fiche révisée sur Brainoko · brainoko.com</p>
   </section>
 
   <!-- Vue : Passer en illimité — la page de tarif -->

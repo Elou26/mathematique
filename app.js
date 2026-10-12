@@ -3107,9 +3107,44 @@
     });
   }
 
+  /* ————— La fiche en PDF ————————————————————————————————————————
+     On ne fabrique pas le fichier nous-mêmes. Le navigateur sait déjà le
+     faire, et bien mieux qu'une bibliothèque de 300 ko : texte
+     sélectionnable, formules vectorielles, polices de KaTeX conservées,
+     aucun téléchargement. On lui donne une feuille de style d'impression,
+     et « Enregistrer en PDF » fait le reste — sur iPhone comme sur Mac.
+
+     Le titre de la page devient le nom du fichier proposé : c'est le seul
+     endroit où l'on peut le choisir, alors on le règle avant d'imprimer.
+     ———————————————————————————————————————————————————————————— */
+  function exporterFichePDF() {
+    const fiche = trouverFiche(fichePageId);
+    const ancien = document.title;
+    if (fiche) document.title = `${fiche.titre} — Brainoko`;
+
+    let rendu = false;
+    const rendre = () => {
+      if (rendu) return;
+      rendu = true;
+      document.title = ancien;
+    };
+    /* Safari sur iPhone ne déclenche pas toujours « afterprint », et un
+       dialogue refermé sans imprimer laisserait l'onglet avec un faux nom.
+       Trois filets, donc. Le délai est court sans risque : le navigateur lit
+       le titre au moment où il prépare l'aperçu, c'est-à-dire tout de suite. */
+    window.addEventListener("afterprint", rendre, { once: true });
+    window.addEventListener("focus", () => setTimeout(rendre, 500), { once: true });
+    setTimeout(rendre, 3000);
+
+    try { window.print(); } catch (erreur) { rendre(); toast("L'impression n'est pas disponible ici."); }
+  }
+
   function initPageFiche() {
     const retour = $("#fiche-retour");
     if (retour) retour.addEventListener("click", () => afficherVue(retourFiche));
+
+    const pdf = $("#fiche-pdf");
+    if (pdf) pdf.addEventListener("click", exporterFichePDF);
 
     // Une notion notée pendant une séance : la page la montre à jour au retour.
     aRafraichir.push(() => {

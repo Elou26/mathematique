@@ -2585,6 +2585,135 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
 .compte-mention { margin: 12px 0 0; color: var(--gris-texte); font-size: 12px; line-height: 1.5; }
 .compte-mention a { color: var(--marine); }
 
+/* ————— Le bouton « PDF » et la barre de la page de fiche ——————— */
+.fiche-barre {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.fiche-barre .retour { margin-bottom: 0; }
+.bouton-pdf {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 999px;
+  border: 1px solid var(--bordure); background: var(--blanc);
+  color: var(--marine); font-size: 13px; font-weight: 700;
+  box-shadow: var(--ombre);
+}
+.bouton-pdf:active { transform: translateY(1px); }
+
+/* Le pied ne sert qu'au papier : à l'écran, il n'a rien à dire. */
+.impression-pied { display: none; }
+
+/* ==========================================================================
+   À l'impression — et donc en PDF
+   --------------------------------------------------------------------------
+   « Enregistrer en PDF » du navigateur fait un bien meilleur fichier que
+   n'importe quelle bibliothèque qu'on aurait chargée : le texte reste
+   sélectionnable, les formules de KaTeX restent vectorielles, et rien ne
+   pèse. Il suffit de lui dire ce qui est de l'interface (qui ne s'imprime
+   pas) et ce qui est la fiche (qui s'imprime seule).
+
+   Les couleurs viennent de la matière : --teinte est posée sur #page-fiche,
+   tout en hérite. On les garde en accents — titres, numéros, filets — plutôt
+   qu'en aplats : une fiche ne doit pas vider une cartouche.
+   ========================================================================== */
+@media print {
+  @page { size: A4 portrait; margin: 14mm 13mm; }
+
+  body {
+    background: #fff; color: #11182F; padding: 0;
+    font-size: 10.5pt; line-height: 1.5;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    /* À l'écran large, la page garde le format d'un téléphone (440 px) :
+       sur une feuille A4, ça laissait deux tiers de blanc à droite. */
+    max-width: none; box-shadow: none; margin: 0;
+  }
+  .corps { padding: 0; }
+
+  /* KaTeX aère beaucoup une formule isolée : sur papier, c'est du vide. */
+  .formule-corps .katex-display { margin: 1.5mm 0; }
+
+  /* Tout ce qui se touche ne s'imprime pas. */
+  .header, .barre-bas, .toast, .bulles, .bulle,
+  .feuille, .feuille-fond, .ecran-niveau, .fiche-barre,
+  .reprises, .page-fiche-reprise, .notion-actions,
+  .page-fiche-jauge, .notion-jauge, .sommaire-note,
+  .page-fiche-sommaire button::after { display: none !important; }
+
+  #vue-fiche { display: block !important; }
+  .page-fiche { padding: 0; }
+
+  /* L'en-tête : un bandeau léger à la couleur de la matière. */
+  .page-fiche-entete {
+    background: #F5F7FC;
+    background: color-mix(in srgb, var(--teinte, #1B2A6B) 7%, #fff);
+    border: 1px solid #E6E8EF;
+    border-color: color-mix(in srgb, var(--teinte, #1B2A6B) 22%, #fff);
+    border-radius: 4mm; padding: 6mm 7mm; margin: 0 0 7mm;
+    break-inside: avoid;
+  }
+  .page-fiche-matiere {
+    color: var(--teinte, #1B2A6B); background: none; padding: 0;
+    font-size: 8.5pt; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+  }
+  .page-fiche-titre { font-size: 19pt; line-height: 1.15; margin: 2mm 0 1.5mm; color: #11182F; }
+  .page-fiche-meta { color: #5B6170; font-size: 9pt; margin: 0; }
+
+  /* Le sommaire tient en une liste sobre. */
+  .page-fiche-sommaire { break-inside: avoid; margin-bottom: 6mm; }
+  .page-fiche-sommaire h3 { font-size: 9pt; letter-spacing: .1em; color: #5B6170; }
+  .page-fiche-sommaire button { background: none; padding: 1mm 0; width: 100%; }
+  .page-fiche-sommaire .anneau { width: 7mm; height: 7mm; }
+
+  /* Une notion : un bloc de texte, pas une carte d'interface. */
+  .notion {
+    background: none; border: 0; box-shadow: none; border-radius: 0;
+    padding: 0; margin: 0 0 7mm;
+  }
+  .notion-entete { break-after: avoid; }
+  .notion-numero {
+    background: var(--teinte, #1B2A6B); color: #fff;
+    border-radius: 2mm; padding: 0 2mm; font-weight: 800;
+  }
+  .notion-titre { font-size: 13pt; color: #11182F; }
+  .notion-etat { color: #8A93A6; font-size: 8.5pt; }
+  .notion-texte, .notion-points li { color: #1F2638; }
+  .notion-soustitre {
+    color: var(--teinte, #1B2A6B); font-size: 8.5pt;
+    letter-spacing: .1em; text-transform: uppercase; break-after: avoid;
+  }
+
+  /* Une formule ne se coupe jamais en deux pages. */
+  .formule {
+    break-inside: avoid; background: #F4F6FD;
+    border-left: 1.2mm solid var(--teinte, #4F5BD5);
+    border-radius: 0 2mm 2mm 0; padding: 3mm 4mm; margin: 2mm 0;
+  }
+  .formule-nom { color: var(--teinte, #4F5BD5); font-size: 9pt; }
+  .formule-conditions { color: #5B6170; font-size: 9pt; }
+
+  .lexique { break-inside: avoid; }
+  .lexique dt { color: var(--teinte, #1B2A6B); font-weight: 700; }
+  .lexique dd { color: #1F2638; margin-left: 0; }
+  /* Un repère est une phrase, pas du code : à l'écran la chasse fixe aide à
+     repérer les formules, sur papier elle fait bégayer la lecture. */
+  .notion-reperes li {
+    break-inside: avoid; background: none; font-family: inherit;
+    font-size: 10pt; padding: 0 0 0 4mm; margin-bottom: 1.5mm;
+    border-left: 0.6mm solid color-mix(in srgb, var(--teinte, #1B2A6B) 35%, #fff);
+    border-radius: 0;
+  }
+
+  .page-fiche-verifier { break-inside: avoid; border-color: #E2C98F; }
+
+  /* Les adresses entre parenthèses derrière chaque lien : non. */
+  a[href]::after { content: "" !important; }
+
+  .impression-pied {
+    display: block; margin-top: 9mm; padding-top: 3mm;
+    border-top: 1px solid #E6E8EF;
+    color: #8A93A6; font-size: 8.5pt; text-align: center;
+  }
+}
+
 /* ————— Le filet de « hidden » ————————————————————————————————————
    L'attribut `hidden` ne masque rien dès qu'une règle donne un `display`
    explicite à l'élément : celle du navigateur perd, et l'élément reste à

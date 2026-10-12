@@ -680,6 +680,32 @@ Le texte y est plus grand qu'ailleurs (13,5 px contre 12), les marges plus large
 de lecture. L'onglet du bas reste allumé sur *Mes fiches* quand on vient de là, sur *Accueil*
 sinon, et le bouton de retour ramène exactement d'où l'on vient.
 
+## Exporter une fiche en PDF
+
+Le bouton **PDF**, en haut de la page d'une fiche, ouvre l'impression du
+navigateur — et « Enregistrer en PDF » fait le reste, sur iPhone comme sur
+Mac. On ne fabrique pas le fichier nous-mêmes : le navigateur le fait mieux
+qu'une bibliothèque de 300 ko, avec du texte sélectionnable, des formules
+restées vectorielles et les polices de KaTeX conservées. Rien à télécharger,
+rien à installer.
+
+Ce qui change au passage, c'est la feuille de style (`@media print` dans
+`styles.css`) : l'interface disparaît — en-tête, barre du bas, trois portes,
+boutons de notion, jauges — et la fiche reste seule. Les couleurs viennent de
+la matière (`--teinte`, posée sur `#page-fiche`), en accents plutôt qu'en
+aplats : titre, numéros de notion, filets des formules et du vocabulaire. Une
+fiche ne doit pas vider une cartouche.
+
+Deux détails qui comptent : le titre du document devient
+« <titre de la fiche> — Brainoko », parce que c'est le seul endroit où l'on
+peut choisir le nom du fichier proposé ; et un pied de page signe la fiche
+(`brainoko.com`), pour qu'une fiche qui circule dise d'où elle vient.
+
+`node tests/impression.js` ouvre une fiche, bascule le navigateur en média
+`print`, vérifie que l'interface a disparu, que les deux notions et leurs
+formules composées sont là, que la couleur de la matière arrive sur le papier
+— puis fabrique un vrai PDF et contrôle qu'il commence bien par `%PDF`.
+
 ## Page « Créer résumé »
 
 Ouverte depuis la tuile *Créer résumé* des Outils IA (`#vue-resume`).
