@@ -42,6 +42,9 @@ function jetons(fichier) {
   /* — 1. La page tient dans un téléphone, sans erreur ni débordement — */
   {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    /* Comptes éteints : un serveur de fichiers local n'a pas d'/api, et la
+       vitrine lui demanderait /api/sante avant de poser sa porte. */
+    await ctx.addInitScript(`window.MATHEMATIQUE_COMPTE = { api: "" };`);
     const page = await ctx.newPage();
     const soucis = [];
     page.on('console', (m) => { if (m.type() === 'error') soucis.push(m.text()); });
@@ -200,8 +203,9 @@ function jetons(fichier) {
 
   /* — 10. La porte d'entrée : elle ne s'interpose que si elle peut ouvrir — */
   {
-    /* a) Comptes éteints (l'état du dépôt) : les boutons mènent à l'app. */
+    /* a) Comptes éteints : les boutons mènent droit à l'app. */
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(`window.MATHEMATIQUE_COMPTE = { api: "" };`);
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/index.html', { waitUntil: 'load' });
     await page.waitForTimeout(500);

@@ -14,6 +14,8 @@ function verifier(nom, condition, vu) {
   const nav = await chromium.launch();
   const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
   await ctx.addInitScript(`window.claude = { use: async () => null };`);   // moteur local
+  // Pas de serveur ici : sans ça, l'ouverture du profil appellerait /api/sante.
+  await ctx.addInitScript(`window.MATHEMATIQUE_COMPTE = { api: "" };`);
   const page = await ctx.newPage();
   const erreurs = [];
   page.on('pageerror', (e) => erreurs.push(String(e)));

@@ -143,21 +143,17 @@ mineures.** C'est ce qui rend l'étape 7 ci-dessous non négociable.
 
 **Porte :** `/api/sante` répond `{"pret":…,"lecture":true,"comptes":true}`.
 
-6. **Alors seulement**, décommente dans `app.html` :
+6. **C'est fait depuis le 12 octobre 2026** : la ligne est allumée dans
+   `app.html` (le bloc « Mes fiches sur tous mes appareils » du profil) et
+   dans `index.html` (la porte d'entrée devant les boutons de la vitrine).
 
    ```html
-   window.MATHEMATIQUE_COMPTE = { api: "/api" };
+   window.MATHEMATIQUE_COMPTE = window.MATHEMATIQUE_COMPTE || { api: "/api" };
    ```
 
-   Avant cette ligne, le bloc « Mes fiches sur tous mes appareils » n'existe
-   pas dans le profil — c'est voulu : un formulaire qui ne peut envoyer aucun
-   lien ne vaut rien.
-
-   La même ligne existe dans `index.html` : décommentée, elle met la **porte
-   d'entrée** devant les boutons de la vitrine (« Ouvrir l'app », « Créer ma
-   première fiche » ouvrent alors la fenêtre de connexion). Tant qu'elle dort,
-   les boutons mènent directement à l'app — sans quoi le site entier serait
-   inutilisable jusqu'à ce que la base réponde.
+   Si tu repars un jour d'une base vide, remets ces deux lignes en commentaire
+   avant que `/api/sante` réponde `"comptes":true` : une porte qui ne peut
+   envoyer aucun lien rendrait le site inutilisable.
 
 7. **Facultatif, mais recommandé : le bouton « continuer avec Google ».**
    La plupart des élèves ont un compte Google, et un bouton évite d'attendre

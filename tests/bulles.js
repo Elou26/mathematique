@@ -18,7 +18,8 @@ const fiche = (n, extra) => Object.assign({
 }, extra || {});
 
 function semence(fiches, journal, record) {
-  return `localStorage.setItem('mathematique.niveau','lyceen');
+  return `
+    window.MATHEMATIQUE_COMPTE = { api: "" };   /* pas de serveur en local */localStorage.setItem('mathematique.niveau','lyceen');
     localStorage.setItem('mathematique.fiches', ${JSON.stringify(JSON.stringify(fiches))});
     localStorage.setItem('mathematique.journal', ${JSON.stringify(JSON.stringify(journal || {}))});
     localStorage.setItem('mathematique.record', ${JSON.stringify(String(record || 0))});`;

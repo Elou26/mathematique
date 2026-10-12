@@ -43,7 +43,8 @@ const LEXIQUE = [
 ];
 
 function semence(fiche) {
-  return `localStorage.setItem('mathematique.niveau','lyceen');
+  return `
+    window.MATHEMATIQUE_COMPTE = { api: "" };   /* pas de serveur en local */localStorage.setItem('mathematique.niveau','lyceen');
     window.claude = { use: async () => null };    /* aucune IA : c'est tout l'enjeu */
     localStorage.setItem('mathematique.fiches', ${JSON.stringify(JSON.stringify([fiche]))});`;
 }

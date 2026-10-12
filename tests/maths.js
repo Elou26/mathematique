@@ -35,6 +35,7 @@ function verifier(nom, condition, vu) {
   const nav = await chromium.launch();
   const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
   await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
+  await ctx.addInitScript(`window.MATHEMATIQUE_COMPTE = { api: "" };`);   // ni service de lecture, ni comptes
   const p = await ctx.newPage();
   const erreurs = [];
   p.on('console', (m) => { if (m.type() === 'error') erreurs.push(m.text()); });

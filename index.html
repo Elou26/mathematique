@@ -454,15 +454,15 @@
   <a class="bouton bouton--principal" href="app.html?vue=scan">Commencer</a>
 </div>
 
-<!-- Les comptes s'allument ici, comme dans app.html, et seulement une fois
-     la base et l'envoi de courriel réglés côté serveur (/api/sante doit
-     répondre "comptes":true). Tant que cette ligne dort, la porte d'entrée
-     ne s'interpose pas et les boutons mènent directement à l'app.
+<!-- Les comptes sont branchés : /api/sante répond "comptes":true depuis le
+     12 octobre 2026. La porte d'entrée s'interpose donc devant les boutons
+     qui mènent à l'app — sauf pour qui est déjà entré.
 
+     « ||= » et non « = » : un réglage posé avant cette page (un test, un
+     autre hébergeur) doit gagner. La page donne le défaut, pas la loi. -->
 <script>
-  window.MATHEMATIQUE_COMPTE = { api: "/api" };
+  window.MATHEMATIQUE_COMPTE = window.MATHEMATIQUE_COMPTE || { api: "/api" };
 </script>
-     ———————————————————————————————————————————————————————————— -->
 
 <script src="abonnement.js"></script>
 <script src="compte.js"></script>

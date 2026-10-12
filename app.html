@@ -829,16 +829,11 @@
 </script>
      ———————————————————————————————————————————————————————————— -->
 
-<!-- Les comptes (retrouver ses fiches sur un autre appareil) ne s'allument
-     qu'ici, et seulement une fois la base et l'envoi de courriel réglés
-     côté serveur — vérifie /api/sante : il doit répondre "comptes":true.
-     Décommentée trop tôt, cette ligne ouvrirait un formulaire qui ne peut
-     envoyer aucun lien.
-
+<!-- Les comptes : retrouver ses fiches sur un autre appareil. Branchés le
+     12 octobre 2026 — /api/sante répond "comptes":true. -->
 <script>
-  window.MATHEMATIQUE_COMPTE = { api: "/api" };
+  window.MATHEMATIQUE_COMPTE = window.MATHEMATIQUE_COMPTE || { api: "/api" };
 </script>
-     ———————————————————————————————————————————————————————————— -->
 
 <script src="data.js"></script>
 <script src="abonnement.js"></script>
