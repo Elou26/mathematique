@@ -131,6 +131,37 @@ serveur.listen(0, async () => {
   });
   verifier('et une demande sans offre aussi',
     sansOffre.code === 400 && sansOffre.corps.erreur === 'offre_inconnue', JSON.stringify(sansOffre.corps));
+  /* ————— Où Stripe nous renvoie ————————————————————————————————
+     Le bug qui a coûté le premier paiement : on ne gardait que l'origine,
+     donc Stripe renvoyait sur la vitrine — qui ne sait pas confirmer un
+     abonnement. L'élève payait et ne voyait jamais ses crédits. */
+  verifier('le retour garde le chemin de l\'app, pas seulement le domaine',
+    demande.success_url.startsWith('http://localhost:8321/app.html?paiement=ok'),
+    demande.success_url);
+  verifier('et la session y est passée pour être vérifiée',
+    demande.success_url.includes('session={CHECKOUT_SESSION_ID}'), demande.success_url);
+  verifier('l\'annulation revient au même endroit',
+    demande.cancel_url === 'http://localhost:8321/app.html?paiement=annule', demande.cancel_url);
+
+  /* Et un domaine qui ressemble au nôtre ne doit pas servir de retour :
+     « localhost:8321.pirate.net » commence pourtant bien par l'origine. */
+  await appeler('/paiement', {
+    method: 'POST',
+    corps: { appareil: 'a1234', offre: 'essentiel', retour: 'http://localhost:8321.pirate.net/app.html' },
+  });
+  const sosie = journal.sessions[journal.sessions.length - 1];
+  verifier('un domaine sosie ne détourne pas le retour',
+    sosie.success_url.startsWith('http://localhost:8321/app.html'), sosie.success_url);
+
+  /* Une autre page du site, en revanche, reste permise. */
+  await appeler('/paiement', {
+    method: 'POST', corps: { appareil: 'a1234', offre: 'essentiel', retour: 'http://localhost:8321/app.html?vue=profil' },
+  });
+  const avecRequete = journal.sessions[journal.sessions.length - 1];
+  verifier('la requête de l\'adresse de retour est jetée',
+    avecRequete.success_url === 'http://localhost:8321/app.html?paiement=ok&session={CHECKOUT_SESSION_ID}',
+    avecRequete.success_url);
+
   verifier("l'appareil est rattaché au paiement",
     demande.client_reference_id === 'a1234', demande.client_reference_id);
   verifier('le retour porte la session, pour la vérifier ensuite',

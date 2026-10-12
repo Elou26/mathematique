@@ -127,11 +127,29 @@ async function creerPaiement(corps, origine) {
 
   const appareil = String((corps && corps.appareil) || "").slice(0, 64) || undefined;
   const retour = String((corps && corps.retour) || "").slice(0, 500);
-  // On n'accepte de revenir que sur une adresse déclarée : sinon, n'importe
-  // quel site pourrait se faire passer pour l'app.
-  const base = ORIGINES.length
-    ? (ORIGINES.find((o) => retour.startsWith(o)) || ORIGINES[0])
-    : retour;
+
+  /* ————— Où Stripe nous renvoie ————————————————————————————————
+     Deux pièges, et on est tombé dans les deux.
+
+     Le premier : ne garder que l'origine renvoyait l'élève sur la vitrine,
+     qui ne sait pas confirmer un paiement — c'est l'app qui le fait. On
+     garde donc le chemin demandé (/app.html), sans la requête ni l'ancre.
+
+     Le second : comparer avec startsWith() laissait passer
+     « https://brainoko.com.pirate.net/ », qui commence bien par l'origine
+     autorisée. On compare les origines, pas les débuts de chaîne.
+     ———————————————————————————————————————————————————————————— */
+  const parDefaut = ORIGINES.length ? `${ORIGINES[0].replace(/\/+$/, "")}/app.html` : "";
+  let base = "";
+  try {
+    const voulue = new URL(retour);
+    const permise = !ORIGINES.length || ORIGINES.some((o) => {
+      try { return new URL(o).origin === voulue.origin; } catch (erreur) { return false; }
+    });
+    base = permise ? `${voulue.origin}${voulue.pathname}` : parDefaut;
+  } catch (erreur) {
+    base = parDefaut;
+  }
   if (!base || !/^https?:\/\//.test(base)) return { code: 400, corps: { erreur: "retour_invalide" } };
 
   const session = await stripe.checkout.sessions.create({

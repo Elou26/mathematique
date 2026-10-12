@@ -476,18 +476,14 @@
     messageIllimite("Ouverture du paiement sécurisé…");
     try {
       const url = await OFFRE.ouvrirPaiement({ offre: cle });
-      /* Une page publiée peut être empêchée de changer d'adresse : on tente
-         l'onglet, et si le navigateur le refuse on donne le lien à toucher. */
-      const onglet = window.open(url, "_blank", "noopener");
-      if (!onglet) {
-        messageIllimite("");
-        const ligne = $("#illimite-message");
-        ligne.innerHTML = `Ouvre le paiement ici : <a href="${echapper(url)}" target="_blank" rel="noopener">page de paiement Stripe</a>`;
-        ligne.className = "ia-message";
-        ligne.hidden = false;
-      } else {
-        messageIllimite("Le paiement s'est ouvert dans un autre onglet. Reviens ici une fois réglé.");
-      }
+
+      /* Dans le même onglet. L'ouverture dans un second onglet venait du
+         temps où l'app vivait dans une page publiée qui n'avait pas le droit
+         de changer d'adresse : Stripe renvoyait alors dans ce second onglet,
+         et l'élève, resté sur le premier, ne voyait jamais ses crédits
+         arriver. Un site ordinaire n'a pas ce problème. */
+      messageIllimite("Ouverture du paiement sécurisé…");
+      window.location.href = url;
     } catch (erreur) {
       const code = (erreur && erreur.code) || "serveur";
       messageIllimite(ENNUIS_PAIEMENT[code] || ENNUIS_PAIEMENT.serveur, "erreur");
@@ -4864,6 +4860,12 @@
 
     // Retour d'un paiement, ou simple revérification quotidienne.
     verifierRetourDePaiement();
+
+    /* Un abonnement confirmé dans un autre onglet (ou sur un autre écran du
+       même navigateur) doit se voir ici aussi, sans recharger. */
+    window.addEventListener("storage", (evenement) => {
+      if (evenement.key === "mathematique.abonnement") majBibliotheque();
+    });
 
     /* Les bulles d'activité. On leur passe une fonction, pas une liste :
        ce qu'elles diront sera calculé au moment de le dire, donc toujours
