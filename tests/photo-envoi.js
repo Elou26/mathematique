@@ -15,7 +15,8 @@ function verifier(nom, condition, vu) {
 (async () => {
   const nav = await chromium.launch();
   const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
-  await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
+  await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };
+    window.MATHEMATIQUE_PAIEMENT = { api: "" };`);
   const p = await ctx.newPage();
   await p.goto('http://localhost:8321/app.html', { waitUntil: 'load' });
 

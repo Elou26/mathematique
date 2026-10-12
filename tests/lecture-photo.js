@@ -74,7 +74,8 @@ function verifier(nom, condition, vu) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     /* Ces suites éprouvent la lecture SANS service : on l'éteint
        explicitement, au lieu de compter sur le défaut de la page. */
-    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };
+    window.MATHEMATIQUE_PAIEMENT = { api: "" };`);
     await ctx.addInitScript(FAUX('ok'));
     const page = await ctx.newPage();
     const erreurs = [];
@@ -161,7 +162,8 @@ function verifier(nom, condition, vu) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     /* Ces suites éprouvent la lecture SANS service : on l'éteint
        explicitement, au lieu de compter sur le défaut de la page. */
-    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };
+    window.MATHEMATIQUE_PAIEMENT = { api: "" };`);
     await ctx.addInitScript(FAUX('illisible'));
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html');
@@ -182,7 +184,8 @@ function verifier(nom, condition, vu) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     /* Ces suites éprouvent la lecture SANS service : on l'éteint
        explicitement, au lieu de compter sur le défaut de la page. */
-    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };
+    window.MATHEMATIQUE_PAIEMENT = { api: "" };`);
     await ctx.addInitScript(FAUX('sans-images'));
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html');
@@ -209,7 +212,8 @@ function verifier(nom, condition, vu) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     /* Ces suites éprouvent la lecture SANS service : on l'éteint
        explicitement, au lieu de compter sur le défaut de la page. */
-    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };
+    window.MATHEMATIQUE_PAIEMENT = { api: "" };`);
     await ctx.addInitScript(FAUX('absent'));
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html');

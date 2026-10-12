@@ -68,7 +68,7 @@ function semence(fiches, paiement) {
   return `
     localStorage.setItem('mathematique.niveau', 'lyceen');
     localStorage.setItem('mathematique.fiches', ${JSON.stringify(JSON.stringify(fiches))});
-    ${paiement ? `window.MATHEMATIQUE_PAIEMENT = ${JSON.stringify(paiement)};` : ''}
+    window.MATHEMATIQUE_PAIEMENT = ${paiement ? JSON.stringify(paiement) : '{ api: "" }'};
     window.claude = { use: async () => null };`;
 }
 

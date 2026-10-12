@@ -831,16 +831,14 @@
   window.MATHEMATIQUE_LECTURE = window.MATHEMATIQUE_LECTURE || { api: "/api" };
 </script>
 
-<!-- Le paiement n'est pas branché, et c'est volontaire : MATHEMATIQUE_PAIEMENT
-     allume AUSSI la limite de l'essai (2 fiches, 200 crédits, non
-     renouvelables) et la page de
-     tarif. Tant que Stripe n'est pas prêt, l'ajouter dresserait devant les
-     élèves un mur qu'ils ne pourraient pas franchir.
-
+<!-- Le paiement, branché le 12 octobre 2026 : /api/sante répond
+     "pret":true. Cette ligne allume trois choses en même temps — l'essai
+     limité (2 fiches, 200 crédits, non renouvelables), le mur de paiement
+     et la page de tarif. Seules les offres dont le tarif existe chez Stripe
+     sont proposées : /api/sante dit lesquelles. -->
 <script>
-  window.MATHEMATIQUE_PAIEMENT = { api: "/api" };
+  window.MATHEMATIQUE_PAIEMENT = window.MATHEMATIQUE_PAIEMENT || { api: "/api" };
 </script>
-     ———————————————————————————————————————————————————————————— -->
 
 <!-- Les comptes : retrouver ses fiches sur un autre appareil. Branchés le
      12 octobre 2026 — /api/sante répond "comptes":true. -->

@@ -91,7 +91,8 @@ function verifier(nom, condition, vu) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     /* Ces suites éprouvent la lecture SANS service : on l'éteint
        explicitement, au lieu de compter sur le défaut de la page. */
-    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };
+    window.MATHEMATIQUE_PAIEMENT = { api: "" };`);
     await ctx.addInitScript(SEMEE);
     const page = await ctx.newPage();
     const erreurs = [];
@@ -141,7 +142,8 @@ function verifier(nom, condition, vu) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     /* Ces suites éprouvent la lecture SANS service : on l'éteint
        explicitement, au lieu de compter sur le défaut de la page. */
-    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };
+    window.MATHEMATIQUE_PAIEMENT = { api: "" };`);
     await ctx.addInitScript(SEMEE);
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(400);
@@ -158,7 +160,8 @@ function verifier(nom, condition, vu) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     /* Ces suites éprouvent la lecture SANS service : on l'éteint
        explicitement, au lieu de compter sur le défaut de la page. */
-    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };
+    window.MATHEMATIQUE_PAIEMENT = { api: "" };`);
     await ctx.addInitScript(FAUX(BOUILLIE, 88));
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html');
@@ -183,7 +186,8 @@ function verifier(nom, condition, vu) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     /* Ces suites éprouvent la lecture SANS service : on l'éteint
        explicitement, au lieu de compter sur le défaut de la page. */
-    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };
+    window.MATHEMATIQUE_PAIEMENT = { api: "" };`);
     await ctx.addInitScript(FAUX(COURS, 90));
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html');
@@ -228,6 +232,7 @@ function verifier(nom, condition, vu) {
 
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };
+    window.MATHEMATIQUE_PAIEMENT = { api: "" };
       localStorage.setItem('mathematique.niveau','lyceen');
       localStorage.setItem('mathematique.fiches', ${JSON.stringify(JSON.stringify(MATHS))});`);
     const page = await ctx.newPage();
