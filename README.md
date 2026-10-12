@@ -144,6 +144,28 @@ Côté serveur, chaque écriture annonce la version qu'elle a lue
 base ne modifie rien et le serveur répond **409** avec l'état frais ; le
 client refusionne et réessaie une fois. C'est tout le protocole.
 
+### À qui appartient ce qui traîne sur l'appareil
+
+Un appareil peut servir à deux personnes : deux frères, un ordinateur de
+famille, un élève qui se trompe d'adresse. La bibliothèque locale appartient
+donc à quelqu'un, et `synchroniser()` tranche en trois cas :
+
+| Qui était là | Qui entre | Ce qui se passe |
+| --- | --- | --- |
+| personne | n'importe qui | **fusion** — le travail fait avant l'inscription lui appartient |
+| le même compte | lui-même | **fusion** — c'est la synchronisation ordinaire |
+| un autre compte | quelqu'un d'autre | **adoption** — l'appareil oublie et affiche la bibliothèque du nouveau venu |
+
+Le troisième cas est celui qui manquait, et il s'est vu tout de suite : entrer
+avec une seconde adresse donnait au nouveau compte les fiches du premier, puis
+les renvoyait au serveur sous son nom. Un même appareil, deux comptes, une
+seule bibliothèque — exactement ce qu'il ne faut pas.
+
+Pour la même raison, **se déconnecter rend l'appareil vide** : sans quoi le
+suivant hériterait des fiches du précédent. La déconnexion sauvegarde donc une
+dernière fois, et **refuse de partir** si cette sauvegarde échoue — mieux vaut
+rester connecté que perdre une soirée de révision.
+
 ### Ce qui voyage, et ce qui ne voyage pas
 
 Voyagent : fiches, journal de révision, prénom, niveau, record, crédits

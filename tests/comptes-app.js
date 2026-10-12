@@ -33,7 +33,7 @@ function fauxServeur(etat) {
     if (adresse.includes('/api/compte-demander')) { etat.demandes.push(JSON.parse(route.request().postData() || '{}')); return rendre(200, { envoye: true }); }
     if (adresse.includes('/api/compte-sortir')) { etat.sorties = (etat.sorties || 0) + 1; return rendre(200, { sorti: true }); }
     if (adresse.includes('/api/bibliotheque') && methode === 'GET') {
-      return rendre(200, { courriel: 'lea@exemple.fr', version: etat.version, donnees: etat.donnees });
+      return rendre(200, { courriel: etat.courriel || 'lea@exemple.fr', version: etat.version, donnees: etat.donnees });
     }
     if (adresse.includes('/api/bibliotheque') && methode === 'PUT') {
       const corps = JSON.parse(route.request().postData() || '{}');
@@ -233,6 +233,89 @@ async function ouvrir(nav, { semence = '', etat, adresse = 'http://localhost:832
     verifier('la session est oubliée',
       !(await page.evaluate(() => localStorage.getItem('mathematique.session'))), 'session encore là');
     verifier('le formulaire revient', await page.isVisible('#compte-dehors'), 'formulaire absent');
+    await ctx.close();
+  }
+
+  /* — 7. Deux adresses sur le même appareil : chacune sa bibliothèque —
+         Un ordinateur de famille, deux frères. Celui qui entre après ne
+         doit hériter de rien, et surtout ne pas renvoyer au serveur, sous
+         son nom, les fiches de l'autre. */
+  {
+    const etat = {
+      courriel: 'theo@exemple.fr', version: 4,
+      donnees: { fiches: [fiche('a-theo', 'La fiche de Théo', ilYA(1))], journal: {}, supprimees: [] },
+      envois: [], demandes: [],
+    };
+    const semence = `
+      localStorage.setItem('mathematique.courriel', 'lea@exemple.fr');
+      localStorage.setItem('mathematique.prenom', 'Léa');
+      localStorage.setItem('mathematique.record', '14');
+      localStorage.setItem('mathematique.fiches', ${JSON.stringify(JSON.stringify([
+        { id: 'a-lea', matiere: 'maths', titre: 'La fiche de Léa', source: 'scan', banqueId: null,
+          contenu: { lu: true, moteur: 'claude', accroche: '', sections: [], points: [], formules: [], exemples: [], pieges: [], texte: '' },
+          cartes: [], maitrise: {}, creee: ilYA(2), derniereRevision: ilYA(2), palier: 0, progression: 0 },
+      ]))});`;
+    const { ctx, page } = await ouvrir(nav, {
+      semence, etat, adresse: 'http://localhost:8321/app.html?acces=jeton-de-theo',
+    });
+    await page.waitForTimeout(600);
+
+    const locales = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('mathematique.fiches') || '[]').map((f) => f.id));
+    verifier('celui qui entre ne voit que ses fiches',
+      locales.length === 1 && locales[0] === 'a-theo', locales.join(','));
+    verifier('et celles de l\'autre ont quitté l\'appareil',
+      !locales.includes('a-lea'), locales.join(','));
+
+    const envoye = etat.envois.map((e) => (e.donnees.fiches || []).map((f) => f.id).join(',')).join(' | ');
+    verifier('rien de l\'autre compte n\'est renvoyé au serveur',
+      !envoye.includes('a-lea'), envoye || '(aucun envoi)');
+    verifier('le serveur de Théo garde sa seule fiche',
+      etat.donnees.fiches.length === 1 && etat.donnees.fiches[0].id === 'a-theo',
+      etat.donnees.fiches.map((f) => f.id).join(','));
+
+    const reste = await page.evaluate(() => ({
+      prenom: localStorage.getItem('mathematique.prenom'),
+      record: localStorage.getItem('mathematique.record'),
+      courriel: localStorage.getItem('mathematique.courriel'),
+    }));
+    verifier('le prénom et le record de l\'autre sont partis aussi',
+      !reste.prenom && !reste.record, JSON.stringify(reste));
+    verifier('et l\'appareil retient la nouvelle adresse',
+      reste.courriel === 'theo@exemple.fr', String(reste.courriel));
+    await ctx.close();
+  }
+
+  /* — 8. Se déconnecter ne laisse rien derrière soi — */
+  {
+    const etat = {
+      version: 0, donnees: { fiches: [], journal: {}, supprimees: [] },
+      envois: [], demandes: [],
+    };
+    const semence = `localStorage.setItem('mathematique.fiches', ${JSON.stringify(JSON.stringify([
+      { id: 'f-locale', matiere: 'maths', titre: 'Une fiche', source: 'scan', banqueId: null,
+        contenu: { lu: true, moteur: 'claude', accroche: '', sections: [], points: [], formules: [], exemples: [], pieges: [], texte: '' },
+        cartes: [], maitrise: {}, creee: ilYA(1), derniereRevision: ilYA(1), palier: 0, progression: 0 },
+    ]))});`;
+    const { ctx, page } = await ouvrir(nav, {
+      semence, etat, adresse: 'http://localhost:8321/app.html?acces=jeton-de-test',
+    });
+    await page.evaluate(() => { document.querySelectorAll('.vue').forEach((v) => { v.hidden = v.id !== 'vue-profil'; }); });
+    await page.waitForTimeout(400);
+
+    verifier('avant de partir, la fiche est bien sur le serveur',
+      etat.donnees.fiches.length === 1, JSON.stringify(etat.donnees.fiches.map((f) => f.id)));
+
+    await page.click('#compte-sortir');
+    await page.waitForTimeout(700);
+    const restantes = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem('mathematique.fiches') || '[]').length);
+    verifier('l\'appareil est rendu vide', restantes === 0, `${restantes} fiches restantes`);
+    verifier('mais le serveur garde tout', etat.donnees.fiches.length === 1,
+      JSON.stringify(etat.donnees.fiches.map((f) => f.id)));
+    verifier('et on le dit à l\'élève',
+      /sur ton compte/i.test(await page.innerText('#compte-message')),
+      await page.innerText('#compte-message').catch(() => '—'));
     await ctx.close();
   }
 

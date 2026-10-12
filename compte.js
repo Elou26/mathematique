@@ -94,6 +94,16 @@ const COMPTE = (function () {
     };
   }
 
+  /**
+   * Efface la bibliothèque de CET appareil. Le serveur garde la sienne :
+   * ce n'est pas une suppression, c'est un départ.
+   */
+  function oublierLesDonnees() {
+    Object.keys(CLES).forEach((nom) => ecrireTexte(CLES[nom], ""));
+    ecrireTexte(CLE_TOMBES, "");
+    ecrireTexte(CLE_VERSION, "");
+  }
+
   /** Et réécrit d'un bloc, après fusion. */
   function ecrireTout(donnees) {
     ecrireBrut(CLES.fiches, donnees.fiches || []);
@@ -339,11 +349,29 @@ const COMPTE = (function () {
       if (lu.code === 503) return { etat: "eteint" };
       if (lu.code !== 200) return { etat: "panne" };
 
-      ecrireTexte(CLE_COURRIEL, lu.corps.courriel || courriel());
+      /* ————— À qui appartient ce qui traîne ici ? ————————————————
+         Un appareil peut servir à deux personnes — deux frères, un
+         ordinateur de famille, un élève qui se trompe d'adresse. Si celui
+         qui entre n'est pas celui qui était là, la bibliothèque locale ne
+         lui appartient pas : la fusionner lui donnerait les fiches de
+         l'autre, et les renverrait au serveur sous son nom.
+
+         Trois cas, donc :
+           - aucun compte connu ici → on fusionne (le travail fait avant
+             l'inscription appartient bien à celui qui s'inscrit) ;
+           - le même compte → on fusionne (c'est la synchronisation) ;
+           - un autre compte → on n'apporte rien, et cet appareil adopte
+             la bibliothèque du nouveau venu.
+         ———————————————————————————————————————————————————————— */
+      const connuAvant = courriel();
+      const maintenant = lu.corps.courriel || connuAvant;
+      const changement = Boolean(connuAvant && maintenant && connuAvant !== maintenant);
+      if (changement) oublierLesDonnees();
+      ecrireTexte(CLE_COURRIEL, maintenant);
 
       const local = lireTout();
       const fusionnee = fusionner(local, lu.corps.donnees || {});
-      if (!identiques(local, fusionnee)) { ecrireTout(fusionnee); prevenir(); }
+      if (changement || !identiques(local, fusionnee)) { ecrireTout(fusionnee); prevenir(); }
 
       const ecrit = await appeler("/bibliotheque", {
         methode: "PUT", corps: { version: lu.corps.version, donnees: fusionnee },
@@ -351,7 +379,7 @@ const COMPTE = (function () {
 
       if (ecrit.code === 200) {
         ecrireTexte(CLE_VERSION, String(ecrit.corps.version));
-        return { etat: "a-jour", quand: Date.now() };
+        return { etat: "a-jour", quand: Date.now(), change: changement };
       }
       if (ecrit.code === 409 && essai < 1) {
         enCours = false;
@@ -386,18 +414,32 @@ const COMPTE = (function () {
     ecrireTexte(CLE_VERSION, "");
   }
 
+  /**
+   * Se déconnecter laisse l'appareil vide : sans quoi le suivant à entrer
+   * hériterait des fiches du précédent. On sauvegarde donc une dernière
+   * fois, et on refuse de partir si cette sauvegarde échoue — mieux vaut
+   * rester connecté que perdre une soirée de révision.
+   *
+   * L'adresse, elle, reste écrite : c'est elle qui dira, à la prochaine
+   * entrée, que cet appareil appartenait à quelqu'un d'autre.
+   */
   async function sortir() {
+    const dernier = await synchroniser();
+    if (dernier.etat !== "a-jour" && dernier.etat !== "session_perdue") {
+      return { parti: false, etat: dernier.etat };
+    }
     try { await appeler("/compte-sortir", { methode: "POST" }); } catch (erreur) { /* tant pis */ }
     oublierSession();
-    ecrireTexte(CLE_COURRIEL, "");
-    return true;
+    oublierLesDonnees();
+    prevenir();
+    return { parti: true };
   }
 
   async function effacer() {
     const vue = await appeler("/compte-effacer", { methode: "DELETE" });
     if (vue.code !== 200) throw new Error((vue.corps && vue.corps.erreur) || "effacement_impossible");
     oublierSession();
-    ecrireTexte(CLE_COURRIEL, "");
+    ecrireTexte(CLE_COURRIEL, "");   // l'appareil n'appartient plus à personne
     return true;
   }
 
@@ -536,9 +578,15 @@ const COMPTE = (function () {
     const partir = $("#compte-sortir");
     if (partir) {
       partir.addEventListener("click", async () => {
-        await sortir();
+        partir.disabled = true;
+        const vue = await sortir();
+        partir.disabled = false;
+        if (!vue.parti) {
+          message("Tes dernières fiches n'ont pas pu être sauvegardées : tu restes connecté. Réessaie quand le réseau revient.");
+          return;
+        }
         peindre();
-        message("Déconnecté. Tes fiches restent sur cet appareil.");
+        message("Déconnecté. Tes fiches sont en sécurité sur ton compte — reconnecte-toi pour les retrouver.");
       });
     }
 
@@ -610,7 +658,9 @@ const COMPTE = (function () {
     if (session()) {
       synchroniser().then((resultat) => {
         montrerEtat(resultat);
-        if (arrivee && arrivee.entre && resultat.etat === "a-jour") {
+        if (resultat.change) {
+          message("Tu entres avec une autre adresse : cet appareil affiche maintenant les fiches de ce compte. Celles d'avant sont restées sur l'autre.", 0);
+        } else if (arrivee && arrivee.entre && resultat.etat === "a-jour") {
           message("Te voilà entré : tes fiches te suivront d'un appareil à l'autre.");
         }
       });
