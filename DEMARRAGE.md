@@ -153,12 +153,34 @@ mineures.** C'est ce qui rend l'étape 7 ci-dessous non négociable.
    pas dans le profil — c'est voulu : un formulaire qui ne peut envoyer aucun
    lien ne vaut rien.
 
-7. **Complète `confidentialite.html`** : le nom de l'éditeur du site et une
+   La même ligne existe dans `index.html` : décommentée, elle met la **porte
+   d'entrée** devant les boutons de la vitrine (« Ouvrir l'app », « Créer ma
+   première fiche » ouvrent alors la fenêtre de connexion). Tant qu'elle dort,
+   les boutons mènent directement à l'app — sans quoi le site entier serait
+   inutilisable jusqu'à ce que la base réponde.
+
+7. **Facultatif, mais recommandé : le bouton « continuer avec Google ».**
+   La plupart des élèves ont un compte Google, et un bouton évite d'attendre
+   un courriel qui peut tomber dans les indésirables.
+
+   [console.cloud.google.com](https://console.cloud.google.com) → nouveau
+   projet → **APIs et services → Écran de consentement OAuth** (externe, nom
+   de l'app, ton adresse d'assistance) → **Identifiants → Créer → ID client
+   OAuth → Application Web**. Dans **Origines JavaScript autorisées**, mets
+   `https://mathematique-mu.vercel.app` (et `http://localhost:8321` si tu
+   essaies en local). Copie l'**ID client** dans la variable
+   `GOOGLE_CLIENT_ID` chez Vercel.
+
+   Il n'y a pas de « client secret » à poser : le serveur ne fait que
+   vérifier la signature du jeton que Google rend au navigateur. Sans cette
+   variable, le bouton n'existe pas et personne n'est présenté à Google.
+
+8. **Complète `confidentialite.html`** : le nom de l'éditeur du site et une
    adresse de contact. La page dit déjà ce qui est gardé, où, combien de
    temps, et comment tout effacer — il n'y manque que toi. Ces deux lignes
    sont une obligation légale dès que tu collectes une adresse e-mail.
 
-8. **Essaie pour de vrai** : profil → ton adresse → tu reçois le lien
+9. **Essaie pour de vrai** : profil → ton adresse → tu reçois le lien
    (regarde les indésirables) → tu cliques → le profil affiche ton adresse.
    Crée une fiche sur un appareil, ouvre le site sur un autre, demande un
    lien : la fiche doit être là.

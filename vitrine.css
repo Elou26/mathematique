@@ -43,6 +43,11 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 img { max-width: 100%; display: block; }
 a { color: inherit; }
 
+/* Les boutons de la vitrine étaient tous des liens, jusqu'à la fenêtre
+   d'entrée : son <button> héritait de la bordure du navigateur, et
+   « Recevoir mon lien » s'affichait cerclé de gris foncé. */
+button { font: inherit; color: inherit; border: 0; background: none; cursor: pointer; }
+
 /* La leçon retenue de l'app : un display explicite bat l'attribut hidden,
    et un bloc censé être caché réapparaît. Ici, hidden gagne toujours. */
 [hidden] { display: none !important; }
@@ -310,6 +315,82 @@ a { color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+
+/* ————— La porte d'entrée ————————————————————————————————————— */
+.entree {
+  position: fixed; inset: 0; z-index: 90;
+  display: flex; align-items: center; justify-content: center; padding: 18px;
+}
+.entree-fond {
+  position: absolute; inset: 0; background: rgba(11, 17, 40, .62);
+  backdrop-filter: blur(3px); animation: fondu .18s ease both;
+}
+.entree-carte {
+  position: relative; width: 100%; max-width: 420px;
+  background: var(--blanc); border-radius: 22px; padding: 30px 22px 22px;
+  box-shadow: 0 30px 70px rgba(10, 16, 40, .38);
+  max-height: calc(100vh - 36px); overflow-y: auto;
+  animation: monteCarte .22s cubic-bezier(.2, .8, .3, 1) both;
+}
+.entree-croix {
+  position: absolute; top: 12px; right: 12px; padding: 7px; line-height: 0;
+  border: 0; background: none; color: var(--gris-texte); cursor: pointer;
+  border-radius: 50%;
+}
+.entree-croix:hover { background: var(--gris-fond); color: var(--marine); }
+.entree-titre { font-size: 26px; font-weight: 800; text-align: center; }
+.entree-sous {
+  margin-top: 10px; text-align: center; color: var(--gris-texte); font-size: 15px;
+}
+
+.entree-google { display: flex; justify-content: center; margin-top: 22px; }
+.entree-ou, .compte-ou {
+  display: flex; align-items: center; gap: 12px; margin: 16px 0 0;
+  color: var(--gris-texte); font-size: 12.5px; text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.entree-ou::before, .entree-ou::after,
+.compte-ou::before, .compte-ou::after {
+  content: ""; flex: 1; border-top: 1px solid var(--bordure);
+}
+
+.entree-form { margin-top: 18px; }
+.entree-label {
+  display: block; font-size: 13px; font-weight: 700; color: var(--marine);
+  margin-bottom: 6px;
+}
+.entree-champ {
+  width: 100%; padding: 14px 16px; border: 1.5px solid var(--bordure);
+  border-radius: 14px; font: inherit; font-size: 16px;   /* 16px : iOS ne zoome pas */
+  background: var(--gris-fond); color: inherit;
+}
+.entree-champ:focus { outline: none; border-color: var(--marine); background: var(--blanc); }
+.entree-valider { width: 100%; margin-top: 14px; }
+
+.entree-boite { text-align: center; margin-top: 22px; }
+.entree-boite-titre { font-size: 18px; font-weight: 800; color: var(--marine); }
+.entree-boite-texte { margin-top: 10px; color: var(--gris-texte); font-size: 14.5px; }
+.entree-boite .bouton { margin-top: 16px; }
+
+.entree-message {
+  margin-top: 14px; padding: 10px 12px; border-radius: 12px;
+  background: #FFF6E6; border: 1px solid #F0DDB8; color: #6B5320; font-size: 13.5px;
+}
+.entree-legal {
+  margin-top: 20px; text-align: center; color: var(--gris-texte);
+  font-size: 12.5px; line-height: 1.55;
+}
+.entree-legal a { color: var(--marine); }
+
+/* Le fond ne défile plus derrière la fenêtre : sur un téléphone, c'est la
+   différence entre une fenêtre et un bout de page qui flotte. */
+.corps-bloque { overflow: hidden; }
+
+@keyframes fondu { from { opacity: 0; } to { opacity: 1; } }
+@keyframes monteCarte {
+  from { opacity: 0; transform: translateY(14px) scale(.98); }
+  to { opacity: 1; transform: none; }
 }
 
 /* ————— Une page de texte (confidentialité) ——————————————————— */

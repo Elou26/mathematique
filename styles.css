@@ -2550,6 +2550,12 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
   box-shadow: var(--ombre);
 }
 .compte-titre { margin: 0 0 8px; font-size: 15px; color: var(--marine); }
+.compte-google { display: flex; justify-content: center; margin-bottom: 4px; }
+.compte-ou {
+  display: flex; align-items: center; gap: 10px; margin: 12px 0;
+  color: var(--gris-texte); font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+}
+.compte-ou::before, .compte-ou::after { content: ""; flex: 1; border-top: 1px solid var(--bordure); }
 .compte-texte { margin: 0 0 14px; color: var(--gris-texte); font-size: 13.5px; line-height: 1.5; }
 .compte-form { display: grid; gap: 8px; }
 .compte-form .bouton-principal { margin-top: 4px; }

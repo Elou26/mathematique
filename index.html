@@ -67,7 +67,7 @@
     <a class="bouton bouton--principal" href="app.html?vue=scan">
       Créer ma première fiche
     </a>
-    <p class="mention">Gratuit, sans compte ni carte bancaire. Rien à installer.</p>
+    <p class="mention">Gratuit, sans carte bancaire. Ton adresse suffit — pas de mot de passe.</p>
   </div>
 
   <figure class="telephone telephone--grand">
@@ -268,9 +268,9 @@
     <li>
       <h3>Tes photos ne sont pas gardées</h3>
       <p>
-        Elles servent à écrire la fiche, puis disparaissent. Tes fiches restent
-        sur ton téléphone ; elles ne partent sur le serveur que si tu ouvres un
-        compte pour les retrouver ailleurs — et un bouton les en retire.
+        Elles servent à écrire la fiche, puis disparaissent. Tes fiches, elles,
+        sont copiées pour te suivre d'un appareil à l'autre — et deux boutons,
+        dans ton profil, te les rendent ou les effacent pour de bon.
       </p>
     </li>
   </ul>
@@ -317,10 +317,10 @@
     <details>
       <summary>Je dois créer un compte ?</summary>
       <p>
-        Non, l'app marche entièrement sans : tes fiches sont enregistrées dans
-        ton navigateur. Un compte ne sert qu'à une chose — les retrouver sur un
-        autre appareil. Tu entres ton adresse, tu reçois un lien, tu cliques.
-        Pas de mot de passe à retenir, et rien d'autre ne t'est demandé.
+        Ton adresse e-mail, et rien d'autre : pas de mot de passe, pas de nom,
+        pas de numéro. Tu reçois un lien, tu cliques, c'est ouvert. Elle sert à
+        deux choses — te reconnaître, et retrouver tes fiches quand tu changes
+        d'appareil. Ensuite, l'app marche même sans connexion.
       </p>
     </details>
     <details>
@@ -377,7 +377,7 @@
   <a class="bouton bouton--principal bouton--large" href="app.html?vue=scan">
     Créer ma première fiche
   </a>
-  <p class="mention">Gratuit, sans compte. Trente secondes pour la première.</p>
+  <p class="mention">Gratuit, sans carte bancaire. Trente secondes pour la première.</p>
 </section>
 
 </main>
@@ -393,6 +393,59 @@
   </p>
 </footer>
 
+<!-- ————— La porte d'entrée —————————————————————————————————————
+     Ouverte par les boutons qui mènent à l'app, et seulement si le serveur
+     sait vraiment ouvrir un compte : sans base ni envoi de courriel, elle
+     ne s'interpose pas — on n'arrête pas les gens devant une porte qu'on
+     ne peut pas leur ouvrir.
+     ———————————————————————————————————————————————————————————— -->
+<div class="entree" id="entree" hidden>
+  <div class="entree-fond" data-entree-fermer></div>
+
+  <div class="entree-carte" role="dialog" aria-modal="true" aria-labelledby="entree-titre">
+    <button class="entree-croix" type="button" data-entree-fermer aria-label="Fermer">
+      <svg viewBox="0 0 24 24" aria-hidden="true" width="22" height="22">
+        <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+
+    <h2 class="entree-titre" id="entree-titre">Crée ton compte</h2>
+    <p class="entree-sous">Entre ton adresse pour commencer. Tes fiches te suivront
+      d'un appareil à l'autre.</p>
+
+    <div class="entree-formulaire" id="entree-formulaire">
+      <!-- Posé par compte.js, et seulement si Google est branché. -->
+      <div class="entree-google" id="entree-google"></div>
+      <p class="entree-ou" id="entree-ou" hidden><span>ou</span></p>
+
+      <form class="entree-form" id="entree-form" novalidate>
+        <label class="entree-label" for="entree-courriel">Adresse e-mail</label>
+        <input class="entree-champ" id="entree-courriel" type="email" inputmode="email"
+               autocomplete="email" placeholder="prenom@exemple.fr" maxlength="254">
+        <button class="bouton bouton--principal entree-valider" type="submit" id="entree-valider">
+          Recevoir mon lien
+        </button>
+      </form>
+    </div>
+
+    <div class="entree-boite" id="entree-boite" hidden>
+      <p class="entree-boite-titre">Regarde ta boîte mail</p>
+      <p class="entree-boite-texte">Le lien part vers <strong id="entree-adresse"></strong>.
+        Il vaut 20 minutes et ne sert qu'une fois. Pense aux indésirables.</p>
+      <button class="bouton bouton--creux" type="button" id="entree-retour">Changer d'adresse</button>
+    </div>
+
+    <p class="entree-message" id="entree-message" role="status" aria-live="polite" hidden></p>
+
+    <p class="entree-legal">
+      Pas de mot de passe à retenir : tu reçois un lien, tu cliques, c'est ouvert.
+      Ton adresse sert à te reconnaître, à rien d'autre —
+      <a href="confidentialite.html">ce qu'on garde de toi</a>.
+    </p>
+  </div>
+</div>
+
 <!-- Le rappel qui suit l'élève quand l'accroche est passée. Masqué tant
      qu'on est encore dans le héros : deux fois le même bouton à l'écran ne
      fait pas deux chances, ça fait du bruit. -->
@@ -401,7 +454,18 @@
   <a class="bouton bouton--principal" href="app.html?vue=scan">Commencer</a>
 </div>
 
+<!-- Les comptes s'allument ici, comme dans app.html, et seulement une fois
+     la base et l'envoi de courriel réglés côté serveur (/api/sante doit
+     répondre "comptes":true). Tant que cette ligne dort, la porte d'entrée
+     ne s'interpose pas et les boutons mènent directement à l'app.
+
+<script>
+  window.MATHEMATIQUE_COMPTE = { api: "/api" };
+</script>
+     ———————————————————————————————————————————————————————————— -->
+
 <script src="abonnement.js"></script>
+<script src="compte.js"></script>
 <script src="vitrine.js"></script>
 </body>
 </html>

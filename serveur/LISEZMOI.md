@@ -18,6 +18,7 @@ l'abonnement, on ne fait que le lui demander.
 | `POST /lecture` | **lit les photos d'un cours** : elles partent chez Claude, la fiche revient |
 | `POST /compte-demander` | envoie le lien d'entrée à une adresse e-mail |
 | `GET /compte-entrer?jeton=…` | brûle le lien et redirige vers l'app, session dans l'adresse |
+| `POST /compte-google` | vérifie le jeton rendu par Google et ouvre la session |
 | `GET /compte-moi` | qui est au bout de cette session |
 | `GET /bibliotheque` | rend la bibliothèque gardée, et sa version |
 | `PUT /bibliotheque` | l'écrit, **si** la version annoncée est encore la bonne (sinon 409) |
@@ -81,6 +82,7 @@ de suite (envoyer un mail, journaliser).
 | `BREVO_CLE` | l'envoi des liens sans domaine, avec une adresse d'expéditeur vérifiée |
 | `COURRIEL_EXPEDITEUR` | `Mathématique <bonjour@exemple.fr>` |
 | `SITE_URL` | l'adresse publique du site : c'est elle qui part dans le courriel |
+| `GOOGLE_CLIENT_ID` | facultatif — l'identifiant client OAuth, public, qui fait apparaître le bouton Google |
 
 `ORIGINES_AUTORISEES` fait deux choses : elle limite qui peut appeler le serveur (CORS) et elle
 **impose l'adresse de retour** après paiement. Sans elle, le serveur accepte n'importe quel
@@ -143,7 +145,11 @@ Les trois choses à ne pas perdre de vue :
   dans une page, jamais dans le dépôt ;
 - la base ne garde que l'**empreinte** des liens d'entrée, jamais le jeton ;
 - `PUT /bibliotheque` n'écrase jamais : il écrit sous condition de version et
-  rend 409 avec l'état frais, charge au client de refusionner.
+  rend 409 avec l'état frais, charge au client de refusionner ;
+- un jeton Google n'est jamais cru sur parole : signature vérifiée contre les
+  clés publiques de Google, puis émetteur, destinataire (c'est bien *notre*
+  bouton qui l'a obtenu), date, et adresse vérifiée chez eux. Sans ces quatre
+  contrôles, n'importe qui fabriquerait un jeton disant « je suis untel ».
 
 Sans `BASE_URL`, `BASE_CLE`, `SECRET_COMPTES` et une clé d'envoi, toutes ces
 routes répondent `503 comptes_eteints` — et l'app, qui le demande avant

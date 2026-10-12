@@ -16,6 +16,31 @@ function verifier(nom, condition, vu) {
   else { echecs++; console.log(`[ÉCHEC] ${nom}\n        vu : ${vu}`); }
 }
 
+/* ————— Faux Google : une paire de clés, et le trousseau public ————— */
+
+const KID = 'cle-de-test-1';
+const paire = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+const jwkPublique = { ...paire.publicKey.export({ format: 'jwk' }), kid: KID, alg: 'RS256', use: 'sig' };
+
+function jetonGoogle(charge, { kid = KID, cle = paire.privateKey } = {}) {
+  const b64 = (valeur) => Buffer.from(JSON.stringify(valeur), 'utf8').toString('base64url');
+  const tete = b64({ alg: 'RS256', kid, typ: 'JWT' });
+  const corps = b64(charge);
+  const sceau = crypto.sign('RSA-SHA256', Buffer.from(`${tete}.${corps}`, 'utf8'), cle)
+    .toString('base64url');
+  return `${tete}.${corps}.${sceau}`;
+}
+
+const CLIENT_GOOGLE = '123456789-test.apps.googleusercontent.com';
+const chargeGoogle = (extra = {}) => ({
+  iss: 'https://accounts.google.com',
+  aud: CLIENT_GOOGLE,
+  email: 'Theo@Exemple.fr',
+  email_verified: true,
+  exp: Math.floor(Date.now() / 1000) + 3600,
+  ...extra,
+});
+
 /* ————— Faux PostgREST : deux tables, en mémoire ———————————————— */
 
 const tables = { comptes: [], connexions: [] };
@@ -48,6 +73,7 @@ const fausseBase = http.createServer((requete, reponse) => {
     };
 
     if (adresse.pathname === '/faux-courriel') { courriels.push(corps); rendre(201, { id: 'c1' }); return; }
+    if (adresse.pathname === '/faux-jwks') { rendre(200, { keys: [jwkPublique] }); return; }
     if (adresse.pathname === '/courriel-en-panne') { rendre(500, { message: 'boîte pleine' }); return; }
 
     const table = adresse.pathname.replace('/rest/v1/', '');
@@ -115,6 +141,8 @@ function appeler(routeur, url, { methode = 'GET', corps, jeton } = {}) {
   process.env.BREVO_URL = `http://localhost:${port}/faux-courriel`;
   process.env.COURRIEL_EXPEDITEUR = 'Mathématique <bonjour@exemple.fr>';
   process.env.SITE_URL = 'https://mon-site.vercel.app';
+  process.env.GOOGLE_CLIENT_ID = CLIENT_GOOGLE;
+  process.env.GOOGLE_JWKS_URL = `http://localhost:${port}/faux-jwks`;
   process.env.STRIPE_CLE_SECRETE = '';
   process.env.CLAUDE_CLE = '';
 
@@ -283,9 +311,46 @@ function appeler(routeur, url, { methode = 'GET', corps, jeton } = {}) {
     process.env.BREVO_URL = vrai;
   }
 
+  /* — 11. Entrer avec Google : on ne croit aucun jeton sur parole — */
+  {
+    const sante = await appeler(routeur, '/api/sante');
+    verifier('la santé annonce l\'identifiant Google, qui est public',
+      sante.corps.google === CLIENT_GOOGLE, JSON.stringify(sante.corps.google));
+
+    const bon = await appeler(routeur, '/api/compte-google',
+      { methode: 'POST', corps: { jeton: jetonGoogle(chargeGoogle()) } });
+    verifier('un jeton Google valide ouvre le compte',
+      bon.code === 200 && bon.corps.courriel === 'theo@exemple.fr',
+      `${bon.code} ${JSON.stringify(bon.corps.courriel)}`);
+
+    const moi = await appeler(routeur, '/api/compte-moi', { jeton: bon.corps.session });
+    verifier('et la session qui en sort vaut comme les autres',
+      moi.code === 200 && moi.corps.courriel === 'theo@exemple.fr', `${moi.code}`);
+
+    /* Les quatre façons de tricher, une par une. */
+    const refus = [
+      ['une signature fabriquée ailleurs', jetonGoogle(chargeGoogle(), {
+        cle: crypto.generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey })],
+      ['un jeton destiné à un autre site', jetonGoogle(chargeGoogle({ aud: 'un-autre-client.apps.googleusercontent.com' }))],
+      ['un jeton périmé', jetonGoogle(chargeGoogle({ exp: Math.floor(Date.now() / 1000) - 10 }))],
+      ['une adresse non vérifiée chez Google', jetonGoogle(chargeGoogle({ email_verified: false }))],
+      ['un émetteur inconnu', jetonGoogle(chargeGoogle({ iss: 'https://pas-google.example' }))],
+      ['une clé inconnue du trousseau', jetonGoogle(chargeGoogle(), { kid: 'cle-inventee' })],
+      ['un jeton qui n\'en est pas un', 'bonjour'],
+    ];
+    for (const [quoi, jeton] of refus) {
+      const vue = await appeler(routeur, '/api/compte-google', { methode: 'POST', corps: { jeton } });
+      verifier(`refusé : ${quoi}`, vue.code === 401, `${vue.code} ${JSON.stringify(vue.corps)}`);
+    }
+
+    verifier('et aucun compte n\'a été créé par ces tentatives',
+      tables.comptes.filter((c) => c.courriel === 'theo@exemple.fr').length === 1,
+      tables.comptes.map((c) => c.courriel).join(', '));
+  }
+
   fausseBase.close();
 
-  /* — 11. Sans réglages, l'app marche comme avant : les comptes se taisent — */
+  /* — 12. Sans réglages, l'app marche comme avant : les comptes se taisent — */
   {
     const script = `
       const Module = require('module');

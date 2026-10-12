@@ -198,9 +198,89 @@ function jetons(fichier) {
     await ctx.close();
   }
 
+  /* — 10. La porte d'entrée : elle ne s'interpose que si elle peut ouvrir — */
+  {
+    /* a) Comptes éteints (l'état du dépôt) : les boutons mènent à l'app. */
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    const page = await ctx.newPage();
+    await page.goto('http://localhost:8321/index.html', { waitUntil: 'load' });
+    await page.waitForTimeout(500);
+    await page.click('.hero-actions .bouton');
+    await page.waitForTimeout(600);
+    verifier('sans comptes branchés, le bouton mène droit à l\'app',
+      /app\.html/.test(page.url()), page.url());
+    await ctx.close();
+  }
+  {
+    /* b) Comptes ouverts : la porte s'interpose, et sait envoyer un lien. */
+    const envois = [];
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript("window.MATHEMATIQUE_COMPTE = { api: '/api' };");
+    const page = await ctx.newPage();
+    await page.route('**/api/**', (route) => {
+      const adresse = route.request().url();
+      const rendre = (code, corps) => route.fulfill({
+        status: code, contentType: 'application/json; charset=utf-8', body: JSON.stringify(corps) });
+      if (adresse.includes('/api/sante')) return rendre(200, { pret: false, lecture: true, comptes: true, google: '' });
+      if (adresse.includes('/api/compte-demander')) {
+        envois.push(JSON.parse(route.request().postData() || '{}'));
+        return rendre(200, { envoye: true });
+      }
+      return rendre(404, { erreur: 'route_inconnue' });
+    });
+    await page.goto('http://localhost:8321/index.html', { waitUntil: 'load' });
+    await page.waitForTimeout(600);
+
+    verifier('la porte reste fermée tant qu\'on ne clique pas',
+      !(await page.isVisible('#entree')), 'fenêtre ouverte d\'emblée');
+
+    await page.click('.hero-actions .bouton');
+    await page.waitForTimeout(400);
+    verifier('cliquer « créer ma première fiche » ouvre la porte',
+      await page.isVisible('#entree'), page.url());
+    verifier('et on n\'a pas quitté la vitrine', !/app\.html/.test(page.url()), page.url());
+
+    /* Une adresse vide ne part pas. */
+    await page.click('#entree-valider');
+    await page.waitForTimeout(300);
+    verifier('une adresse vide n\'envoie rien', envois.length === 0, JSON.stringify(envois));
+
+    await page.fill('#entree-courriel', 'lea@exemple.fr');
+    await page.click('#entree-valider');
+    await page.waitForTimeout(500);
+    verifier('l\'adresse saisie part au serveur',
+      envois.length === 1 && envois[0].courriel === 'lea@exemple.fr', JSON.stringify(envois));
+    verifier('et l\'élève est renvoyé à sa boîte mail',
+      await page.isVisible('#entree-boite'), await page.innerText('#entree'));
+    verifier('sans lui redemander son adresse en même temps',
+      !(await page.isVisible('#entree-sous')), await page.innerText('#entree-sous').catch(() => '—'));
+
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    verifier('échap referme la porte', !(await page.isVisible('#entree')), 'toujours ouverte');
+    await ctx.close();
+  }
+  {
+    /* c) Déjà entré : on ne redemande rien à quelqu'un qu'on connaît. */
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(`window.MATHEMATIQUE_COMPTE = { api: '/api' };
+      localStorage.setItem('mathematique.session', 'jeton-de-test');`);
+    const page = await ctx.newPage();
+    await page.route('**/api/**', (route) => route.fulfill({
+      status: 200, contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ comptes: true, google: '', version: 0, donnees: {} }) }));
+    await page.goto('http://localhost:8321/index.html', { waitUntil: 'load' });
+    await page.waitForTimeout(600);
+    await page.click('.hero-actions .bouton');
+    await page.waitForTimeout(600);
+    verifier('un élève déjà entré passe sans qu\'on l\'arrête',
+      /app\.html/.test(page.url()), page.url());
+    await ctx.close();
+  }
+
   await nav.close();
 
-  /* — 10. Hors navigateur : la vitrine et l'app parlent la même langue — */
+  /* — 11. Hors navigateur : la vitrine et l'app parlent la même langue — */
   {
     const app = jetons('styles.css');
     const vitrine = jetons('vitrine.css');

@@ -458,6 +458,7 @@ async function router(requete, reponse) {
       offres: Object.keys(TARIFS).filter((cle) => TARIFS[cle]),
       lecture: Boolean(claude),
       comptes: COMPTES.configure(),
+      google: COMPTES.clientGoogle(),      // public : la page en a besoin pour le bouton
     }, origine);
     return;
   }
@@ -528,6 +529,20 @@ async function router(requete, reponse) {
     } catch (erreur) {
       console.error("[compte-demander]", erreur.message);
       repondre(reponse, 502, { erreur: "envoi_impossible" }, origine);
+    }
+    return;
+  }
+
+  if (chemin === "/compte-google" && requete.method === "POST") {
+    let corps = {};
+    try { corps = JSON.parse((await lireCorps(requete)).toString("utf8") || "{}"); }
+    catch (erreur) { repondre(reponse, 400, { erreur: "json_invalide" }, origine); return; }
+    try {
+      const resultat = await COMPTES.entrerAvecGoogle(corps);
+      repondre(reponse, resultat.code, resultat.corps, origine);
+    } catch (erreur) {
+      console.error("[compte-google]", erreur.message);
+      repondre(reponse, 502, { erreur: "base_injoignable" }, origine);
     }
     return;
   }

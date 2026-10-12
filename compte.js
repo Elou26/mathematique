@@ -200,17 +200,25 @@ const COMPTE = (function () {
     return { code: reponse.status, corps: charge || {} };
   }
 
-  /** Le serveur propose-t-il des comptes ? Demandé une fois par onglet. */
+  /** Ce que le serveur sait faire. Demandé une fois par onglet. */
   let promesseSante = null;
-  function disponible() {
-    if (!CONFIG.api) return Promise.resolve(false);
+  function sante() {
+    if (!CONFIG.api) return Promise.resolve({ comptes: false, google: "" });
     if (!promesseSante) {
       promesseSante = appeler("/sante")
-        .then((vue) => Boolean(vue.corps && vue.corps.comptes))
-        .catch(() => false);
+        .then((vue) => ({
+          comptes: Boolean(vue.corps && vue.corps.comptes),
+          /* L'identifiant client Google est public par construction : il
+             part dans la page, c'est son rôle. Ce qui est secret, c'est la
+             vérification du jeton — et elle se fait sur le serveur. */
+          google: (vue.corps && vue.corps.google) || "",
+        }))
+        .catch(() => ({ comptes: false, google: "" }));
     }
     return promesseSante;
   }
+
+  function disponible() { return sante().then((etat) => etat.comptes); }
 
   /* ————— Entrer ——————————————————————————————————————————————— */
 
@@ -220,6 +228,64 @@ const COMPTE = (function () {
     if (vue.code === 400) throw new Error("adresse_invalide");
     if (vue.code === 503) throw new Error("comptes_eteints");
     throw new Error((vue.corps && vue.corps.erreur) || "envoi_impossible");
+  }
+
+  /* ————— Entrer avec Google ——————————————————————————————————
+     Le script de Google n'est chargé que si un identifiant client existe :
+     tant que ce n'est pas branché, aucun élève n'est présenté à Google.
+     ———————————————————————————————————————————————————————————— */
+
+  let promesseScriptGoogle = null;
+  function chargerGoogle() {
+    if (window.google && window.google.accounts) return Promise.resolve();
+    if (!promesseScriptGoogle) {
+      promesseScriptGoogle = new Promise((suite, echec) => {
+        const script = document.createElement("script");
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.onload = () => suite();
+        script.onerror = () => echec(new Error("google_injoignable"));
+        document.head.appendChild(script);
+      });
+    }
+    return promesseScriptGoogle;
+  }
+
+  async function entrerAvecGoogle(jeton) {
+    const vue = await appeler("/compte-google", { methode: "POST", corps: { jeton } });
+    if (vue.code !== 200) throw new Error((vue.corps && vue.corps.erreur) || "google_refuse");
+    ecrireTexte(CLE_SESSION, vue.corps.session);
+    ecrireTexte(CLE_COURRIEL, vue.corps.courriel || "");
+    ecrireTexte(CLE_VERSION, "0");
+    return vue.corps;
+  }
+
+  /**
+   * Pose le bouton de Google dans `hote`, et prévient `ensuite(erreur)` une
+   * fois l'élève entré. Rend `false` si Google n'est pas branché : l'appelant
+   * garde alors sa mise en page sans trou.
+   */
+  function boutonGoogle(hote, ensuite) {
+    if (!hote) return Promise.resolve(false);
+    return sante().then((etat) => {
+      if (!etat.google) return false;
+      return chargerGoogle().then(() => {
+        window.google.accounts.id.initialize({
+          client_id: etat.google,
+          callback: (reponse) => {
+            entrerAvecGoogle(reponse && reponse.credential)
+              .then(() => ensuite(null))
+              .catch((erreur) => ensuite(erreur));
+          },
+        });
+        window.google.accounts.id.renderButton(hote, {
+          theme: "outline", size: "large", text: "continue_with",
+          shape: "pill", locale: "fr", logo_alignment: "center",
+          width: Math.max(220, Math.min(380, hote.clientWidth || 300)),
+        });
+        return true;
+      }).catch(() => false);
+    });
   }
 
   /**
@@ -417,6 +483,19 @@ const COMPTE = (function () {
       });
     }
 
+    /* Google au-dessus du champ : un élève qui a un compte Google entre en
+       un geste, et n'a pas à aller chercher un courriel qui peut tomber
+       dans les indésirables. */
+    boutonGoogle($("#compte-google"), (erreur) => {
+      if (erreur) { message("Google n'a pas pu te faire entrer. Essaie avec ton adresse."); return; }
+      peindre();
+      message("Te voilà entré.");
+      synchroniser().then(montrerEtat);
+    }).then((pose) => {
+      const separateur = $("#compte-ou");
+      if (separateur) separateur.hidden = !pose;
+    });
+
     const formulaire = $("#compte-form");
     if (formulaire) {
       formulaire.addEventListener("submit", async (evenement) => {
@@ -542,7 +621,8 @@ const COMPTE = (function () {
   else demarrer();
 
   return {
-    disponible, demander, synchroniser, pousser, noterSuppression,
+    disponible, sante, boutonGoogle, entrerAvecGoogle,
+    demander, synchroniser, pousser, noterSuppression,
     sortir, effacer, exporter, peindre,
     connecte: () => Boolean(session()),
     courriel,

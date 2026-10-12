@@ -50,6 +50,12 @@ const SITE = (process.env.SITE_URL || "").replace(/\/+$/, "");
 const RESEND_URL = process.env.RESEND_URL || "https://api.resend.com/emails";
 const BREVO_URL = process.env.BREVO_URL || "https://api.brevo.com/v3/smtp/email";
 
+/* Entrer avec Google. L'identifiant client est public — il part dans la page,
+   c'est son rôle. Sans lui, le bouton n'existe pas. */
+const GOOGLE_CLIENT = process.env.GOOGLE_CLIENT_ID || "";
+const GOOGLE_JWKS = process.env.GOOGLE_JWKS_URL || "https://www.googleapis.com/oauth2/v3/certs";
+const GOOGLE_EMETTEURS = new Set(["accounts.google.com", "https://accounts.google.com"]);
+
 const VIE_DU_LIEN = 20 * 60 * 1000;          // 20 minutes pour cliquer
 const VIE_DE_LA_SESSION = 90 * 86400 * 1000; // 90 jours avant de redemander
 const TAILLE_MAX = 4 * 1024 * 1024;          // une bibliothèque au-delà : refusée
@@ -57,6 +63,11 @@ const TAILLE_MAX = 4 * 1024 * 1024;          // une bibliothèque au-delà : ref
 /** Les comptes ne s'allument que si tout est réglé : à moitié, ils nuisent. */
 function configure() {
   return Boolean(BASE_URL && BASE_CLE && SECRET && (RESEND_CLE || BREVO_CLE));
+}
+
+/** L'identifiant client Google, s'il y en a un : la page en a besoin. */
+function clientGoogle() {
+  return Boolean(BASE_URL && BASE_CLE && SECRET && GOOGLE_CLIENT) ? GOOGLE_CLIENT : "";
 }
 
 /* ————— La base, en HTTPS ———————————————————————————————————————
@@ -338,6 +349,79 @@ async function ecrireBibliotheque(compte, corps) {
   return { code: 200, corps: { version: ecrites[0].version, majLe: ecrites[0].vu_le } };
 }
 
+/* ————— Entrer avec Google —————————————————————————————————————
+   Google rend un jeton signé (JWT, RS256). On ne croit pas son contenu sur
+   parole : on va chercher les clés publiques de Google, on vérifie la
+   signature, puis l'émetteur, le destinataire (c'est bien NOTRE bouton qui
+   l'a obtenu), la date, et que l'adresse est vérifiée chez eux.
+
+   Sans ces quatre contrôles, n'importe qui fabriquerait un jeton disant
+   « je suis untel@gmail.com » et entrerait chez lui.
+   ———————————————————————————————————————————————————————————— */
+
+let clesGoogle = { quand: 0, par: new Map() };
+
+async function clePublique(identifiant) {
+  const HEURE = 3600000;
+  if (Date.now() - clesGoogle.quand > HEURE || !clesGoogle.par.size) {
+    const reponse = await fetch(GOOGLE_JWKS);
+    if (!reponse.ok) throw new Error(`jwks ${reponse.status}`);
+    const trousseau = await reponse.json();
+    const par = new Map();
+    (trousseau.keys || []).forEach((cle) => par.set(cle.kid, cle));
+    clesGoogle = { quand: Date.now(), par };
+  }
+  return clesGoogle.par.get(identifiant) || null;
+}
+
+function depliee(morceau) {
+  return JSON.parse(Buffer.from(morceau, "base64url").toString("utf8"));
+}
+
+async function verifierJetonGoogle(jeton) {
+  const morceaux = String(jeton || "").split(".");
+  if (morceaux.length !== 3) return null;
+
+  let entete;
+  try { entete = depliee(morceaux[0]); } catch (erreur) { return null; }
+  if (!entete || entete.alg !== "RS256" || !entete.kid) return null;
+
+  const jwk = await clePublique(entete.kid);
+  if (!jwk) return null;
+
+  let publique;
+  try { publique = crypto.createPublicKey({ key: jwk, format: "jwk" }); }
+  catch (erreur) { return null; }
+
+  const signe = Buffer.from(`${morceaux[0]}.${morceaux[1]}`, "utf8");
+  const sceau = Buffer.from(morceaux[2], "base64url");
+  if (!crypto.verify("RSA-SHA256", signe, publique, sceau)) return null;
+
+  let charge;
+  try { charge = depliee(morceaux[1]); } catch (erreur) { return null; }
+  if (!charge) return null;
+  if (!GOOGLE_EMETTEURS.has(String(charge.iss))) return null;
+  if (String(charge.aud) !== GOOGLE_CLIENT) return null;
+  if (!charge.exp || Date.now() >= charge.exp * 1000) return null;
+  /* Une adresse non vérifiée chez Google peut appartenir à quelqu'un
+     d'autre : c'est exactement le trou qu'on refuse. */
+  if (charge.email_verified !== true && charge.email_verified !== "true") return null;
+  return adresseValide(charge.email) || null;
+}
+
+async function entrerAvecGoogle(corps) {
+  if (!configure()) return { code: 503, corps: { erreur: "comptes_eteints" } };
+  if (!GOOGLE_CLIENT) return { code: 503, corps: { erreur: "google_eteint" } };
+
+  let courriel = null;
+  try { courriel = await verifierJetonGoogle(corps && corps.jeton); }
+  catch (erreur) { return { code: 502, corps: { erreur: "google_injoignable" } }; }
+  if (!courriel) return { code: 401, corps: { erreur: "jeton_google_invalide" } };
+
+  const compte = await trouverOuCreer(courriel);
+  return { code: 200, corps: { session: sessionPour(compte), courriel: compte.courriel } };
+}
+
 /* ————— Sortir, exporter, effacer ———————————————————————————— */
 
 /** Déconnecte cet appareil et tous les autres : les sessions ne valent plus. */
@@ -375,7 +459,7 @@ async function effacer(compte) {
 }
 
 module.exports = {
-  configure, adresseValide, demanderLien, entrer, compteDeLaRequete,
+  configure, clientGoogle, adresseValide, demanderLien, entrer, entrerAvecGoogle, compteDeLaRequete,
   lireBibliotheque, ecrireBibliotheque, sortirDePartout, exporter, effacer,
   /* exposés pour les tests */
   __signer: signer, __verifier: verifier, __empreinte: empreinte,

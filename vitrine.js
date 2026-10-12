@@ -98,10 +98,126 @@
     oeil.observe(accroche);
   }
 
+  /* ————— La porte d'entrée ——————————————————————————————————————
+     Les boutons de la page mènent à l'app. Quand les comptes sont ouverts,
+     ils passent d'abord par ici : on demande une adresse, on envoie un lien.
+
+     Deux cas la font s'effacer, et c'est volontaire : l'élève déjà entré
+     (on ne redemande pas son nom à quelqu'un qu'on connaît) et le serveur
+     qui n'a pas de quoi ouvrir un compte (on n'arrête personne devant une
+     porte qu'on ne peut pas lui ouvrir — sans ça, le site entier serait
+     inutilisable tant que la base n'est pas branchée).
+     ———————————————————————————————————————————————————————————— */
+
+  let destination = "app.html";
+  let rendreLeFocus = null;
+
+  function ouvrirPorte(ou) {
+    const entree = $("#entree");
+    if (!entree) return;
+    destination = ou || "app.html";
+    rendreLeFocus = document.activeElement;
+    entree.hidden = false;
+    document.body.classList.add("corps-bloque");
+    const champ = $("#entree-courriel");
+    if (champ) setTimeout(() => champ.focus(), 50);
+  }
+
+  function fermerPorte() {
+    const entree = $("#entree");
+    if (!entree || entree.hidden) return;
+    entree.hidden = true;
+    document.body.classList.remove("corps-bloque");
+    if (rendreLeFocus && rendreLeFocus.focus) rendreLeFocus.focus();
+  }
+
+  function direPorte(texte) {
+    const el = $("#entree-message");
+    if (!el) return;
+    el.textContent = texte;
+    el.hidden = !texte;
+  }
+
+  function brancherLaPorte() {
+    const entree = $("#entree");
+    if (!entree || typeof COMPTE === "undefined") return;
+
+    entree.querySelectorAll("[data-entree-fermer]").forEach((bouton) => {
+      bouton.addEventListener("click", fermerPorte);
+    });
+    document.addEventListener("keydown", (evenement) => {
+      if (evenement.key === "Escape") fermerPorte();
+    });
+
+    const formulaire = $("#entree-form");
+    if (formulaire) {
+      formulaire.addEventListener("submit", async (evenement) => {
+        evenement.preventDefault();
+        const champ = $("#entree-courriel");
+        const bouton = $("#entree-valider");
+        const adresse = (champ.value || "").trim();
+        if (!adresse) { champ.focus(); return; }
+        bouton.disabled = true;
+        bouton.textContent = "Envoi…";
+        direPorte("");
+        try {
+          await COMPTE.demander(adresse);
+          $("#entree-adresse").textContent = adresse;
+          $("#entree-formulaire").hidden = true;
+          $("#entree-boite").hidden = false;
+          /* « Entre ton adresse » au-dessus de « regarde ta boîte », ce sont
+             deux consignes contradictoires sur le même écran. */
+          $("#entree-sous").hidden = true;
+        } catch (erreur) {
+          const quoi = String(erreur.message || erreur);
+          direPorte(quoi === "adresse_invalide"
+            ? "Cette adresse ne ressemble pas à une adresse e-mail."
+            : "L'envoi a échoué. Réessaie dans un instant.");
+        } finally {
+          bouton.disabled = false;
+          bouton.textContent = "Recevoir mon lien";
+        }
+      });
+    }
+
+    const retour = $("#entree-retour");
+    if (retour) {
+      retour.addEventListener("click", () => {
+        $("#entree-boite").hidden = true;
+        $("#entree-formulaire").hidden = false;
+        $("#entree-sous").hidden = false;
+        const champ = $("#entree-courriel");
+        if (champ) { champ.value = ""; champ.focus(); }
+      });
+    }
+
+    /* Google entre en un geste : plus d'attente, et pas de courriel qui
+       risque de tomber dans les indésirables. */
+    COMPTE.boutonGoogle($("#entree-google"), (erreur) => {
+      if (erreur) { direPorte("Google n'a pas pu te faire entrer. Essaie avec ton adresse."); return; }
+      window.location.href = destination;
+    }).then((pose) => {
+      const separateur = $("#entree-ou");
+      if (separateur) separateur.hidden = !pose;
+    });
+
+    COMPTE.disponible().then((pret) => {
+      if (!pret) return;                 // rien à garder : les liens passent
+      document.querySelectorAll('a[href^="app.html"]').forEach((lien) => {
+        lien.addEventListener("click", (evenement) => {
+          if (COMPTE.connecte()) return;             // déjà entré
+          evenement.preventDefault();
+          ouvrirPorte(lien.getAttribute("href"));
+        });
+      });
+    });
+  }
+
   function demarrer() {
     ecrireOffres();
     saluerLeRetour();
     suivreLAccroche();
+    brancherLaPorte();
   }
 
   if (document.readyState === "loading") {

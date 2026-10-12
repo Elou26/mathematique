@@ -57,6 +57,16 @@ Deux liens profonds existent pour elle : `app.html?vue=scan` ouvre la prise de v
 `app.html?vue=abonnement` la page de tarif. La liste est volontairement courte (voir
 `VUES_PAR_ADRESSE` dans `app.js`) : les autres écrans se remplissent au clic qui les ouvre.
 
+### La porte d'entrée
+
+Une fois les comptes branchés, les boutons de la vitrine (« Ouvrir l'app »,
+« Créer ma première fiche ») ouvrent d'abord une fenêtre de connexion :
+adresse e-mail, ou bouton Google si `GOOGLE_CLIENT_ID` est réglé. Elle
+s'efface dans deux cas, et c'est voulu : l'élève déjà entré passe sans qu'on
+lui redemande son nom, et si le serveur n'a pas de quoi ouvrir un compte,
+personne n'est arrêté devant une porte qu'on ne peut pas lui ouvrir — sans
+quoi le site entier serait inutilisable tant que la base n'est pas branchée.
+
 ### Les images
 
 Elles ne sont pas dessinées : ce sont des captures de la vraie app, prises par
@@ -102,6 +112,17 @@ outil pour savoir qui est inscrit ici.
 La session qui en sort est signée (HMAC-SHA256) et porte le numéro
 `jetons_version` du compte. « Me déconnecter » incrémente ce numéro : toutes
 les sessions émises avant cessent de valoir, sans table de sessions à tenir.
+
+### Entrer avec Google
+
+`GOOGLE_CLIENT_ID` fait apparaître le bouton, sur la vitrine comme dans le
+profil ; sans lui, le script de Google n'est même pas chargé et aucun élève
+n'est présenté à Google. Le jeton qu'il rend n'est jamais cru sur parole :
+`verifierJetonGoogle()` va chercher les clés publiques de Google, vérifie la
+signature RS256, puis l'émetteur, le destinataire (c'est bien *notre* bouton
+qui l'a obtenu), la date, et que l'adresse est vérifiée chez eux. Sans ces
+quatre contrôles, n'importe qui fabriquerait un jeton disant « je suis
+untel@gmail.com ». `tests/comptes-serveur.js` essaie les sept tricheries.
 
 ### Fusionner plutôt qu'écraser
 
