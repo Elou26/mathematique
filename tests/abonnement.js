@@ -20,7 +20,7 @@ function verifier(nom, condition, vu) {
 /* ————— Faux serveur de paiement ————————————————————————————————
    Il répond comme serveur/index.js, sans Stripe : on éprouve ici ce que
    fait la page, pas ce que fait Stripe (voir tests/serveur-paiement.js). */
-const recu = { paiements: [], licences: [] };
+const recu = { paiements: [], licences: [] , offresEnVente: ['essentiel', 'regulier', 'intensif']};
 let offreRendue = 'essentiel';     // l'offre que le faux serveur dit avoir vendue
 const faux = http.createServer((requete, reponse) => {
   const adresse = new URL(requete.url, 'http://localhost');
@@ -30,6 +30,12 @@ const faux = http.createServer((requete, reponse) => {
     'Content-Type': 'application/json; charset=utf-8',
   };
   if (requete.method === 'OPTIONS') { reponse.writeHead(204, entetes); reponse.end(); return; }
+
+  if (adresse.pathname === '/sante') {
+    reponse.writeHead(200, entetes);
+    reponse.end(JSON.stringify({ pret: true, lecture: true, comptes: false, offres: recu.offresEnVente }));
+    return;
+  }
 
   if (adresse.pathname === '/paiement') {
     const morceaux = [];
@@ -372,6 +378,30 @@ function semence(fiches, paiement) {
     verifier('un compteur d\'avant la mise à jour compte quand même',
       await page3.isVisible('#vue-abonnement'), 'la création s\'est ouverte');
     await ctx3.close();
+  }
+
+  /* — Un seul tarif créé chez Stripe : une seule offre proposée ————
+     Pendant la configuration, on commence par un tarif. Proposer les deux
+     autres mènerait l'élève sur une erreur « offre inconnue ». */
+  {
+    recu.offresEnVente = ['essentiel'];
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(semence([fiche(1), fiche(2)], { api }));
+    const page = await ctx.newPage();
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
+    await page.click('#ouvrir-creation'); await page.waitForTimeout(900);
+
+    const cartes = await page.$$eval('#illimite-offres .offre-carte h3',
+      (titres) => titres.map((t) => t.textContent.trim()));
+    verifier('seule l\'offre réellement créée est proposée',
+      cartes.length === 1 && cartes[0] === 'Essentiel', cartes.join(' | '));
+
+    const colonnes = await page.$$eval('#illimite-comparatif thead th',
+      (ths) => ths.map((e) => e.textContent.trim()).filter(Boolean));
+    verifier('et le comparatif ne compare que ce qui existe',
+      colonnes.join('|') === 'Gratuit|Essentiel', colonnes.join(' | '));
+    await ctx.close();
+    recu.offresEnVente = ['essentiel', 'regulier', 'intensif'];
   }
 
   await nav.close();

@@ -363,6 +363,16 @@
                : "Offre en préparation — aujourd'hui, tout est gratuit et sans limite.");
     rendreOffres(pret);
     rendreComparatif();
+    /* La liste des tarifs réellement créés arrive du serveur : on redessine
+       dès qu'on la connaît, plutôt que de proposer une offre qu'il refusera. */
+    if (pret) {
+      OFFRE.sante().then(() => {
+        if ($("#vue-abonnement") && !$("#vue-abonnement").hidden) {
+          rendreOffres(true);
+          rendreComparatif();
+        }
+      });
+    }
     $("#illimite-mention").textContent = pret
       ? "Paiement chez Stripe : l'app ne voit jamais ta carte."
       : "Le paiement n'est pas encore branché sur cette version. Rien ne t'est débité.";
@@ -383,7 +393,7 @@
     if (!bloc || !OFFRE) return;
     const active = OFFRE.offreActive();
 
-    bloc.innerHTML = OFFRE.offres().map((offre) => {
+    bloc.innerHTML = OFFRE.offresEnVente().map((offre) => {
       const sienne = active && active.cle === offre.cle;
       const credits = OFFRE.creditsDe(offre.fiches).toLocaleString("fr-FR");
       const volume = offre.illimite
@@ -391,7 +401,7 @@
         : `${credits} crédits par mois`;
       return `
         <article class="offre-carte${offre.conseille ? " offre-carte--conseillee" : ""}${sienne ? " offre-carte--actuelle" : ""}">
-          ${offre.conseille ? `<span class="offre-ruban">Le plus choisi</span>` : ""}
+          ${offre.conseille ? `<span class="offre-ruban">Conseillé</span>` : ""}
           ${sienne ? `<span class="offre-ruban offre-ruban--actuelle">Ton offre</span>` : ""}
           <h3 class="offre-nom">${echapper(offre.nom)}</h3>
           <p class="offre-prix"><strong>${echapper(offre.prix)}</strong>
@@ -414,7 +424,7 @@
   function rendreComparatif() {
     const table = $("#illimite-comparatif");
     if (!table || !OFFRE) return;
-    const offres = OFFRE.offres();
+    const offres = OFFRE.offresEnVente();
     const gratuit = OFFRE.config().gratuit.fiches;
 
     const colonnes = [`<th scope="col">Gratuit</th>`]

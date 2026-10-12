@@ -27,7 +27,10 @@
     const hote = $("#offres");
     if (!hote || typeof ABONNEMENT === "undefined") return;
 
-    const offres = ABONNEMENT.offres();
+    /* Seules les offres que le serveur sait vendre : pendant la mise en
+       place des tarifs, il n'y en a qu'une, et annoncer les deux autres
+       serait promettre un bouton qui rend « offre inconnue ». */
+    const offres = ABONNEMENT.offresEnVente();
     const parFiche = ABONNEMENT.creditsParFiche();
     /* Le paiement est branché, ou il ne l'est pas. Dans le second cas la
        page le dit et n'envoie personne sur un mur : le bouton ramène à
@@ -229,6 +232,9 @@
 
   function demarrer() {
     ecrireOffres();
+    /* La liste des tarifs réellement créés arrive du serveur : on redessine
+       dès qu'on la connaît. */
+    if (ABONNEMENT.estConfigure()) ABONNEMENT.sante().then(ecrireOffres);
     saluerLeRetour();
     suivreLAccroche();
     brancherLaPorte();

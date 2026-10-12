@@ -192,6 +192,34 @@ const ABONNEMENT = (function () {
 
   function offres() { return CONFIG.offres.slice(); }
 
+  /* ————— Ce que le serveur sait vraiment vendre ————————————————
+     Une offre n'existe que si son identifiant de tarif est posé côté
+     serveur. Les proposer toutes alors qu'un seul tarif est créé, c'est
+     promettre deux portes qui s'ouvrent sur une erreur — et l'élève, lui,
+     croit que l'app est cassée. /sante dit lesquelles sont en vente.
+     ———————————————————————————————————————————————————————————— */
+  let promesseSante = null;
+  let enVente = null;                       // null : on ne sait pas encore
+
+  function sante() {
+    if (!CONFIG.api) return Promise.resolve(null);
+    if (!promesseSante) {
+      promesseSante = demander("/sante", { method: "GET" })
+        .then((vue) => {
+          enVente = vue && Array.isArray(vue.offres) && vue.offres.length ? vue.offres : null;
+          return vue;
+        })
+        .catch(() => null);
+    }
+    return promesseSante;
+  }
+
+  /** Les offres vendables. Tant qu'on ne sait pas, on les montre toutes. */
+  function offresEnVente() {
+    if (!enVente) return offres();
+    return offres().filter((offre) => enVente.indexOf(offre.cle) !== -1);
+  }
+
   function offreParCle(cle) {
     return CONFIG.offres.filter((o) => o.cle === cle)[0] || null;
   }
@@ -372,7 +400,7 @@ const ABONNEMENT = (function () {
 
   return {
     config, configure, appareil,
-    offres, offreParCle, offreActive,
+    offres, offresEnVente, sante, offreParCle, offreActive,
     creditsParFiche: () => CONFIG.creditsParFiche,
     creditsDe: (fiches) => fiches * CONFIG.creditsParFiche,
     consommation, consommationTotale, noterFiche, moisCourant,
