@@ -75,8 +75,8 @@ de suite (envoyer un mail, journaliser).
 | `CLAUDE_MODELE` | facultatif, `claude-sonnet-5-5` par défaut ; `claude-opus-5-5` pour plus de finesse, à ~2× le prix |
 | `CLAUDE_EFFORT` | facultatif, `medium` par défaut — `high` aide sur un manuscrit ingrat |
 | `LECTURE_PAGES_PAR_HEURE` | facultatif, 40 par défaut — le garde-fou de facture |
-| `BASE_URL` | l'adresse de la base (Supabase : *Project URL*) — vide = comptes éteints |
-| `BASE_CLE` | la clé **`service_role`** : elle ouvre toutes les bibliothèques, elle ne sort jamais du serveur |
+| `BASE_URL` | l'adresse de la base (Supabase : *Project URL*) — vide = comptes éteints. `SUPABASE_URL` fait aussi l'affaire |
+| `BASE_CLE` | la clé **`service_role`** : elle ouvre toutes les bibliothèques, elle ne sort jamais du serveur. `SUPABASE_SERVICE_ROLE_KEY` (posée par l'intégration Vercel) fait aussi l'affaire |
 | `SECRET_COMPTES` | ce qui signe les sessions (32 caractères au hasard) ; en changer déconnecte tout le monde |
 | `RESEND_CLE` | l'envoi des liens, si tu as un nom de domaine |
 | `BREVO_CLE` | l'envoi des liens sans domaine, avec une adresse d'expéditeur vérifiée |

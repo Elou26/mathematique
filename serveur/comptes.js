@@ -37,8 +37,12 @@
 
 const crypto = require("crypto");
 
+/* Les noms « SUPABASE_… » sont ceux que pose l'intégration officielle
+   Vercel ↔ Supabase : en les acceptant, on marche aussi bien avec les deux
+   variables posées à la main qu'avec celles qu'elle injecte toute seule. */
 const BASE_URL = (process.env.BASE_URL || process.env.SUPABASE_URL || "").replace(/\/+$/, "");
-const BASE_CLE = process.env.BASE_CLE || process.env.SUPABASE_SERVICE_KEY || "";
+const BASE_CLE = process.env.BASE_CLE
+  || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || "";
 const SECRET = process.env.SECRET_COMPTES || "";
 const RESEND_CLE = process.env.RESEND_CLE || "";
 const BREVO_CLE = process.env.BREVO_CLE || "";
