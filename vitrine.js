@@ -138,6 +138,12 @@
     el.hidden = !texte;
   }
 
+  /** Applique un changement à un élément s'il existe. Rien d'autre. */
+  function montrer(selecteur, quoi) {
+    const el = $(selecteur);
+    if (el) quoi(el);
+  }
+
   function brancherLaPorte() {
     const entree = $("#entree");
     if (!entree || typeof COMPTE === "undefined") return;
@@ -160,32 +166,40 @@
         bouton.disabled = true;
         bouton.textContent = "Envoi…";
         direPorte("");
+
+        /* Le réseau d'abord, l'affichage ensuite, et jamais dans le même
+           try : un élément manquant dans la page se ferait sinon passer pour
+           une panne d'envoi, et l'élève lirait « l'envoi a échoué » avec le
+           lien déjà dans sa boîte. C'est arrivé. */
+        let parti = false;
         try {
           await COMPTE.demander(adresse);
-          $("#entree-adresse").textContent = adresse;
-          $("#entree-formulaire").hidden = true;
-          $("#entree-boite").hidden = false;
-          /* « Entre ton adresse » au-dessus de « regarde ta boîte », ce sont
-             deux consignes contradictoires sur le même écran. */
-          $("#entree-sous").hidden = true;
+          parti = true;
         } catch (erreur) {
           const quoi = String(erreur.message || erreur);
           direPorte(quoi === "adresse_invalide"
             ? "Cette adresse ne ressemble pas à une adresse e-mail."
             : "L'envoi a échoué. Réessaie dans un instant.");
-        } finally {
-          bouton.disabled = false;
-          bouton.textContent = "Recevoir mon lien";
         }
+        bouton.disabled = false;
+        bouton.textContent = "Recevoir mon lien";
+        if (!parti) return;
+
+        montrer("#entree-adresse", (el) => { el.textContent = adresse; });
+        montrer("#entree-formulaire", (el) => { el.hidden = true; });
+        montrer("#entree-boite", (el) => { el.hidden = false; });
+        /* « Entre ton adresse » au-dessus de « regarde ta boîte », ce sont
+           deux consignes contradictoires sur le même écran. */
+        montrer("#entree-sous", (el) => { el.hidden = true; });
       });
     }
 
     const retour = $("#entree-retour");
     if (retour) {
       retour.addEventListener("click", () => {
-        $("#entree-boite").hidden = true;
-        $("#entree-formulaire").hidden = false;
-        $("#entree-sous").hidden = false;
+        montrer("#entree-boite", (el) => { el.hidden = true; });
+        montrer("#entree-formulaire", (el) => { el.hidden = false; });
+        montrer("#entree-sous", (el) => { el.hidden = false; });
         const champ = $("#entree-courriel");
         if (champ) { champ.value = ""; champ.focus(); }
       });

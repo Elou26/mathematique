@@ -256,8 +256,18 @@ function jetons(fichier) {
       envois.length === 1 && envois[0].courriel === 'lea@exemple.fr', JSON.stringify(envois));
     verifier('et l\'élève est renvoyé à sa boîte mail',
       await page.isVisible('#entree-boite'), await page.innerText('#entree'));
+    /* L'élément doit EXISTER et être masqué : isVisible() rend « false »
+       pour un élément absent, donc l'assertion passait justement quand
+       l'identifiant manquait — et la page, elle, jetait une exception. */
+    const sousTitre = await page.$('#entree-sous');
+    verifier('le sous-titre existe bien', sousTitre !== null, 'aucun #entree-sous dans la page');
     verifier('sans lui redemander son adresse en même temps',
-      !(await page.isVisible('#entree-sous')), await page.innerText('#entree-sous').catch(() => '—'));
+      sousTitre !== null && !(await page.isVisible('#entree-sous')), 'sous-titre encore affiché');
+    /* Et surtout : rien ne doit ressembler à une erreur alors que le lien
+       est parti. */
+    verifier('aucun message d\'échec quand le lien est parti',
+      !(await page.isVisible('#entree-message')),
+      await page.innerText('#entree-message').catch(() => '—'));
 
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
