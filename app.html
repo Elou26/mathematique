@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#CFE0F7">
+<meta name="description" content="Mathématique — réviser toutes les matières avec la répétition espacée, des résumés, des quiz et des flashcards générés par IA.">
+<title>Mathématique</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231B2A6B'/><text x='16' y='23' font-size='18' font-family='Georgia,serif' fill='%23fff' text-anchor='middle'>π</text></svg>">
+<link rel="stylesheet" href="styles.css">
+<!-- KaTeX, embarqué dans maths/ : les formules des fiches scientifiques
+     arrivent en LaTeX et doivent s'afficher comme des formules. -->
+<link rel="stylesheet" href="maths/katex.min.css">
+</head>
+<body>
+
+<!-- ————— Écran de bienvenue : choix du niveau ————— -->
+<div class="ecran-niveau" id="ecran-niveau" hidden role="dialog" aria-modal="true" aria-labelledby="ecran-titre">
+  <div class="ecran-contenu">
+    <span class="ecran-logo" aria-hidden="true">
+      <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <rect width="40" height="40" rx="12" fill="#1B2A6B"/>
+        <path d="M8 27c4.5 0 5.5-14 10-14s5.5 14 10 14" fill="none" stroke="#CFE0F7" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="30.5" cy="12.5" r="2.6" fill="#7FA8E8"/>
+      </svg>
+    </span>
+    <h1 class="ecran-titre" id="ecran-titre">Bienvenue sur Mathématique</h1>
+    <p class="ecran-texte">Où en es-tu dans tes études ? Tes thèmes et tes quiz seront calés sur ton profil.</p>
+
+    <div class="groupes-niveaux" id="groupes-niveaux"></div>
+
+    <div class="ecran-pied">
+      <button class="bouton-texte" type="button" id="passer-niveau">Choisir plus tard</button>
+    </div>
+  </div>
+</div>
+
+<!-- ————— Banque d'icônes (SVG, référencées via <use>) ————— -->
+<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-jeton" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="8"/><path d="M12 8.2v7.6M10.1 10.1h3a1.5 1.5 0 0 1 0 3h-2.9a1.5 1.5 0 0 0 0 3h3"/>
+  </symbol>
+  <symbol id="i-cloche" viewBox="0 0 24 24">
+    <path d="M12 3a6 6 0 0 0-6 6c0 3.2-.7 5.1-1.5 6.2-.5.7 0 1.6.8 1.6h13.4c.8 0 1.3-.9.8-1.6C18.7 14.1 18 12.2 18 9a6 6 0 0 0-6-6Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M9.7 19.3a2.4 2.4 0 0 0 4.6 0" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-fichier" viewBox="0 0 24 24">
+    <path d="M13.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5L13.5 3Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M13.5 3v4a1.5 1.5 0 0 0 1.5 1.5h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M8.5 12.5h7M8.5 16h4.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-cahier" viewBox="0 0 24 24">
+    <path d="M7 3h11a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M5 8h3M5 12h3M5 16h3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    <path d="M11 12.4l2 2 3.6-4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-cartes" viewBox="0 0 24 24">
+    <rect x="3" y="4.5" width="13" height="9.5" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <rect x="8" y="10" width="13" height="9.5" rx="2.2" fill="var(--blanc, #fff)" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M11.3 14.8h6.4M11.3 17h3.6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-accueil" viewBox="0 0 24 24">
+    <path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19v-8.5Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M9.5 20.5v-5.2h5v5.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-cours" viewBox="0 0 24 24">
+    <path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H10a2.5 2.5 0 0 1 2 1v13a2.5 2.5 0 0 0-2-1H5.5A1.5 1.5 0 0 1 4 15.5v-10Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H14a2.5 2.5 0 0 0-2 1v13a2.5 2.5 0 0 1 2-1h4.5a1.5 1.5 0 0 0 1.5-1.5v-10Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-profil" viewBox="0 0 24 24">
+    <circle cx="12" cy="8.5" r="3.6" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M4.8 20c0-3.6 3.2-5.8 7.2-5.8s7.2 2.2 7.2 5.8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-camera" viewBox="0 0 24 24">
+    <path d="M4 8.5h3l1.4-2.2a1 1 0 0 1 .85-.47h5.5a1 1 0 0 1 .85.47L17 8.5h3a1 1 0 0 1 1 1V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <circle cx="12" cy="13.4" r="3.4" fill="none" stroke="currentColor" stroke-width="1.7"/>
+  </symbol>
+
+  <symbol id="i-image" viewBox="0 0 24 24">
+    <rect x="3.5" y="5" width="17" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <circle cx="9" cy="10" r="1.6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path d="M4.5 17l4.2-4.2 3.1 3.1 2.6-2.4 5.1 4.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-scan" viewBox="0 0 24 24">
+    <path d="M4 8.5V6a2 2 0 0 1 2-2h2.5M15.5 4H18a2 2 0 0 1 2 2v2.5M20 15.5V18a2 2 0 0 1-2 2h-2.5M8.5 20H6a2 2 0 0 1-2-2v-2.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M4 12h16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-magie" viewBox="0 0 24 24">
+    <path d="M4 20 14.5 9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="m13 8 3 3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M17.5 3.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M8 4.5l.5 1.3 1.3.5-1.3.5L8 8.1l-.5-1.3-1.3-.5 1.3-.5L8 4.5Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M19.5 14.5l.5 1.3 1.3.5-1.3.5-.5 1.3-.5-1.3-1.3-.5 1.3-.5.5-1.3Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-crayon" viewBox="0 0 24 24">
+    <rect x="3.5" y="3.5" width="17" height="17" rx="4" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M15.4 7.6 9 14v1.9h1.9l6.4-6.4a1.35 1.35 0 0 0 0-1.9 1.35 1.35 0 0 0-1.9 0Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-coche" viewBox="0 0 24 24">
+    <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-fleche" viewBox="0 0 24 24">
+    <path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="i-epee" viewBox="0 0 24 24">
+    <path d="M20 4h-3.5L6 14.5 9.5 18 20 7.5V4Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+    <path d="M7.7 16.3 4 20M3.5 16.5 7 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="i-horloge" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.2" fill="none" stroke="currentColor" stroke-width="1.7"/>
+    <path d="M12 7.4V12l3.2 2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+</svg>
+
+<!-- ————— Header ————— -->
+<header class="header">
+  <a class="marque" href="#accueil" data-onglet="accueil">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <rect width="40" height="40" rx="12" fill="#1B2A6B"/>
+        <path d="M8 27c4.5 0 5.5-14 10-14s5.5 14 10 14" fill="none" stroke="#CFE0F7" stroke-width="2.6" stroke-linecap="round"/>
+        <circle cx="30.5" cy="12.5" r="2.6" fill="#7FA8E8"/>
+      </svg>
+    </span>
+    <span class="marque-nom">Mathématique</span>
+  </a>
+
+  <!-- Le solde de crédits. Écrit par majCredits() ; masqué tant qu'il n'y a
+       rien à compter, plutôt que d'afficher un compteur décoratif. -->
+  <button class="credits" type="button" id="credits-solde" data-onglet="profil" hidden>
+    <svg aria-hidden="true"><use href="#i-jeton"></use></svg>
+    <span class="credits-nombre" id="credits-nombre">—</span>
+  </button>
+
+  <button class="cloche" type="button" data-onglet="revision" aria-label="Révision espacée — 2 cours à revoir aujourd'hui">
+    <svg aria-hidden="true"><use href="#i-cloche"></use></svg>
+    <span class="cloche-pastille" id="cloche-compteur">2</span>
+  </button>
+</header>
+
+<!-- ————— Corps ————— -->
+<main class="corps">
+
+  <!-- Vue : Accueil -->
+  <section class="vue vue--active" id="vue-accueil">
+
+    <!-- Où en est la journée : la première chose qu'on lit en ouvrant l'app -->
+    <section class="salut" id="bloc-salut" aria-live="polite"></section>
+
+    <!-- Ce qui est dû aujourd'hui passe avant tout le reste -->
+    <section class="aujourdhui" id="bloc-aujourdhui" hidden aria-live="polite"></section>
+
+    <!-- Masquée tant que l'élève n'a aucune fiche : la salutation propose
+         déjà « Créer ma première fiche », et deux fois le même bouton l'un
+         sous l'autre ne fait pas deux choix, ça fait une hésitation. -->
+    <h2 class="titre-categorie" id="titre-creation">Créer une fiche</h2>
+    <button class="carte-scan" type="button" id="ouvrir-creation">
+      <span class="carte-scan-icone" aria-hidden="true"><svg><use href="#i-camera"></use></svg></span>
+      <span class="carte-scan-texte">
+        <span class="carte-scan-titre">Nouvelle fiche</span>
+        <span class="carte-scan-detail">Photographie ton cours, ou écris ton texte toi-même.</span>
+      </span>
+      <span class="carte-scan-puces" aria-hidden="true">
+        <svg><use href="#i-fichier"></use></svg>
+        <svg><use href="#i-cahier"></use></svg>
+        <svg><use href="#i-cartes"></use></svg>
+      </span>
+    </button>
+
+    <h2 class="titre-categorie">S'entraîner</h2>
+    <div class="bloc-social">
+      <p class="panneau-legende">Quelques minutes sur tes propres cartes</p>
+      <ul class="liste-defis" id="liste-entrainements"></ul>
+    </div>
+
+    <h2 class="titre-categorie" id="titre-themes">Chapitres de ton programme</h2>
+    <div class="themes" id="bloc-themes"><!-- carrousel + dépliant, injectés par app.js --></div>
+  </section>
+
+  <!-- Vue : Photographier un cours — leçon, devoir ou contrôle -->
+  <section class="vue" id="vue-scan" hidden>
+    <button class="retour" type="button" data-onglet="accueil">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      Accueil
+    </button>
+
+    <h2 class="titre-categorie titre-categorie--grand" id="scan-titre-page">Photographier ma page</h2>
+    <p class="sous-texte" id="scan-sous-texte">Photographie ta page : fiche, cartes et quiz en sortent.</p>
+    <p class="ia-moteur" id="scan-moteur" hidden></p>
+
+    <!-- Cadrage -->
+    <div class="scanner" id="scanner">
+      <div class="scanner-cadre">
+        <img class="scanner-apercu" id="scan-apercu" alt="Aperçu de la page photographiée" hidden>
+        <span class="scanner-coin scanner-coin--hg" aria-hidden="true"></span>
+        <span class="scanner-coin scanner-coin--hd" aria-hidden="true"></span>
+        <span class="scanner-coin scanner-coin--bg" aria-hidden="true"></span>
+        <span class="scanner-coin scanner-coin--bd" aria-hidden="true"></span>
+        <span class="scanner-balayage" id="scan-balayage" hidden aria-hidden="true"></span>
+        <p class="scanner-aide" id="scan-aide">
+          <svg aria-hidden="true"><use href="#i-scan"></use></svg>
+          Cadre ta page dans ce rectangle
+        </p>
+      </div>
+    </div>
+
+    <div class="scan-pages" id="scan-pages" hidden aria-label="Pages ajoutées"></div>
+
+    <ul class="scan-etapes" id="scan-etapes" hidden>
+      <li data-etape="cadrage"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Pages cadrées</li>
+      <li data-etape="lecture"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Lecture du document</li>
+      <li data-etape="notions"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Fiche et flashcards écrites</li>
+    </ul>
+
+    <div class="scan-capture" id="scan-capture">
+      <label class="bouton-principal bouton-fichier">
+        Prendre une photo
+        <input type="file" id="scan-photo" accept="image/*" capture="environment" hidden>
+      </label>
+      <label class="bouton-secondaire bouton-fichier">
+        Choisir une image
+        <input type="file" id="scan-galerie" accept="image/*" multiple hidden>
+      </label>
+      <p class="mention" id="scan-mention">La photo reste sur ton téléphone.</p>
+    </div>
+
+    <!-- Lecture -->
+    <div class="scan-lecture" id="scan-lecture" hidden>
+      <p class="ia-message ia-message--erreur" id="scan-raison" hidden></p>
+      <button class="bouton-principal" type="button" id="scan-analyser">Lire et créer ma fiche</button>
+      <button class="bouton-texte" type="button" id="scan-manuel" hidden>Continuer sans lecture</button>
+      <label class="bouton-secondaire bouton-fichier">
+        Ajouter une page
+        <input type="file" id="scan-page-plus" accept="image/*" multiple hidden>
+      </label>
+      <button class="bouton-texte" type="button" id="scan-recommencer">Recommencer</button>
+    </div>
+
+    <div class="chargement" id="chargement-scan" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <p class="chargement-texte" id="scan-progres">Lecture de tes pages…</p>
+    </div>
+    <button class="bouton-texte" type="button" id="scan-stop" hidden>Arrêter</button>
+    <p class="ia-message" id="scan-message" hidden aria-live="polite"></p>
+
+    <!-- Ce qui a été lu, et ce qu'on en fait -->
+    <div class="scan-resultat" id="scan-resultat" hidden>
+      <article class="fiche fiche--lue" id="scan-fiche-lue" hidden></article>
+
+      <label class="champ-libelle" for="scan-sujet">De quoi parle ta page ?</label>
+      <input class="champ-texte" id="scan-sujet" type="text" maxlength="80" autocomplete="off"
+             placeholder="Ex. : Dérivées et taux de variation">
+      <div class="puces puces--filtres" id="scan-suggestions" role="group" aria-label="Chapitres de ton programme"></div>
+
+      <p class="etiquette">Qu'est-ce que tu veux en faire ?</p>
+      <div class="outils">
+        <button class="outil" type="button" data-scan-outil="flashcards">
+          <svg class="outil-icone" aria-hidden="true"><use href="#i-cartes"></use></svg>
+          <span class="outil-nom">FlashCards</span>
+          <span class="outil-detail" id="outil-cartes-detail">Recto-verso</span>
+        </button>
+        <button class="outil" type="button" data-scan-outil="resume">
+          <svg class="outil-icone" aria-hidden="true"><use href="#i-fichier"></use></svg>
+          <span class="outil-nom">Fiche</span>
+          <span class="outil-detail">L'essentiel</span>
+        </button>
+        <button class="outil" type="button" data-scan-outil="quiz">
+          <svg class="outil-icone" aria-hidden="true"><use href="#i-cahier"></use></svg>
+          <span class="outil-nom">Quiz</span>
+          <span class="outil-detail">QCM corrigé</span>
+        </button>
+      </div>
+
+      <button class="bouton-texte" type="button" id="scan-refaire">Photographier autre chose</button>
+    </div>
+  </section>
+
+  <!-- Vue : Créer résumé (outil IA) -->
+  <section class="vue" id="vue-resume" hidden>
+    <button class="retour" type="button" data-onglet="accueil">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      Accueil
+    </button>
+
+    <h2 class="titre-categorie titre-categorie--grand">Créer un résumé</h2>
+    <p class="sous-texte">Choisis une source, l'IA en tire une fiche structurée : l'essentiel, les repères et les pièges.</p>
+
+    <form id="form-resume" novalidate>
+      <p class="etiquette">Source du contenu</p>
+      <div class="segments" role="tablist" aria-label="Source du contenu">
+        <button class="segment segment--actif" type="button" role="tab" aria-selected="true" data-source="cours">Mes fiches</button>
+        <button class="segment" type="button" role="tab" aria-selected="false" data-source="texte">Coller un texte</button>
+        <button class="segment" type="button" role="tab" aria-selected="false" data-source="fichier">Importer</button>
+      </div>
+
+      <div class="source" data-panneau="cours">
+        <div class="puces puces--filtres" id="filtres-resume" role="group" aria-label="Filtrer par matière"></div>
+        <ul class="choix-cours" id="choix-cours"></ul>
+      </div>
+
+      <div class="source source--masque" data-panneau="texte" hidden>
+        <textarea id="texte-source" class="zone-texte" rows="6"
+                  placeholder="Colle ici ton cours, un énoncé ou tes notes…"></textarea>
+        <p class="compteur"><span id="compteur-texte">0</span> caractères · 200 minimum</p>
+      </div>
+
+      <div class="source source--masque" data-panneau="fichier" hidden>
+        <label class="depot">
+          <svg aria-hidden="true"><use href="#i-fichier"></use></svg>
+          <span class="depot-titre">Importer un fichier</span>
+          <span class="depot-detail">PDF, photo du cahier ou capture d'écran · 20 Mo max</span>
+          <input type="file" id="fichier-source" accept=".pdf,image/*" hidden>
+        </label>
+        <p class="nom-fichier" id="nom-fichier" hidden></p>
+      </div>
+
+      <details class="reglages">
+        <summary>Réglages <span class="reglages-resume" id="resume-fiche">fiche standard</span></summary>
+        <p class="etiquette etiquette--sous">Longueur</p>
+        <div class="puces" id="puces-longueur" role="radiogroup" aria-label="Longueur du résumé">
+          <button class="puce" type="button" role="radio" aria-checked="false" data-longueur="court">Court</button>
+          <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-longueur="standard">Standard</button>
+          <button class="puce" type="button" role="radio" aria-checked="false" data-longueur="detaille">Détaillé</button>
+        </div>
+
+        <p class="etiquette etiquette--sous">À inclure</p>
+        <div class="puces" id="puces-options">
+        <button class="puce puce--active" type="button" aria-pressed="true" data-option="formules">Formules &amp; repères</button>
+        <button class="puce puce--active" type="button" aria-pressed="true" data-option="exemples">Exemples corrigés</button>
+          <button class="puce" type="button" aria-pressed="false" data-option="pieges">Pièges fréquents</button>
+        </div>
+      </details>
+
+      <button class="bouton-principal" type="submit" id="bouton-generer">Générer le résumé</button>
+      <p class="mention">Le résumé est généré à partir de la source choisie, puis relu par toi avant d'être enregistré.</p>
+    </form>
+
+    <div class="chargement" id="chargement-resume" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <p class="chargement-texte">Lecture du cours et rédaction de la fiche…</p>
+    </div>
+
+    <article class="fiche" id="fiche-resume" hidden aria-live="polite"></article>
+  </section>
+
+  <!-- Vue : la fiche en pleine page — on la lit, on ne la règle pas -->
+  <section class="vue" id="vue-fiche" hidden>
+    <button class="retour" type="button" id="fiche-retour">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      <span id="fiche-retour-nom">Mes fiches</span>
+    </button>
+    <article class="page-fiche" id="page-fiche" aria-live="polite"></article>
+  </section>
+
+  <!-- Vue : Passer en illimité — la page de tarif -->
+  <section class="vue" id="vue-abonnement" hidden>
+    <button class="retour" type="button" id="illimite-retour">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      Retour
+    </button>
+
+    <p class="tarif-raison" id="illimite-raison">Choisis ce qui correspond à ton rythme.</p>
+
+    <!-- Les trois offres sont écrites par rendreOffres() depuis abonnement.js :
+         les prix et les quotas vivent à un seul endroit, pas aussi ici. -->
+    <div class="offres" id="illimite-offres"></div>
+
+    <p class="mention" id="illimite-mention">Paiement chez Stripe : l'app ne voit jamais ta carte.</p>
+    <p class="ia-message" id="illimite-message" hidden aria-live="polite"></p>
+
+    <h3 class="titre-categorie">Ce que l'abonnement débloque</h3>
+    <ul class="offre">
+      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Lecture de tes photos</strong> — tes cours deviennent des fiches, écriture manuscrite comprise</span></li>
+      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Résumé, cartes et quiz</strong> sur chacune de tes fiches</span></li>
+      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Révision espacée</strong> sur tout ton programme, notion par notion</span></li>
+      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Entraînement libre</strong> sur l'ensemble de tes cartes</span></li>
+      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Sur tous tes appareils</strong> — une clé à coller, et c'est repris</span></li>
+    </ul>
+    <p class="mention">Toutes les offres donnent accès à tout. Elles ne diffèrent que par le
+      nombre de fiches que tu peux créer chaque mois.</p>
+
+    <h3 class="titre-categorie">Comparer</h3>
+    <table class="comparatif" id="illimite-comparatif"></table>
+
+    <h3 class="titre-categorie">Questions courantes</h3>
+    <details class="reglages">
+      <summary>Je change de téléphone, je perds mon abonnement ?</summary>
+      <p class="tarif-reponse">Non. Ton profil affiche une clé : colle-la sur l'autre appareil, dans
+        « J'ai déjà un abonnement », et tout revient.</p>
+    </details>
+    <details class="reglages">
+      <summary>Comment j'arrête ?</summary>
+      <p class="tarif-reponse">Depuis le mail de confirmation Stripe, en un clic. L'illimité reste
+        actif jusqu'à la fin du mois déjà payé.</p>
+    </details>
+    <details class="reglages">
+      <summary>Mes fiches m'appartiennent toujours ?</summary>
+      <p class="tarif-reponse">Oui. Elles restent sur ton téléphone, abonnement ou non. Sans
+        abonnement, tu ne peux simplement plus en créer de nouvelles au-delà de la limite gratuite.</p>
+    </details>
+
+    <button class="bouton-texte" type="button" id="illimite-restaurer">J'ai déjà un abonnement</button>
+
+    <form id="form-licence" hidden novalidate>
+      <label class="champ-libelle" for="licence-cle">Ta clé d'abonnement</label>
+      <input class="champ-texte" id="licence-cle" type="text" autocomplete="off" spellcheck="false"
+             placeholder="cus_…">
+      <p class="mention">Elle est affichée dans ton profil, sur l'appareil qui a payé.</p>
+      <button class="bouton-secondaire" type="submit" id="licence-valider">Retrouver mon abonnement</button>
+    </form>
+  </section>
+
+  <!-- Vue : Générer par l'IA — la demande écrite -->
+  <section class="vue" id="vue-ia" hidden>
+    <button class="retour" type="button" data-onglet="accueil">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      Accueil
+    </button>
+
+    <h2 class="titre-categorie titre-categorie--grand">Générer par l'IA</h2>
+    <p class="sous-texte">Décris ce que tu veux réviser. Plus ta demande est précise, plus le quiz
+      tombe juste : chapitre, niveau, nombre de questions, et ce que tu veux travailler.</p>
+    <p class="ia-moteur" id="ia-moteur" hidden></p>
+
+    <form id="form-ia" novalidate>
+      <label class="champ-libelle" for="ia-demande">Ta demande</label>
+      <textarea class="zone-texte" id="ia-demande" rows="5" maxlength="600"
+                placeholder="Ex. : 10 questions sur les dérivées, niveau terminale, surtout le calcul de tangentes et les tableaux de variation."></textarea>
+      <p class="compteur"><span id="ia-compteur">0</span> / 600 caractères</p>
+
+      <div class="precision">
+        <div class="precision-entete">
+          <span class="precision-note" id="ia-note">Demande trop vague</span>
+          <span class="precision-score" id="ia-score">0 / 4</span>
+        </div>
+        <div class="precision-barre"><span class="precision-jauge" id="ia-jauge"></span></div>
+        <ul class="precision-criteres" id="ia-criteres">
+          <li data-critere="sujet"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Le chapitre ou la notion</li>
+          <li data-critere="niveau"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Ton niveau</li>
+          <li data-critere="format"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Le nombre de questions</li>
+          <li data-critere="angle"><svg aria-hidden="true"><use href="#i-coche"></use></svg>Ce que tu veux travailler</li>
+        </ul>
+      </div>
+
+      <p class="etiquette etiquette--sous">À ajouter en un geste</p>
+      <div class="puces" id="ia-ajouts"></div>
+
+      <details class="reglages">
+        <summary>Un exemple de demande précise</summary>
+        <p class="ia-exemple" id="ia-exemple">12 questions sur la guerre froide, niveau lycéen, en insistant
+          sur la chronologie entre 1947 et 1962, avec un corrigé détaillé pour chaque réponse.</p>
+        <button class="bouton-secondaire" type="button" id="ia-utiliser-exemple">Utiliser cet exemple</button>
+      </details>
+
+      <button class="bouton-principal" type="submit" id="bouton-ia" disabled>Générer le quiz</button>
+      <p class="mention" id="ia-mention">Une demande vague donne un quiz à côté de la plaque : vise au moins deux critères.</p>
+    </form>
+
+    <div class="chargement" id="chargement-ia" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <p class="chargement-texte" id="ia-progres">Rédaction de ton quiz…</p>
+    </div>
+    <button class="bouton-texte" type="button" id="ia-stop" hidden>Arrêter</button>
+    <p class="ia-message" id="ia-message" hidden aria-live="polite"></p>
+  </section>
+
+  <!-- Vue : Créer quiz (outil IA) -->
+  <section class="vue" id="vue-quiz" hidden>
+    <button class="retour" type="button" data-onglet="accueil">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      Accueil
+    </button>
+
+    <h2 class="titre-categorie titre-categorie--grand">Créer un quiz</h2>
+    <p class="sous-texte">Un QCM corrigé, sur une de tes fiches ou sur le sujet de ton choix.</p>
+
+    <form id="form-quiz" novalidate>
+      <p class="etiquette">Sur quoi veux-tu t'entraîner ?</p>
+      <div class="segments" role="tablist" aria-label="Origine du quiz">
+        <button class="segment segment--actif" type="button" role="tab" aria-selected="true" data-quiz-source="cours">Mes fiches</button>
+        <button class="segment" type="button" role="tab" aria-selected="false" data-quiz-source="sujet">Sujet libre</button>
+      </div>
+
+      <div class="source" data-panneau-quiz="cours">
+        <p class="etiquette etiquette--sous">Matière</p>
+        <div class="puces puces--filtres" id="filtres-quiz" role="group" aria-label="Filtrer par matière"></div>
+        <p class="etiquette etiquette--sous">Fiche</p>
+        <ul class="choix-cours" id="choix-cours-quiz"></ul>
+      </div>
+
+      <div class="source source--masque" data-panneau-quiz="sujet" hidden>
+        <label class="champ-libelle" for="quiz-sujet">Sujet du quiz</label>
+        <input class="champ-texte" id="quiz-sujet" type="text" maxlength="80" autocomplete="off"
+               placeholder="Ex. : la Première Guerre mondiale, les fractions, le present perfect…">
+
+        <label class="champ-libelle" for="quiz-complement">
+          Complément d'information <span class="champ-option">facultatif</span>
+        </label>
+        <textarea class="zone-texte" id="quiz-complement" rows="4" maxlength="600"
+                  placeholder="Niveau, points du programme à cibler, notions à éviter, consignes particulières…"></textarea>
+        <p class="compteur"><span id="compteur-complement">0</span> / 600 caractères</p>
+        <button class="bouton-texte" type="button" id="ouvrir-atelier">Aide-moi à formuler ma demande</button>
+      </div>
+
+      <details class="reglages">
+        <summary>Réglages <span class="reglages-resume" id="resume-quiz">5 questions · correction immédiate</span></summary>
+        <p class="etiquette etiquette--sous">Nombre de questions</p>
+        <div class="puces" id="puces-quiz-taille" role="radiogroup" aria-label="Nombre de questions">
+          <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-taille="5">5</button>
+          <button class="puce" type="button" role="radio" aria-checked="false" data-taille="10">10</button>
+          <button class="puce" type="button" role="radio" aria-checked="false" data-taille="20">20</button>
+          <button class="puce" type="button" role="radio" aria-checked="false" data-taille="infini">Sans fin ∞</button>
+        </div>
+
+        <p class="etiquette etiquette--sous">Correction</p>
+        <div class="puces" id="puces-quiz-mode" role="radiogroup" aria-label="Moment de la correction">
+          <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-mode="immediate">Immédiate</button>
+          <button class="puce" type="button" role="radio" aria-checked="false" data-mode="fin">À la fin</button>
+        </div>
+      </details>
+
+      <button class="bouton-principal" type="submit" id="bouton-quiz">Générer le quiz</button>
+      <p class="mention" id="mention-quiz">Les questions sont générées à la volée : tu ne retombes pas deux fois sur la même.</p>
+    </form>
+
+    <div class="chargement" id="chargement-quiz" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <p class="chargement-texte" id="quiz-progres">Rédaction des questions et des corrigés…</p>
+    </div>
+    <button class="bouton-texte" type="button" id="quiz-stop" hidden>Arrêter</button>
+    <p class="ia-message" id="quiz-message" hidden aria-live="polite"></p>
+
+    <div class="jeu" id="jeu-quiz" hidden>
+      <p class="jeu-contexte" id="quiz-contexte" hidden></p>
+      <div class="jeu-entete">
+        <span class="jeu-position" id="quiz-position">Question 1 / 5</span>
+        <span class="jeu-score" id="quiz-score">0 point</span>
+      </div>
+      <div class="barre-progression" id="quiz-progression"><div class="barre-progression-remplie" id="quiz-barre"></div></div>
+
+      <p class="question" id="quiz-question"></p>
+      <div class="reponses" id="quiz-reponses"></div>
+      <div class="explication" id="quiz-explication" hidden></div>
+
+      <button class="bouton-principal" type="button" id="quiz-suivant" hidden>Question suivante</button>
+      <button class="bouton-texte" type="button" id="quiz-quitter">Quitter le quiz</button>
+    </div>
+
+    <div class="bilan" id="bilan-quiz" hidden aria-live="polite"></div>
+    <div class="bilan bilan--info" id="indispo-quiz" hidden aria-live="polite"></div>
+  </section>
+
+  <!-- Vue : FlashCards (outil IA) -->
+  <section class="vue" id="vue-flashcards" hidden>
+    <button class="retour" type="button" data-onglet="accueil">
+      <svg aria-hidden="true"><use href="#i-fleche"></use></svg>
+      Accueil
+    </button>
+
+    <h2 class="titre-categorie titre-categorie--grand">FlashCards</h2>
+    <p class="sous-texte">Se tester fixe mieux que relire. Trente secondes suffisent.</p>
+
+    <form id="form-cartes" novalidate>
+      <p class="etiquette">Matière</p>
+      <div class="puces puces--filtres" id="filtres-cartes" role="group" aria-label="Filtrer par matière"></div>
+
+      <p class="etiquette">Fiche</p>
+      <ul class="choix-cours" id="choix-cours-cartes"></ul>
+
+      <details class="reglages">
+        <summary>Réglages <span class="reglages-resume">cartes mélangées</span></summary>
+        <div class="puces" id="puces-cartes-ordre" role="radiogroup" aria-label="Ordre des cartes">
+          <button class="puce puce--active" type="button" role="radio" aria-checked="true" data-ordre="melange">Mélangées</button>
+          <button class="puce" type="button" role="radio" aria-checked="false" data-ordre="cours">Ordre du cours</button>
+        </div>
+      </details>
+
+      <button class="bouton-principal" type="submit" id="bouton-cartes">Lancer les cartes</button>
+      <p class="mention">Les cartes marquées « à revoir » repassent en fin de paquet.</p>
+    </form>
+
+    <div class="chargement" id="chargement-cartes" hidden>
+      <span class="spinner" aria-hidden="true"></span>
+      <p class="chargement-texte" id="cartes-progres">Préparation du paquet…</p>
+    </div>
+    <button class="bouton-texte" type="button" id="cartes-stop" hidden>Arrêter</button>
+    <p class="ia-message" id="cartes-message" hidden aria-live="polite"></p>
+
+    <div class="jeu" id="jeu-cartes" hidden>
+      <div class="jeu-entete">
+        <span class="jeu-position" id="cartes-position">Carte 1 / 5</span>
+        <span class="jeu-score" id="cartes-score">0 sue</span>
+      </div>
+      <div class="barre-progression"><div class="barre-progression-remplie" id="cartes-barre"></div></div>
+
+      <button class="carte-flip" type="button" id="carte-flip" aria-live="polite">
+        <span class="carte-inner">
+          <span class="carte-face carte-face--recto">
+            <span class="carte-etiquette">Question</span>
+            <span class="carte-contenu" id="carte-recto"></span>
+            <span class="carte-aide">Réponds dans ta tête, puis touche la carte</span>
+          </span>
+          <span class="carte-face carte-face--verso">
+            <span class="carte-etiquette">Réponse</span>
+            <span class="carte-contenu" id="carte-verso"></span>
+          </span>
+        </span>
+      </button>
+
+      <div class="verdicts" id="verdicts-cartes" hidden>
+        <button class="bouton-verdict bouton-verdict--revoir" type="button" data-verdict="revoir">
+          <span class="verdict-nom">À revoir</span>
+          <span class="verdict-detail">revient tout de suite</span>
+        </button>
+        <button class="bouton-verdict bouton-verdict--presque" type="button" data-verdict="presque">
+          <span class="verdict-nom">Presque</span>
+          <span class="verdict-detail">revient plus loin</span>
+        </button>
+        <button class="bouton-verdict bouton-verdict--su" type="button" data-verdict="su">
+          <span class="verdict-nom">Je savais</span>
+          <span class="verdict-detail">sort du paquet</span>
+        </button>
+      </div>
+
+      <button class="bouton-texte" type="button" id="cartes-quitter">Quitter le paquet</button>
+    </div>
+
+    <div class="bilan" id="bilan-cartes" hidden aria-live="polite"></div>
+  </section>
+
+  <!-- Vue : Révision espacée (cible de la cloche) -->
+  <section class="vue" id="vue-revision" hidden>
+    <h2 class="titre-categorie titre-categorie--grand">Révision espacée</h2>
+    <p class="sous-texte">Chaque fiche revient à J+1, J+3, J+7, J+15 puis J+30. Réussie, elle s'espace ; ratée, elle revient demain. C'est ce qui fait tenir jusqu'au contrôle.</p>
+    <div class="liste-echeances" id="liste-echeances"></div>
+  </section>
+
+  <!-- Vue : Mes fiches — une catégorie par matière, vide au départ -->
+  <section class="vue" id="vue-cours" hidden>
+    <h2 class="titre-categorie titre-categorie--grand">Mes fiches</h2>
+    <p class="sous-texte" id="cours-etat">Une matière par dossier.</p>
+    <div class="liste-cours" id="liste-tous-cours"></div>
+  </section>
+
+  <!-- Vue : Profil -->
+  <section class="vue" id="vue-profil" hidden>
+    <h2 class="titre-categorie titre-categorie--grand">Mon profil</h2>
+    <div class="carte-profil">
+      <div class="avatar" id="profil-initiales" aria-hidden="true">?</div>
+      <div class="carte-profil-texte">
+        <label class="champ-libelle champ-libelle--discret" for="profil-prenom">Ton prénom</label>
+        <input class="champ-texte champ-texte--prenom" id="profil-prenom" type="text" maxlength="24"
+               autocomplete="given-name" placeholder="Comment on t'appelle ?">
+        <p class="profil-detail" id="profil-niveau">Niveau non renseigné</p>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="stat-valeur" id="stat-cours">0</span><span class="stat-nom">fiches</span></div>
+      <div class="stat"><span class="stat-valeur" id="stat-serie">0</span><span class="stat-nom">jours d'affilée</span></div>
+      <div class="stat"><span class="stat-valeur" id="stat-moyenne">0 %</span><span class="stat-nom">maîtrisé</span></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><span class="stat-valeur" id="stat-notions">0</span><span class="stat-nom">notions acquises</span></div>
+      <div class="stat"><span class="stat-valeur" id="stat-cartes">0</span><span class="stat-nom">cartes en stock</span></div>
+      <div class="stat"><span class="stat-valeur" id="stat-record">—</span><span class="stat-nom">record survie</span></div>
+    </div>
+    <section class="offre-etat" id="profil-abonnement"></section>
+
+    <button class="bouton-secondaire" type="button" data-onglet="revision">Voir mon planning de révision</button>
+    <button class="bouton-texte" type="button" id="changer-niveau">Changer de niveau</button>
+  </section>
+</main>
+
+<!-- ————— Feuille d'options de création ————— -->
+<div class="feuille-fond" id="feuille-fond" hidden></div>
+<div class="feuille" id="feuille-creation" hidden role="dialog" aria-modal="true" aria-labelledby="feuille-titre">
+  <div class="feuille-poignee" aria-hidden="true"></div>
+  <h2 class="feuille-titre" id="feuille-titre">Créer une fiche</h2>
+
+  <div class="options-creation">
+    <button class="option-creation" type="button" data-creation="scan">
+      <span class="option-icone option-icone--violet" aria-hidden="true"><svg><use href="#i-scan"></use></svg></span>
+      <span class="option-nom">Photo</span>
+      <span class="option-detail">Ton cours, ton devoir, ton contrôle</span>
+    </button>
+
+    <button class="option-creation" type="button" data-creation="texte">
+      <span class="option-icone option-icone--orange" aria-hidden="true"><svg><use href="#i-crayon"></use></svg></span>
+      <span class="option-nom">Écrire</span>
+      <span class="option-detail">Colle ou tape ton texte</span>
+    </button>
+  </div>
+
+  <button class="bouton-texte" type="button" id="fermer-creation">Annuler</button>
+</div>
+
+<!-- ————— Feuille « Reprendre une fiche » ——————————————————————————————
+     « Réviser » lançait un quiz sans le dire. La file du jour propose
+     désormais les trois mêmes portes que la bibliothèque, dans une feuille
+     plutôt qu'en ligne : la file montre jusqu'à trois chapitres, et trois
+     boutons sous chacun rallongeraient l'accueil de moitié. ————— -->
+<div class="feuille" id="feuille-reprise" hidden role="dialog" aria-modal="true" aria-labelledby="reprise-titre">
+  <div class="feuille-poignee" aria-hidden="true"></div>
+  <p class="feuille-surtitre" id="reprise-surtitre"></p>
+  <h2 class="feuille-titre" id="reprise-titre">Reprendre</h2>
+  <div id="reprise-choix"></div>
+  <button class="bouton-texte" type="button" id="fermer-reprise">Annuler</button>
+</div>
+
+<!-- ————— Feuille « Nommer la fiche » : le titre du chapitre avant l'enregistrement ————— -->
+<div class="feuille" id="feuille-nom" hidden role="dialog" aria-modal="true" aria-labelledby="nom-titre">
+  <div class="feuille-poignee" aria-hidden="true"></div>
+  <h2 class="feuille-titre" id="nom-titre">Nommer ta fiche</h2>
+
+  <form id="form-nom" novalidate>
+    <p class="sous-texte nom-aide">Donne-lui un titre de chapitre : c'est sous ce nom qu'elle sera rangée,
+      révisée et rappelée.</p>
+
+    <label class="champ-libelle" for="nom-champ">Titre du chapitre</label>
+    <input class="champ-texte" id="nom-champ" type="text" maxlength="80" autocomplete="off"
+           placeholder="Ex. : La guerre froide (1947-1991)">
+
+    <p class="etiquette etiquette--sous" id="nom-etiquette-themes" hidden>Chapitres de ton programme</p>
+    <div class="puces puces--filtres" id="nom-suggestions" role="group" aria-label="Chapitres de ton programme"></div>
+
+    <p class="etiquette etiquette--sous">Matière</p>
+    <div class="puces puces--filtres" id="nom-matieres" role="group" aria-label="Matière de la fiche"></div>
+
+    <button class="bouton-principal" type="submit" id="nom-valider">Enregistrer la fiche</button>
+  </form>
+
+  <button class="bouton-texte" type="button" id="nom-annuler">Annuler</button>
+</div>
+
+<!-- ————— Barre du bas ————— -->
+<nav class="barre-bas" aria-label="Navigation principale">
+  <button class="onglet onglet--actif" type="button" data-onglet="accueil" aria-current="page">
+    <svg class="onglet-icone" aria-hidden="true"><use href="#i-accueil"></use></svg>
+    <span class="onglet-nom">Accueil</span>
+    <span class="onglet-trait" aria-hidden="true"></span>
+  </button>
+  <button class="onglet" type="button" data-onglet="cours">
+    <svg class="onglet-icone" aria-hidden="true"><use href="#i-cours"></use></svg>
+    <span class="onglet-nom">Fiches</span>
+    <span class="onglet-trait" aria-hidden="true"></span>
+  </button>
+  <button class="onglet" type="button" data-onglet="profil">
+    <svg class="onglet-icone" aria-hidden="true"><use href="#i-profil"></use></svg>
+    <span class="onglet-nom">Profil</span>
+    <span class="onglet-trait" aria-hidden="true"></span>
+  </button>
+</nav>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- ————— Branchement du serveur —————————————————————————————————
+     La lecture des photos passe par serveur/, qui seul connaît la clé.
+     Sur Vercel, le site et le serveur partent ensemble : l'adresse est
+     donc "/api". Ailleurs (Render…), mets l'adresse complète du service.
+     ———————————————————————————————————————————————————————————— -->
+<script>
+  /* « ||= » et non « = » : un réglage déjà posé avant cette page — un test,
+     un autre hébergeur — doit gagner. La page donne le défaut, pas la loi. */
+  window.MATHEMATIQUE_LECTURE = window.MATHEMATIQUE_LECTURE || { api: "/api" };
+</script>
+
+<!-- Le paiement n'est pas branché, et c'est volontaire : MATHEMATIQUE_PAIEMENT
+     allume AUSSI la limite de la version gratuite (3 fiches) et la page de
+     tarif. Tant que Stripe n'est pas prêt, l'ajouter dresserait devant les
+     élèves un mur qu'ils ne pourraient pas franchir.
+
+<script>
+  window.MATHEMATIQUE_PAIEMENT = { api: "/api" };
+</script>
+     ———————————————————————————————————————————————————————————— -->
+
+<script src="data.js"></script>
+<script src="abonnement.js"></script>
+<script src="ocr.js"></script>
+<script src="generateurs.js"></script>
+<script src="app.js"></script>
+<script src="maths/katex.min.js" defer></script>
+<script src="maths/auto-render.min.js" defer></script>
+<script src="maths.js" defer></script>
+<script src="bulles.js"></script>
+</body>
+</html>

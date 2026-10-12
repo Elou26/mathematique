@@ -79,7 +79,7 @@ function verifier(nom, condition, vu) {
     const page = await ctx.newPage();
     const erreurs = [];
     page.on('pageerror', (e) => erreurs.push(String(e)));
-    await page.goto('http://localhost:8321/index.html');
+    await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
     await page.click('#ouvrir-creation'); await page.waitForTimeout(200);
     await page.click('[data-creation="scan"]'); await page.waitForTimeout(300);
@@ -164,7 +164,7 @@ function verifier(nom, condition, vu) {
     await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
     await ctx.addInitScript(FAUX('illisible'));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html');
+    await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
     await page.click('#ouvrir-creation'); await page.click('[data-creation="scan"]'); await page.waitForTimeout(300);
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
@@ -185,7 +185,7 @@ function verifier(nom, condition, vu) {
     await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
     await ctx.addInitScript(FAUX('sans-images'));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html');
+    await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
     await page.click('#ouvrir-creation'); await page.click('[data-creation="scan"]'); await page.waitForTimeout(300);
     verifier('le repli manuel est annoncé', /photos ne passent pas dans cette vue/.test(await page.innerText('#scan-moteur')),
@@ -212,7 +212,7 @@ function verifier(nom, condition, vu) {
     await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
     await ctx.addInitScript(FAUX('absent'));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html');
+    await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
     await page.click('#ouvrir-creation'); await page.click('[data-creation="scan"]'); await page.waitForTimeout(400);
     verifier('déconnecté : le message renvoie à la connexion',

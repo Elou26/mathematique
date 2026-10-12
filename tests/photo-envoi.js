@@ -17,7 +17,7 @@ function verifier(nom, condition, vu) {
   const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
   await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
   const p = await ctx.newPage();
-  await p.goto('http://localhost:8321/index.html', { waitUntil: 'load' });
+  await p.goto('http://localhost:8321/app.html', { waitUntil: 'load' });
 
   const m = await p.evaluate(async () => {
     const pageDeCours = (l, h) => {

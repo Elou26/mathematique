@@ -13,13 +13,18 @@ et alimentent ensuite les trois outils, la file de révision espacée et le prof
 
 ```bash
 python3 -m http.server 8000
-# puis ouvrir http://localhost:8000 (mode mobile dans les devtools)
+# http://localhost:8000          → la vitrine (page publique)
+# http://localhost:8000/app.html → l'app (mode mobile dans les devtools)
 ```
 
 ## Structure
 
 | Fichier | Rôle |
 | --- | --- |
+| `index.html` | La vitrine : la page publique, celle qu'on partage |
+| `app.html` | L'app elle-même : les onze vues, de l'accueil au quiz |
+| `vitrine.css`, `vitrine.js` | Habillage et animation de la vitrine, séparés de ceux de l'app |
+| `images/` | Les captures de l'app et l'image de partage, produites par `outils/captures-vitrine.js` |
 | `styles.css` | Charte graphique : bleu marine `#1B2A6B`, bleu pastel `#CFE0F7`, fond gris clair `#F4F5F7` |
 | `app.js` | Navigation, bibliothèque de fiches, sélecteur partagé, moteurs résumé / quiz / flashcards |
 | `data.js` | Données : matières, catalogue des chapitres, paliers de révision, séances d'entraînement, banques de secours (questions rédigées et cartes) |
@@ -28,6 +33,46 @@ python3 -m http.server 8000
 | `generateurs.js` | Générateurs de questions : la banque des quiz ne s'épuise pas |
 | `ocr.js` | Lecture de secours sur l'appareil (Tesseract.js) + mise en fiche par règles |
 | `moteur/` | Tesseract.js, son cœur WebAssembly et le modèle français, servis depuis le site |
+
+## La vitrine (`index.html`)
+
+L'adresse publique ouvre sur une page de vente ; l'app vit sur `app.html`. Un visiteur qui
+arrive par un lien partagé ne sait pas ce qu'est Mathématique : le lâcher directement dans
+une bibliothèque vide, c'est le perdre. Celui qui revient, lui, est reconnu (`vitrine.js` lit
+`mathematique.fiches`) et se voit proposer de **reprendre**, pas d'acheter.
+
+La page descend dans cet ordre : l'accroche et sa capture, le problème (avant / après), les
+trois gestes, les trois portes d'une fiche, la répétition espacée, ce qu'on refuse de faire,
+les formules, les questions fréquentes, un dernier bouton. Un rappel flottant suit l'élève
+dès que l'accroche est passée — et disparaît quand elle revient à l'écran.
+
+**Les prix ne sont pas écrits dans la page.** `vitrine.js` les lit dans `abonnement.js`, comme
+le fait l'app : un tarif qui vit à deux endroits finit par différer de lui-même, et c'est
+l'élève qui le découvre au moment de payer. Tant que Stripe n'est pas branché, la page le dit
+et renvoie vers l'app, gratuite et sans limite — plutôt que vers un bouton qui ne mène nulle part.
+
+Deux liens profonds existent pour elle : `app.html?vue=scan` ouvre la prise de vue,
+`app.html?vue=abonnement` la page de tarif. La liste est volontairement courte (voir
+`VUES_PAR_ADRESSE` dans `app.js`) : les autres écrans se remplissent au clic qui les ouvre.
+
+### Les images
+
+Elles ne sont pas dessinées : ce sont des captures de la vraie app, prises par
+`node outils/captures-vitrine.js` dans un navigateur à 390 × 844, avec des fiches de
+démonstration écrites à la main. Une maquette serait plus jolie et promettrait une app qui
+n'existe pas ; le jour où l'interface change, on relance le script et la vitrine suit. Seule
+exception, le dessin `images/photo-vers-fiche.svg` : aucune capture ne peut montrer la page de
+cahier d'**avant**. S'y ajoute `images/partage.jpg`, ce que voient WhatsApp ou iMessage quand
+on colle le lien.
+
+### Ce qu'on s'interdit
+
+Pas de compteur d'élèves inventé, pas de « Lucas vient de s'abonner » toutes les dix secondes,
+pas de témoignage signé d'un prénom qui n'existe pas, pas de note moyenne sortie de nulle part.
+`node tests/vitrine.js` échoue si l'un de ces motifs réapparaît dans la page — y compris par
+mégarde, un jour où l'envie de gonfler les chiffres sera plus forte. Il vérifie aussi que les
+prix affichés sont ceux du module, que chaque image existe et se décrit, que rien ne déborde à
+390 px et que les boutons mènent vraiment à l'app.
 
 ## Écran de bienvenue (choix du profil)
 

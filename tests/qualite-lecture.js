@@ -104,7 +104,7 @@ function verifier(nom, condition, vu) {
   const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
   await ctx.addInitScript('window.claude = { use: async () => null };');
   const page = await ctx.newPage();
-  await page.goto('http://localhost:8321/index.html');
+  await page.goto('http://localhost:8321/app.html');
   await page.waitForTimeout(400);
 
   let sommeMots = 0;

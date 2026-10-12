@@ -96,7 +96,7 @@ function verifier(nom, condition, vu) {
     const page = await ctx.newPage();
     const erreurs = [];
     page.on('pageerror', (e) => erreurs.push(String(e)));
-    await page.goto('http://localhost:8321/index.html');
+    await page.goto('http://localhost:8321/app.html');
     await page.waitForTimeout(400);
 
     await page.click('.barre-bas [data-onglet="cours"]'); await page.waitForTimeout(300);
@@ -144,7 +144,7 @@ function verifier(nom, condition, vu) {
     await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
     await ctx.addInitScript(SEMEE);
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(400);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(400);
     await page.click('.barre-bas [data-onglet="cours"]'); await page.waitForTimeout(300);
     await page.click('.dossier-tete:has-text("Histoire")'); await page.waitForTimeout(300);
     await page.click('[data-reprise="resume"]'); await page.waitForTimeout(300);
@@ -161,7 +161,7 @@ function verifier(nom, condition, vu) {
     await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
     await ctx.addInitScript(FAUX(BOUILLIE, 88));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html');
+    await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
     await page.click('#ouvrir-creation');
     await page.click('[data-creation="scan"]'); await page.waitForTimeout(400);
@@ -186,7 +186,7 @@ function verifier(nom, condition, vu) {
     await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };`);
     await ctx.addInitScript(FAUX(COURS, 90));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html');
+    await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
     await page.click('#ouvrir-creation');
     await page.click('[data-creation="scan"]'); await page.waitForTimeout(400);
@@ -233,7 +233,7 @@ function verifier(nom, condition, vu) {
     const page = await ctx.newPage();
     const erreurs = [];
     page.on('pageerror', (e) => erreurs.push(String(e)));
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(400);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(400);
     await page.click('.barre-bas [data-onglet="cours"]'); await page.waitForTimeout(300);
     await page.click('.dossier-tete:has-text("Math")'); await page.waitForTimeout(300);
     await page.click('[data-reprise="resume"]'); await page.waitForTimeout(900);

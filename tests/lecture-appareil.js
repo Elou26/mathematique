@@ -58,7 +58,7 @@ async function attendreMessage(page, delai = 45000) {
 
 async function ouvrirScan(ctx) {
   const page = await ctx.newPage();
-  await page.goto('http://localhost:8321/index.html');
+  await page.goto('http://localhost:8321/app.html');
   await page.click('text=Lycéen'); await page.waitForTimeout(400);
   await page.click('#ouvrir-creation');
   await page.click('[data-creation="scan"]'); await page.waitForTimeout(400);

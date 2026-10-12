@@ -50,7 +50,7 @@ résumé, lexique et cartes. Il n'y a plus d'étape de synthèse séparée.
 `lecture: true` = le serveur a sa clé. `pret: false` est normal, Stripe
 n'est pas encore là.
 
-5. Dans `index.html`, décommente le bloc de branchement et garde cette
+5. Dans `app.html`, décommente le bloc de branchement et garde cette
    ligne seule :
 
    ```html
@@ -128,7 +128,7 @@ résumé qu'on trouve soi-même pas clair.
 
 **Porte :** `/api/sante` répond `{"pret":true,"lecture":true}`.
 
-5. **Alors seulement**, ajoute la seconde ligne dans `index.html` :
+5. **Alors seulement**, ajoute la seconde ligne dans `app.html` :
 
    ```html
    window.MATHEMATIQUE_PAIEMENT = { api: "/api" };
@@ -142,6 +142,12 @@ résumé qu'on trouve soi-même pas clair.
    n'importe quel CVC. Ton profil doit passer à « Illimité ».
 7. Remplace par `sk_live_…` et fais un vrai paiement sur ta propre carte
    pour valider. Tu te rembourseras depuis Stripe.
+8. **Avant d'encaisser le premier euro**, ajoute deux pages à la vitrine :
+   des **mentions légales** (qui édite le site, comment te joindre, l'hébergeur)
+   et des **CGV** (ce qui est vendu, le prix, la durée, le droit de
+   rétractation). En France, un site qui vend un abonnement doit les afficher.
+   Tant que tout est gratuit, elles ne sont pas exigées — le jour où Stripe
+   s'allume, si.
 
 ---
 

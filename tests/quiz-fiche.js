@@ -53,7 +53,7 @@ async function ouvrirQuiz(ctx) {
   const erreurs = [];
   page.on('console', (m) => { if (m.type() === 'error') erreurs.push(m.text()); });
   page.on('pageerror', (e) => erreurs.push('PAGE: ' + String(e)));
-  await page.goto('http://localhost:8321/index.html', { waitUntil: 'load' });
+  await page.goto('http://localhost:8321/app.html', { waitUntil: 'load' });
   await page.waitForTimeout(600);
   await page.click('#bloc-aujourdhui [data-revoir]'); await page.waitForTimeout(350);
   await page.click('#reprise-choix [data-reprise="quiz"]'); await page.waitForTimeout(2200);

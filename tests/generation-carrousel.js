@@ -24,7 +24,7 @@ window.claude = { use: async (n) => {
     await ctx.addInitScript(FAUX(mode));
     const p = await ctx.newPage();
     const errs = []; p.on('pageerror', e => errs.push(e.message));
-    await p.goto('http://localhost:8321/', { waitUntil: 'networkidle' });
+    await p.goto('http://localhost:8321/app.html', { waitUntil: 'networkidle' });
     await p.waitForTimeout(300);
     await p.click('text=Lycéen'); await p.waitForTimeout(400);
 

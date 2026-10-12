@@ -39,7 +39,7 @@ function verifier(nom, condition, vu) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(SEMEE);
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(500);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
 
     const vues = ['accueil', 'cours', 'profil', 'revision', 'scan', 'ia', 'resume', 'quiz', 'flashcards'];
     const fautes = [];
@@ -66,7 +66,7 @@ function verifier(nom, condition, vu) {
     await ctx.addInitScript(`localStorage.setItem('mathematique.niveau','lyceen');
       window.claude = { use: async () => null };`);
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(500);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
     const salut = await page.innerText('#bloc-salut');
     verifier('sans fiche, l\'accueil invite à en créer une',
       /premier cours en photo/.test(salut), salut.replace(/\n+/g, ' / '));
@@ -95,7 +95,7 @@ function verifier(nom, condition, vu) {
     const page = await ctx.newPage();
     const erreurs = [];
     page.on('pageerror', (e) => erreurs.push(String(e)));
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(500);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
 
     const entrainements = await page.innerText('#liste-entrainements');
     verifier('trois séances sont proposées',
@@ -134,7 +134,7 @@ function verifier(nom, condition, vu) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(SEMEE);
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(400);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(400);
     await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(250);
     verifier('aucun prénom n\'est inventé',
       (await page.inputValue('#profil-prenom')) === '' && (await page.innerText('#profil-initiales')) === '?',

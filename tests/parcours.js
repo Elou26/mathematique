@@ -69,7 +69,7 @@ async function ouvrirFiche(page) {
     const page = await ctx.newPage();
     const erreurs = [];
     page.on('pageerror', (e) => erreurs.push(String(e)));
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(400);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(400);
 
     await page.click('.barre-bas [data-onglet="cours"]'); await page.waitForTimeout(250);
     await page.click('.dossier-tete:has-text("Histoire")'); await page.waitForTimeout(250);
@@ -120,7 +120,7 @@ async function ouvrirFiche(page) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(SEMEE);
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(400);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(400);
     await ouvrirFiche(page);
 
     await page.click('#partie-2 [data-notion="cartes"]'); await page.waitForTimeout(1100);
@@ -157,7 +157,7 @@ async function ouvrirFiche(page) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(SEMEE);
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(400);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(400);
     await ouvrirFiche(page);
 
     await page.click('#partie-1 [data-notion="quiz"]'); await page.waitForTimeout(600);

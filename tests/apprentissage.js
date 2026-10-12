@@ -19,7 +19,7 @@ function verifier(nom, condition, vu) {
   page.on('pageerror', (e) => erreurs.push(String(e)));
   page.on('console', (m) => { if (m.type() === 'error') erreurs.push(m.text()); });
 
-  await page.goto('http://localhost:8321/index.html');
+  await page.goto('http://localhost:8321/app.html');
   await page.click('text=Lycéen'); await page.waitForTimeout(300);
 
   // Une fiche oubliée depuis 9 jours, une revue hier, et trois jours de série.

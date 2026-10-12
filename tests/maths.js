@@ -26,7 +26,7 @@ function verifier(nom, condition, vu) {
       && fs.existsSync(path.join(racine, 'maths', u.replace(/^fonts\//, 'fonts/')))),
     polices.filter((u) => !u.endsWith('.woff2')).join(', ') || 'chemin manquant');
 
-  const page = fs.readFileSync(path.join(racine, 'index.html'), 'utf8');
+  const page = fs.readFileSync(path.join(racine, 'app.html'), 'utf8');
   verifier('rien n\'est chargé depuis un CDN',
     !/<(script|link)[^>]+(cdn|unpkg|jsdelivr|googleapis)/i.test(page),
     (page.match(/<(script|link)[^>]+(cdn|unpkg|jsdelivr|googleapis)[^>]*>/i) || [])[0]);
@@ -39,7 +39,7 @@ function verifier(nom, condition, vu) {
   const erreurs = [];
   p.on('console', (m) => { if (m.type() === 'error') erreurs.push(m.text()); });
   p.on('requestfailed', (r) => erreurs.push(`requête échouée : ${r.url()}`));
-  await p.goto('http://localhost:8321/index.html', { waitUntil: 'load' });
+  await p.goto('http://localhost:8321/app.html', { waitUntil: 'load' });
   await p.waitForFunction(() => typeof MATHS !== 'undefined' && MATHS.pret(), null, { timeout: 15000 })
     .catch(() => {});
 

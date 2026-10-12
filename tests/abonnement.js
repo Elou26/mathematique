@@ -37,7 +37,7 @@ const faux = http.createServer((requete, reponse) => {
     requete.on('end', () => {
       recu.paiements.push(JSON.parse(Buffer.concat(morceaux).toString('utf8') || '{}'));
       reponse.writeHead(200, entetes);
-      reponse.end(JSON.stringify({ url: 'http://localhost:8321/index.html?faux-stripe=1' }));
+      reponse.end(JSON.stringify({ url: 'http://localhost:8321/app.html?faux-stripe=1' }));
     });
     return;
   }
@@ -78,7 +78,7 @@ function semence(fiches, paiement) {
     const page = await ctx.newPage();
     const erreurs = [];
     page.on('pageerror', (e) => erreurs.push(String(e)));
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(500);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
 
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
     verifier('sans serveur de paiement, la création reste libre',
@@ -135,7 +135,7 @@ function semence(fiches, paiement) {
     const page = await ctx.newPage();
     const erreurs = [];
     page.on('pageerror', (e) => erreurs.push(String(e)));
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(500);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
 
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
     /* Le compteur de l'en-tête : c'est lui que l'élève regarde avant de
@@ -168,7 +168,7 @@ function semence(fiches, paiement) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(semence([fiche(1), fiche(2), fiche(3)], { api }));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(500);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
 
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
     verifier('la page de tarif s\'ouvre au lieu de la création',
@@ -229,7 +229,7 @@ function semence(fiches, paiement) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(semence([fiche(1), fiche(2), fiche(3)], { api }));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(500);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
 
     verifier('avec un serveur, les trois offres sont souscriptibles',
@@ -262,7 +262,7 @@ function semence(fiches, paiement) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(semence([fiche(1), fiche(2), fiche(3)], { api }));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html?paiement=ok&session=cs_payee');
+    await page.goto('http://localhost:8321/app.html?paiement=ok&session=cs_payee');
     await page.waitForTimeout(1200);
 
     verifier('la session est vérifiée auprès du serveur',
@@ -291,7 +291,7 @@ function semence(fiches, paiement) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(semence([fiche(1), fiche(2), fiche(3)], { api }));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html?paiement=ok&session=cs_abandonnee');
+    await page.goto('http://localhost:8321/app.html?paiement=ok&session=cs_abandonnee');
     await page.waitForTimeout(1200);
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
     verifier('une session non payée laisse le mur en place',
@@ -304,7 +304,7 @@ function semence(fiches, paiement) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(semence([fiche(1), fiche(2), fiche(3)], { api }));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(500);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
     await page.click('#illimite-restaurer'); await page.waitForTimeout(200);
 

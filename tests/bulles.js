@@ -36,7 +36,7 @@ function semence(fiches, journal, record) {
     const page = await ctx.newPage();
     const erreurs = [];
     page.on('console', (m) => { if (m.type() === 'error') erreurs.push(m.text()); });
-    await page.goto('http://localhost:8321/index.html', { waitUntil: 'load' });
+    await page.goto('http://localhost:8321/app.html', { waitUntil: 'load' });
     await page.waitForTimeout(600);
 
     const faits = await page.evaluate(() => BULLES.__faits());
@@ -83,7 +83,7 @@ function semence(fiches, journal, record) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(semence([], {}, 0));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html', { waitUntil: 'load' });
+    await page.goto('http://localhost:8321/app.html', { waitUntil: 'load' });
     await page.waitForTimeout(600);
     const faits = await page.evaluate(() => BULLES.__faits());
     verifier('sans activité, aucun fait n\'est inventé', faits.length === 0, JSON.stringify(faits));
@@ -98,7 +98,7 @@ function semence(fiches, journal, record) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(semence([fiche(1), fiche(2)], { [ilYA(0).slice(0, 10)]: 9 }, 14));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html', { waitUntil: 'load' });
+    await page.goto('http://localhost:8321/app.html', { waitUntil: 'load' });
     await page.waitForTimeout(500);
     const silence = await page.evaluate(() => {
       document.getElementById('vue-flashcards').hidden = false;

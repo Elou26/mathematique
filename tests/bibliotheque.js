@@ -29,7 +29,7 @@ function verifier(nom, condition, vu) {
     await page.waitForTimeout(250);
   };
 
-  await page.goto('http://localhost:8321/index.html');
+  await page.goto('http://localhost:8321/app.html');
   await page.click('text=Lycéen');
   await page.waitForTimeout(300);
 

@@ -1308,6 +1308,33 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  /* ————— Vue demandée par l'adresse ———————————————————————————————
+     La vitrine envoie « Créer ma première fiche » droit sur l'appareil
+     photo, et « Choisir une formule » droit sur les tarifs : un écran de
+     moins entre l'envie et le geste.
+
+     La liste est courte exprès. Les autres écrans se remplissent au clic
+     qui les ouvre — y arriver par l'adresse donnerait une page vide — et
+     une adresse publique ne doit pas pouvoir ouvrir n'importe quoi.
+     ———————————————————————————————————————————————————————————— */
+  const VUES_PAR_ADRESSE = ["scan", "abonnement", "revision"];
+
+  function ouvrirVueDemandee() {
+    let demandee = "";
+    try {
+      demandee = new URLSearchParams(window.location.search).get("vue") || "";
+    } catch (erreur) { return; }
+    if (!VUES_PAR_ADRESSE.includes(demandee)) return;
+
+    /* On passe par les mêmes portes que les boutons de l'app : « scan »
+       vérifie le solde de crédits (et bascule sur les tarifs s'il est à
+       sec), « abonnement » écrit sa page avant de la montrer. Court-
+       circuiter afficherVue() ouvrirait un écran à moitié rempli. */
+    if (demandee === "scan") { if (peutCreerUneFiche()) afficherVue("scan"); return; }
+    if (demandee === "abonnement") { ouvrirPageIllimite(null, "accueil"); return; }
+    afficherVue(demandee);
+  }
+
   /* ————— Niveau de l'utilisateur ————————————————————————————————— */
 
   /* Le prénom vient de l'élève : on n'en invente pas, et il reste sur l'appareil. */
@@ -2832,10 +2859,18 @@
   function carteFormule(formule) {
     const nom = String(formule.nom || "").trim();
     const conditions = String(formule.conditions || "").trim();
+
+    /* La consigne demande du LaTeX entre $…$ ; un modèle qui remplit un
+       champ nommé « latex » les oublie une fois sur deux, et l'élève lit
+       alors « u_{n+1} = u_n + r » au lieu de la formule. Sans délimiteur,
+       on en pose : une formule isolée s'écrit en grand, donc $$…$$. */
+    const brut = String(formule.latex || "").trim();
+    const corps = brut.includes("$") ? brut : (brut ? `$$${brut}$$` : "");
+
     return `
       <div class="formule">
         ${nom ? `<p class="formule-nom">${echapper(nom)}</p>` : ""}
-        <p class="formule-corps">${echapper(formule.latex)}</p>
+        <p class="formule-corps">${echapper(corps)}</p>
         ${conditions
           ? `<p class="formule-conditions"><span aria-hidden="true">⚠︎</span> ${echapper(conditions)}</p>`
           : ""}
@@ -4769,6 +4804,7 @@
     $("#changer-niveau").addEventListener("click", ouvrirEcranNiveau);
 
     afficherVue("accueil");
+    ouvrirVueDemandee();          // ?vue=scan, depuis la vitrine
 
     // Retour d'un paiement, ou simple revérification quotidienne.
     verifierRetourDePaiement();

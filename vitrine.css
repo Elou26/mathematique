@@ -1,0 +1,343 @@
+/* ==========================================================================
+   Mathématique — la vitrine (page d'accueil publique)
+   --------------------------------------------------------------------------
+   Feuille séparée de celle de l'app, et c'est voulu : styles.css pèse 76 ko
+   et habille des écrans que cette page ne montre jamais. Ici, un visiteur
+   arrive souvent en 4G dans un couloir — tout ce qu'il télécharge doit
+   servir à le convaincre.
+
+   Les couleurs sont celles de l'app, recopiées à l'identique (un test le
+   vérifie) : la page et le produit doivent se ressembler, sinon le clic
+   donne l'impression d'avoir changé de site.
+   ========================================================================== */
+
+:root {
+  --marine: #1B2A6B;
+  --marine-fonce: #142051;
+  --bleu-pastel: #CFE0F7;
+  --bleu-vif: #4F5BD5;
+  --gris-fond: #F4F5F7;
+  --blanc: #FFFFFF;
+  --gris-texte: #5B6170;
+  --bordure: #E6E8EF;
+  --ombre: 0 1px 2px rgba(19, 26, 56, .06), 0 4px 12px rgba(19, 26, 56, .05);
+  --ombre-portee: 0 18px 40px rgba(19, 26, 56, .16);
+  --largeur: 1080px;
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--blanc);
+  color: #11182F;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+h1, h2, h3 { margin: 0; letter-spacing: -.02em; line-height: 1.15; text-wrap: balance; }
+p { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+img { max-width: 100%; display: block; }
+a { color: inherit; }
+
+/* La leçon retenue de l'app : un display explicite bat l'attribut hidden,
+   et un bloc censé être caché réapparaît. Ici, hidden gagne toujours. */
+[hidden] { display: none !important; }
+
+.saut {
+  position: absolute; left: -9999px; top: 0;
+  background: var(--marine); color: #fff; padding: 10px 16px; border-radius: 0 0 10px 0;
+  z-index: 100;
+}
+.saut:focus { left: 0; }
+
+/* ————— Barre du haut ————————————————————————————————————————— */
+.entete {
+  position: sticky; top: 0; z-index: 40;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 18px calc(10px);
+  background: rgba(255, 255, 255, .92);
+  backdrop-filter: saturate(140%) blur(10px);
+  border-bottom: 1px solid var(--bordure);
+  padding-top: calc(10px + env(safe-area-inset-top));
+}
+.marque { display: flex; align-items: center; gap: 9px; text-decoration: none; }
+.marque-logo svg { width: 30px; height: 30px; display: block; }
+.marque-nom { font-weight: 800; font-size: 17px; color: var(--marine); letter-spacing: -.3px; }
+
+/* ————— Boutons ——————————————————————————————————————————————— */
+.bouton {
+  display: inline-flex; align-items: center; justify-content: center;
+  text-decoration: none; font-weight: 700; border-radius: 999px;
+  padding: 14px 24px; font-size: 16px; transition: transform .12s ease, box-shadow .12s ease;
+}
+.bouton--principal {
+  background: var(--marine); color: #fff;
+  box-shadow: 0 10px 24px rgba(27, 42, 107, .28);
+}
+.bouton--principal:active { transform: translateY(1px); }
+.bouton--fin {
+  background: var(--marine); color: #fff;
+  padding: 9px 16px; font-size: 14px; white-space: nowrap;
+}
+.bouton--large { width: 100%; max-width: 420px; padding: 17px 24px; font-size: 17px; }
+
+/* ————— Le bandeau de celui qui revient ————————————————————————— */
+.retour-band {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 18px; background: var(--bleu-pastel); color: var(--marine);
+  font-size: 14px; font-weight: 600;
+}
+
+/* ————— Mise en page générale ————————————————————————————————— */
+.hero, .section, .pied { padding: 0 20px; }
+.hero > *, .section > *, .pied > * { max-width: var(--largeur); margin-inline: auto; }
+
+.sur-titre {
+  text-transform: uppercase; letter-spacing: .12em; font-size: 12px; font-weight: 700;
+  color: var(--bleu-vif); margin-bottom: 10px;
+}
+.texte { color: var(--gris-texte); font-size: 16.5px; margin-top: 14px; max-width: 62ch; }
+.texte--fin { font-size: 15px; }
+.mention { color: var(--gris-texte); font-size: 13.5px; margin-top: 12px; }
+.centre { text-align: center; }
+
+/* ————— L'accroche ——————————————————————————————————————————— */
+.hero {
+  padding-top: 38px; padding-bottom: 42px; text-align: center;
+  background:
+    radial-gradient(120% 70% at 50% 0%, #E8F0FD 0%, rgba(232, 240, 253, 0) 70%),
+    linear-gradient(180deg, #F7FAFF 0%, var(--blanc) 100%);
+}
+.hero h1 { font-size: 34px; font-weight: 800; letter-spacing: -.045em; }
+.hero h1 em { font-style: normal; color: var(--bleu-vif); }
+.hero-sous {
+  margin: 16px auto 0; max-width: 46ch; color: var(--gris-texte); font-size: 17px;
+}
+.hero-actions { margin-top: 26px; }
+.hero-actions .bouton { width: 100%; max-width: 420px; padding: 17px 24px; font-size: 17px; }
+
+.telephone {
+  margin: 30px auto 0; width: min(258px, 76%);
+  background: #0D1430; padding: 8px; border-radius: 34px;
+  box-shadow: var(--ombre-portee);
+}
+.telephone img { border-radius: 27px; width: 100%; height: auto; }
+.telephone--grand { width: min(272px, 80%); }
+.telephone--petit { width: min(186px, 62%); margin-top: 0; }
+
+.atouts {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 26px;
+}
+.atouts li {
+  border: 1px solid var(--bordure); background: var(--blanc);
+  border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 600;
+  color: var(--marine);
+}
+
+/* ————— Les sections ————————————————————————————————————————— */
+.section { padding-top: 54px; padding-bottom: 54px; }
+.section h2 { font-size: 26px; font-weight: 800; }
+.section--claire { background: var(--gris-fond); }
+.section--marine {
+  background: linear-gradient(170deg, var(--marine) 0%, var(--marine-fonce) 100%);
+  color: #fff;
+}
+.section--marine .sur-titre { color: var(--bleu-pastel); }
+.section--marine .texte { color: #D7E2F7; }
+
+.illustration { margin: 26px 0 0; }
+.illustration img { width: 100%; height: auto; }
+
+/* ————— Avant / après ————————————————————————————————————————— */
+.duo { display: grid; gap: 14px; margin-top: 26px; }
+.duo-colonne {
+  background: var(--blanc); border: 1px solid var(--bordure); border-radius: 16px;
+  padding: 18px; box-shadow: var(--ombre);
+}
+.duo-colonne h3 {
+  font-size: 13px; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 12px;
+}
+.duo-colonne--avant h3 { color: #9AA2B4; }
+.duo-colonne--apres h3 { color: #2E9E5B; }
+.duo-colonne li {
+  position: relative; padding-left: 26px; margin-top: 10px; font-size: 15.5px;
+  color: #2A3146;
+}
+.duo-colonne li::before {
+  position: absolute; left: 0; top: -1px; font-size: 16px; font-weight: 700;
+}
+.duo-colonne--avant li::before { content: "·"; color: #9AA2B4; font-size: 24px; top: -6px; left: 6px; }
+.duo-colonne--apres li::before { content: "✓"; color: #2E9E5B; }
+
+/* ————— Les trois gestes ——————————————————————————————————————— */
+.etapes { margin-top: 30px; display: grid; gap: 34px; }
+.etape { display: grid; gap: 18px; justify-items: center; text-align: center; }
+.etape .telephone { width: min(214px, 64%); }
+.etape-numero {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 12px; margin-bottom: 12px;
+  background: var(--marine); color: #fff; font-weight: 800; font-size: 16px;
+}
+.etape h3 { font-size: 20px; }
+.etape p { color: var(--gris-texte); margin-top: 8px; max-width: 42ch; margin-inline: auto; }
+.etapes + .centre { margin-top: 38px; }
+
+/* ————— Les trois portes —————————————————————————————————————— */
+.portes { display: grid; gap: 18px; margin-top: 28px; }
+.porte {
+  background: var(--blanc); border: 1px solid var(--bordure); border-radius: 18px;
+  padding: 22px 18px; text-align: center; box-shadow: var(--ombre);
+}
+.porte .telephone { margin-inline: auto; }
+.porte h3 { font-size: 18px; margin-top: 18px; }
+.porte p { color: var(--gris-texte); font-size: 15px; margin-top: 8px; }
+
+/* ————— La frise de la révision espacée ———————————————————————— */
+.frise {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 28px;
+  text-align: center; font-size: 12.5px; color: #B9C7E6;
+}
+.frise li { display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative; }
+.frise li + li::before {
+  content: ""; position: absolute; left: -54%; top: 19px; width: 100%;
+  border-top: 2px dashed rgba(207, 224, 247, .35);
+}
+.frise-point {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 46px; height: 38px; padding: 0 8px; border-radius: 12px;
+  background: rgba(255, 255, 255, .12); border: 1px solid rgba(207, 224, 247, .35);
+  color: #fff; font-weight: 800; font-size: 14px; position: relative; z-index: 1;
+}
+
+/* ————— Jouons franc jeu —————————————————————————————————————— */
+.franchise { display: grid; gap: 14px; margin-top: 28px; }
+.franchise li {
+  background: var(--blanc); border: 1px solid var(--bordure); border-radius: 16px;
+  padding: 18px; position: relative; padding-left: 52px; box-shadow: var(--ombre);
+}
+.franchise li::before {
+  content: "✓"; position: absolute; left: 18px; top: 17px;
+  width: 22px; height: 22px; border-radius: 50%; background: #E6F4EC; color: #2E9E5B;
+  display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800;
+}
+.franchise h3 { font-size: 16.5px; }
+.franchise p { color: var(--gris-texte); font-size: 15px; margin-top: 6px; }
+
+/* ————— Les formules ————————————————————————————————————————— */
+.encart {
+  margin-top: 20px; background: #FFF6E6; border: 1px solid #F0DDB8; color: #6B5320;
+  border-radius: 14px; padding: 14px 16px; font-size: 14.5px;
+}
+.offres { display: grid; gap: 16px; margin-top: 26px; }
+.offre {
+  background: var(--blanc); border: 1px solid var(--bordure); border-radius: 18px;
+  padding: 22px 20px; box-shadow: var(--ombre); position: relative;
+}
+.offre--conseille { border-color: var(--marine); border-width: 2px; box-shadow: var(--ombre-portee); }
+.offre-ruban {
+  position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+  background: var(--marine); color: #fff; border-radius: 999px;
+  padding: 5px 14px; font-size: 12px; font-weight: 700; white-space: nowrap;
+}
+.offre-nom { font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--bleu-vif); font-weight: 700; }
+.offre-prix { font-size: 34px; font-weight: 800; letter-spacing: -.04em; margin-top: 8px; }
+.offre-prix span { font-size: 14px; font-weight: 600; color: var(--gris-texte); letter-spacing: 0; }
+.offre-volume { margin-top: 12px; font-weight: 700; color: var(--marine); }
+.offre-credits { color: var(--gris-texte); font-size: 14px; }
+.offre-argument { color: var(--gris-texte); font-size: 15px; margin-top: 10px; min-height: 44px; }
+.offre .bouton { width: 100%; margin-top: 16px; }
+.offre--conseille .bouton { background: var(--marine); color: #fff; }
+.bouton--creux {
+  background: var(--blanc); color: var(--marine); border: 1.5px solid var(--marine);
+  box-shadow: none;
+}
+
+/* ————— Les questions ————————————————————————————————————————— */
+.questions { margin-top: 26px; display: grid; gap: 10px; }
+.questions details {
+  background: var(--blanc); border: 1px solid var(--bordure); border-radius: 14px;
+  padding: 4px 16px;
+}
+.questions summary {
+  cursor: pointer; font-weight: 700; padding: 14px 0; list-style: none;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  font-size: 16px;
+}
+.questions summary::-webkit-details-marker { display: none; }
+.questions summary::after {
+  content: "+"; color: var(--bleu-vif); font-size: 22px; font-weight: 700; line-height: 1;
+}
+.questions details[open] summary::after { content: "–"; }
+.questions details p { color: var(--gris-texte); font-size: 15.5px; padding: 0 0 16px; }
+
+/* ————— La dernière porte ————————————————————————————————————— */
+.section--final {
+  text-align: center; background: var(--gris-fond);
+  padding-bottom: calc(68px + env(safe-area-inset-bottom));
+}
+.section--final .texte { margin-inline: auto; }
+.section--final .bouton { margin-top: 26px; }
+
+/* ————— Le pied ——————————————————————————————————————————————— */
+.pied {
+  background: var(--marine-fonce); color: #B9C7E6; text-align: center;
+  padding-top: 32px; padding-bottom: calc(100px + env(safe-area-inset-bottom));
+  font-size: 14px;
+}
+.pied-marque { color: #fff; font-weight: 800; font-size: 17px; margin-bottom: 6px; }
+.pied-liens { margin-top: 14px; }
+.pied-liens a { color: var(--bleu-pastel); text-decoration: none; }
+
+/* ————— Le rappel qui suit ———————————————————————————————————— */
+.rappel {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 255, .96);
+  backdrop-filter: saturate(140%) blur(10px);
+  border-top: 1px solid var(--bordure);
+  animation: monte .2s ease both;
+}
+.rappel-texte { font-size: 14px; font-weight: 600; color: var(--marine); }
+.rappel .bouton { padding: 12px 20px; font-size: 15px; }
+
+@keyframes monte { from { transform: translateY(100%); } to { transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+
+/* ————— Écrans larges ————————————————————————————————————————— */
+@media (min-width: 760px) {
+  .hero { padding-top: 64px; padding-bottom: 72px; }
+  .hero h1 { font-size: 54px; }
+  .hero-sous { font-size: 19px; }
+  .section { padding-top: 84px; padding-bottom: 84px; }
+  .section h2 { font-size: 34px; }
+  .texte { font-size: 17.5px; }
+
+  .duo { grid-template-columns: 1fr 1fr; gap: 20px; }
+  .portes { grid-template-columns: repeat(3, 1fr); gap: 22px; }
+  .franchise { grid-template-columns: 1fr 1fr; gap: 18px; }
+  .offres { grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
+  .questions { grid-template-columns: 1fr 1fr; align-content: start; }
+
+  .etapes { gap: 56px; }
+  .etape {
+    grid-template-columns: 1fr 1fr; align-items: center; text-align: left;
+    justify-items: start; gap: 40px;
+  }
+  .etape p { margin-inline: 0; }
+  .etape:nth-child(even) .etape-texte { order: 2; }
+  .etape .telephone { margin-top: 0; width: min(230px, 100%); justify-self: center; }
+  .section--marine .frise { max-width: 640px; margin-inline: auto; }
+
+  /* Le rappel n'a de sens que sur un écran de téléphone : sur un ordinateur
+     la barre du haut reste visible, et deux rappels valent un harcèlement. */
+  .rappel { display: none !important; }
+}

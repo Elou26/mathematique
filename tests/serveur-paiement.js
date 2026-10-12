@@ -99,7 +99,7 @@ serveur.listen(0, async () => {
 
   /* — 2. Créer un paiement — */
   const paiement = await appeler('/paiement', {
-    method: 'POST', corps: { appareil: 'a1234', offre: 'intensif', retour: 'http://localhost:8321/index.html' },
+    method: 'POST', corps: { appareil: 'a1234', offre: 'intensif', retour: 'http://localhost:8321/app.html' },
   });
   verifier('le paiement renvoie une adresse Stripe',
     paiement.code === 200 && /checkout\.stripe\.com/.test(paiement.corps.url), JSON.stringify(paiement.corps));
@@ -113,7 +113,7 @@ serveur.listen(0, async () => {
      le mauvais prix sans que rien ne le signale. */
   for (const [offre, prix] of [['essentiel', 'price_essentiel'], ['regulier', 'price_regulier']]) {
     await appeler('/paiement', {
-      method: 'POST', corps: { appareil: 'a1234', offre, retour: 'http://localhost:8321/index.html' },
+      method: 'POST', corps: { appareil: 'a1234', offre, retour: 'http://localhost:8321/app.html' },
     });
     const vu = journal.sessions[journal.sessions.length - 1].line_items[0].price;
     verifier(`l'offre « ${offre} » part sur son propre tarif`, vu === prix, vu);
@@ -122,12 +122,12 @@ serveur.listen(0, async () => {
   /* L'offre vient de la page : une clé inconnue ne doit pas tomber sur un
      tarif par défaut, sinon on vend ce qu'on n'a pas annoncé. */
   const inventee = await appeler('/paiement', {
-    method: 'POST', corps: { appareil: 'a1234', offre: 'gratuite_a_vie', retour: 'http://localhost:8321/index.html' },
+    method: 'POST', corps: { appareil: 'a1234', offre: 'gratuite_a_vie', retour: 'http://localhost:8321/app.html' },
   });
   verifier('une offre inconnue est refusée, pas servie au hasard',
     inventee.code === 400 && inventee.corps.erreur === 'offre_inconnue', JSON.stringify(inventee.corps));
   const sansOffre = await appeler('/paiement', {
-    method: 'POST', corps: { appareil: 'a1234', retour: 'http://localhost:8321/index.html' },
+    method: 'POST', corps: { appareil: 'a1234', retour: 'http://localhost:8321/app.html' },
   });
   verifier('et une demande sans offre aussi',
     sansOffre.code === 400 && sansOffre.corps.erreur === 'offre_inconnue', JSON.stringify(sansOffre.corps));

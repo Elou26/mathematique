@@ -74,7 +74,7 @@ async function ouvrirFiche(page) {
     const page = await ctx.newPage();
     const erreurs = [];
     page.on('pageerror', (e) => erreurs.push(String(e)));
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(500);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
     await ouvrirFiche(page);
     await page.click('[data-page="cartes"]'); await page.waitForTimeout(1600);
 
@@ -113,7 +113,7 @@ async function ouvrirFiche(page) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(FAUX('ok'));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(400);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(400);
     await ouvrirFiche(page);
     await page.click('#partie-2 [data-notion="cartes"]'); await page.waitForTimeout(1600);
     verifier('la notion 2 sort ses deux cartes',
@@ -127,7 +127,7 @@ async function ouvrirFiche(page) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(FAUX('cassé'));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(400);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(400);
     await ouvrirFiche(page);
     await page.click('[data-page="cartes"]'); await page.waitForTimeout(1600);
     verifier('le repli garde la carte locale',
@@ -144,7 +144,7 @@ async function ouvrirFiche(page) {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
     await ctx.addInitScript(FAUX('absent'));
     const page = await ctx.newPage();
-    await page.goto('http://localhost:8321/index.html'); await page.waitForTimeout(400);
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(400);
     await ouvrirFiche(page);
     await page.click('[data-page="cartes"]'); await page.waitForTimeout(1400);
     verifier('sans IA, la séance démarre quand même',
