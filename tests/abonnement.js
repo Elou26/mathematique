@@ -131,7 +131,7 @@ function semence(fiches, paiement) {
   /* — 1. Avec une offre, la gratuité s'arrête là où c'est annoncé — */
   {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
-    await ctx.addInitScript(semence([fiche(1), fiche(2)], { api }));
+    await ctx.addInitScript(semence([fiche(1)], { api }));
     const page = await ctx.newPage();
     const erreurs = [];
     page.on('pageerror', (e) => erreurs.push(String(e)));
@@ -157,7 +157,7 @@ function semence(fiches, paiement) {
 
     await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(250);
     verifier('le profil dit où en est le quota',
-      /100 crédits sur 300, soit 1 fiche/.test(await page.innerText('#profil-abonnement')),
+      /100 crédits sur 200, soit 1 fiche/.test(await page.innerText('#profil-abonnement')),
       await page.innerText('#profil-abonnement'));
     verifier('aucune erreur console', erreurs.length === 0, erreurs.join(' || '));
     await ctx.close();
@@ -166,7 +166,7 @@ function semence(fiches, paiement) {
   /* — 2. Au bout du quota, le mur s'ouvre avant la photo — */
   {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
-    await ctx.addInitScript(semence([fiche(1), fiche(2), fiche(3)], { api }));
+    await ctx.addInitScript(semence([fiche(1), fiche(2)], { api }));
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
 
@@ -184,7 +184,7 @@ function semence(fiches, paiement) {
       /Lecture de tes photos/.test(await page.innerText('.offre')),
       await page.innerText('.offre').then((t) => t.slice(0, 80)));
     verifier('le comparatif oppose l\'essai aux trois offres',
-      /300/.test(await page.innerText('#illimite-comparatif'))
+      /200/.test(await page.innerText('#illimite-comparatif'))
       && /en tout/.test(await page.innerText('#illimite-comparatif'))
       && /1\s000/.test(await page.innerText('#illimite-comparatif'))
       && /7\s000/.test(await page.innerText('#illimite-comparatif')),
@@ -207,7 +207,7 @@ function semence(fiches, paiement) {
       tableau.titres.join('|') === 'Gratuit|Essentiel|Régulier|Intensif', tableau.titres.join(' | '));
 
     verifier('le mur dit pourquoi',
-      /300 crédits d'essai sont dépensés/.test(await page.innerText('#illimite-raison')),
+      /200 crédits d'essai sont dépensés/.test(await page.innerText('#illimite-raison')),
       await page.innerText('#illimite-raison'));
     verifier('aucun abonnement n\'est inventé',
       (await page.evaluate(() => localStorage.getItem('mathematique.abonnement'))) === null,
@@ -219,7 +219,7 @@ function semence(fiches, paiement) {
       await page.isVisible('#vue-accueil'), 'accueil masqué');
     const restantes = await page.evaluate(
       () => JSON.parse(localStorage.getItem('mathematique.fiches')).length);
-    verifier('la bibliothèque reste à trois fiches', restantes === 3, restantes);
+    verifier('la bibliothèque reste à deux fiches', restantes === 2, restantes);
     await ctx.close();
   }
 
@@ -323,6 +323,55 @@ function semence(fiches, paiement) {
       /Essentiel/i.test(await page.innerText('#profil-abonnement')),
       await page.innerText('#profil-abonnement'));
     await ctx.close();
+  }
+
+  /* — L'essai ne se recharge pas, et ne se rembourse pas —————————
+     Deux pièges qu'un élève trouve tout seul : attendre le 1er du mois,
+     ou supprimer ses fiches pour repartir à zéro. */
+  {
+    const moisPasse = (() => {
+      const d = new Date(); d.setMonth(d.getMonth() - 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    })();
+
+    /* a) Le mois a changé : l'abonné serait rechargé, pas l'essai. */
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(semence([fiche(1), fiche(2)], { api }));
+    await ctx.addInitScript(`localStorage.setItem('mathematique.consommation',
+      ${JSON.stringify(JSON.stringify({ mois: moisPasse, fiches: 2, total: 2 }))});`);
+    const page = await ctx.newPage();
+    await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
+    await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
+    verifier('un mois de plus ne recharge pas l\'essai',
+      await page.isVisible('#vue-abonnement'), 'la création s\'est ouverte');
+    await ctx.close();
+
+    /* b) Bibliothèque vidée, compteur gardé : supprimer ne rend pas de crédit. */
+    const ctx2 = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx2.addInitScript(semence([], { api }));
+    await ctx2.addInitScript(`localStorage.setItem('mathematique.consommation',
+      ${JSON.stringify(JSON.stringify({ mois: moisPasse, fiches: 2, total: 2 }))});`);
+    const page2 = await ctx2.newPage();
+    await page2.goto('http://localhost:8321/app.html'); await page2.waitForTimeout(500);
+    await page2.click('#ouvrir-creation'); await page2.waitForTimeout(300);
+    verifier('supprimer ses fiches ne rend pas les crédits dépensés',
+      await page2.isVisible('#vue-abonnement'), 'la création s\'est ouverte');
+    verifier('et le mur le dit avec le bon chiffre',
+      /200 crédits d'essai sont dépensés/.test(await page2.innerText('#illimite-raison')),
+      await page2.innerText('#illimite-raison'));
+    await ctx2.close();
+
+    /* c) Un enregistrement d'avant, sans « total » : on ne rend rien non plus. */
+    const ctx3 = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx3.addInitScript(semence([], { api }));
+    await ctx3.addInitScript(`localStorage.setItem('mathematique.consommation',
+      ${JSON.stringify(JSON.stringify({ mois: moisPasse, fiches: 3 }))});`);
+    const page3 = await ctx3.newPage();
+    await page3.goto('http://localhost:8321/app.html'); await page3.waitForTimeout(500);
+    await page3.click('#ouvrir-creation'); await page3.waitForTimeout(300);
+    verifier('un compteur d\'avant la mise à jour compte quand même',
+      await page3.isVisible('#vue-abonnement'), 'la création s\'est ouverte');
+    await ctx3.close();
   }
 
   await nav.close();

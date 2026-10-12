@@ -23,7 +23,11 @@ const ABONNEMENT = (function () {
   const CONFIG = {
     api: "",                                  // ex. « https://brainoko.com/api »
     essai: "",                                // ex. « 7 jours offerts »
-    gratuit: { fiches: 3 },                   // l'essai : 3 fiches en tout, pas par mois
+    /* L'essai : 2 fiches — 200 crédits — données une fois à l'ouverture du
+       compte. Elles ne se rechargent jamais, et c'est toute la différence
+       avec un abonnement : l'essai sert à juger, pas à réviser gratuitement
+       toute l'année en attendant le 1er du mois. */
+    gratuit: { fiches: 2 },
 
     /* ————— Les crédits ————————————————————————————————————————
        Ce que l'élève voit est un solde de crédits ; ce qu'on règle ici
@@ -148,21 +152,39 @@ const ABONNEMENT = (function () {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   }
 
+  /**
+   * Deux compteurs, parce qu'ils ne répondent pas à la même question :
+   *
+   *   `fiches` — combien ce mois-ci, pour un abonné dont le quota repart
+   *              le 1er ;
+   *   `total`  — combien depuis toujours, pour l'essai, qui ne repart
+   *              jamais.
+   *
+   * Les enregistrements d'avant n'avaient que le mois : leur total se
+   * déduit au mieux de ce mois-là, plutôt que de rendre deux fiches
+   * gratuites à qui en a déjà fait trois.
+   */
   function journal() {
-    try {
-      const brut = JSON.parse(localStorage.getItem(CLE_CONSOMMATION) || "null");
-      if (brut && brut.mois === moisCourant()) return brut;
-    } catch (erreur) { /* illisible : on repart du mois courant */ }
-    return { mois: moisCourant(), fiches: 0 };
+    let brut = null;
+    try { brut = JSON.parse(localStorage.getItem(CLE_CONSOMMATION) || "null"); }
+    catch (erreur) { brut = null; }
+    const duMois = Number(brut && brut.fiches) || 0;
+    const total = Math.max(Number(brut && brut.total) || 0, duMois);
+    if (brut && brut.mois === moisCourant()) return { mois: brut.mois, fiches: duMois, total };
+    return { mois: moisCourant(), fiches: 0, total };
   }
 
   /** Combien de fiches ce mois-ci. */
   function consommation() { return journal().fiches; }
 
-  /** Une fiche de plus ce mois-ci. Appelé quand une fiche est bel et bien créée. */
+  /** Combien de fiches depuis l'ouverture du compte. C'est ce que mange l'essai. */
+  function consommationTotale() { return journal().total; }
+
+  /** Une fiche de plus. Appelé quand une fiche est bel et bien créée. */
   function noterFiche() {
     const suivi = journal();
     suivi.fiches += 1;
+    suivi.total += 1;
     try { localStorage.setItem(CLE_CONSOMMATION, JSON.stringify(suivi)); }
     catch (erreur) { /* navigation privée : le compte vaut pour la session */ }
     return suivi.fiches;
@@ -225,12 +247,17 @@ const ABONNEMENT = (function () {
       };
     }
 
-    /* L'essai se compte en tout, pas par mois : c'est un essai, pas une
-       petite offre gratuite qui se recharge. */
+    /* L'essai se compte une fois pour toutes, pas par mois : c'est un essai,
+       pas une petite offre gratuite qui se recharge le 1er.
+
+       On prend le plus grand des deux compteurs — les fiches créées depuis
+       toujours, et celles encore en bibliothèque. Sans quoi en supprimer une
+       rendrait un crédit, et l'essai n'aurait pas de fin. */
     const max = CONFIG.gratuit.fiches;
-    const reste = Math.max(max - (dejaCreees || 0), 0);
+    const faites = Math.max(consommationTotale(), dejaCreees || 0);
+    const reste = Math.max(max - faites, 0);
     return {
-      illimite: false, abonne: false, essai: true, max, reste, atteint: reste <= 0,
+      illimite: false, abonne: false, essai: true, max, faites, reste, atteint: reste <= 0,
       credits: reste * CONFIG.creditsParFiche,
       creditsMax: max * CONFIG.creditsParFiche,
     };
@@ -348,7 +375,7 @@ const ABONNEMENT = (function () {
     offres, offreParCle, offreActive,
     creditsParFiche: () => CONFIG.creditsParFiche,
     creditsDe: (fiches) => fiches * CONFIG.creditsParFiche,
-    consommation, noterFiche, moisCourant,
+    consommation, consommationTotale, noterFiche, moisCourant,
     estIllimite, estConfigure, quotaFiches,
     ouvrirPaiement, confirmerSession, verifierLicence, rafraichir, oublier,
     sessionDeRetour, nettoyerAdresse, etat,

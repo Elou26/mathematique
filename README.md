@@ -812,6 +812,30 @@ catalogue : il sort en erreur si un cas échoue, et liste les thèmes appariés 
 
 ## Gratuit ou illimité — l'abonnement Stripe
 
+### L'essai : 200 crédits, une fois
+
+Un compte neuf reçoit **2 fiches, soit 200 crédits**, à son ouverture. Ils ne
+se rechargent pas — c'est toute la différence avec un abonnement, dont le
+quota repart le 1er de chaque mois. Un essai sert à juger, pas à réviser
+gratuitement toute l'année en attendant le mois suivant.
+
+Deux compteurs vivent donc dans `mathematique.consommation` :
+
+| Champ | Question à laquelle il répond | Qui le lit |
+| --- | --- | --- |
+| `fiches` | combien ce mois-ci ? | le quota mensuel d'un abonné |
+| `total` | combien depuis toujours ? | l'essai, qui ne repart jamais |
+
+`quotaFiches()` prend, pour l'essai, le plus grand des deux compteurs : le
+total de toujours **et** le nombre de fiches encore en bibliothèque. Sans
+cela, en supprimer une rendrait un crédit et l'essai n'aurait pas de fin.
+À la synchronisation entre appareils, `total` prend toujours le maximum des
+deux côtés : il ne doit jamais redescendre.
+
+`tests/abonnement.js` éprouve les deux évasions qu'un élève trouve tout
+seul — attendre le 1er du mois, et vider sa bibliothèque — plus le cas des
+compteurs enregistrés avant cette règle, qui comptent quand même.
+
 Une page statique **ne peut pas encaisser un paiement toute seule** : la clé secrète Stripe ne doit
 jamais s'y trouver, sinon n'importe qui peut lire les clients et créer des remboursements. Le
 travail est donc partagé en deux, et c'est le seul découpage possible :

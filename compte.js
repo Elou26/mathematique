@@ -131,12 +131,22 @@ const COMPTE = (function () {
     return resultat;
   }
 
-  /** Les crédits du mois : le mois le plus récent gagne, sinon le plus dépensé. */
+  /**
+   * Les crédits. Deux compteurs, deux règles :
+   *   - celui du mois suit le mois le plus récent, et à mois égal le plus
+   *     dépensé (deux appareils ont pu créer chacun de leur côté) ;
+   *   - le total de toujours prend toujours le maximum : c'est lui qui tient
+   *     l'essai, et il ne doit jamais redescendre.
+   */
   function fusionnerConsommation(a, b) {
     if (!a) return b || null;
     if (!b) return a;
-    if (a.mois !== b.mois) return a.mois > b.mois ? a : b;
-    return { mois: a.mois, fiches: Math.max(a.fiches || 0, b.fiches || 0) };
+    const total = Math.max(a.total || a.fiches || 0, b.total || b.fiches || 0);
+    if (a.mois !== b.mois) {
+      const recent = a.mois > b.mois ? a : b;
+      return { mois: recent.mois, fiches: recent.fiches || 0, total };
+    }
+    return { mois: a.mois, fiches: Math.max(a.fiches || 0, b.fiches || 0), total };
   }
 
   function fusionnerTombes(a, b) {

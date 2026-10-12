@@ -322,7 +322,7 @@
       : `${reste} crédits restants, soit ${quota.reste} fiche${quota.reste > 1 ? "s" : ""}`);
     bouton.title = quota.abonne
       ? `${reste} crédits sur ${quota.creditsMax} ce mois-ci · 100 crédits par fiche`
-      : `${reste} crédits d'essai · 100 crédits par fiche`;
+      : `${reste} crédits d'essai, non renouvelables · 100 crédits par fiche`;
   }
 
   function quotaFiches() {
@@ -558,7 +558,9 @@
         <p class="offre-etiquette">Essai gratuit</p>
         <p class="offre-detail">${quota.credits.toLocaleString("fr-FR")} crédits sur
           ${quota.creditsMax.toLocaleString("fr-FR")},
-          ${quota.reste ? `soit ${quota.reste} fiche${quota.reste > 1 ? "s" : ""}.` : "tous dépensés."}</p>
+          ${quota.reste ? `soit ${quota.reste} fiche${quota.reste > 1 ? "s" : ""}.` : "tous dépensés."}
+          Ils sont donnés une fois à l'ouverture du compte et ne se rechargent pas :
+          seuls les abonnements repartent chaque mois.</p>
         <button class="bouton-secondaire" type="button" data-offre="payer">Voir les offres</button>`;
     }
 

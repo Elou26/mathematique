@@ -231,9 +231,10 @@ résumé qu'on trouve soi-même pas clair.
    window.MATHEMATIQUE_PAIEMENT = { api: "/api" };
    ```
 
-   ⚠️ Cette ligne allume **aussi** la limite de 3 fiches gratuites. Mise
-   avant que Stripe réponde `pret: true`, tes élèves butent sur un mur
-   sans porte.
+   ⚠️ Cette ligne allume **aussi** l'essai limité : 2 fiches, soit
+   200 crédits donnés une fois à l'ouverture du compte, qui ne se
+   rechargent jamais. Mise avant que Stripe réponde `pret: true`, tes
+   élèves butent sur un mur sans porte.
 
 6. Teste avec `4242 4242 4242 4242`, n'importe quelle date future,
    n'importe quel CVC. Ton profil doit passer à « Illimité ».
