@@ -292,7 +292,18 @@
     const quota = quotaFiches();
     const nombre = $("#credits-nombre");
 
-    if (quota.sansOffre) { bouton.hidden = true; return; }
+    /* Rien n'est limité tant que le paiement n'est pas branché. On affiche
+       « ∞ » plutôt qu'un solde : inventer 300 crédits qui ne descendent
+       jamais serait un faux compteur, et le masquer laissait l'élève sans
+       repère sur ce que coûte une fiche. */
+    if (quota.sansOffre) {
+      bouton.hidden = false;
+      nombre.textContent = "∞";
+      bouton.classList.remove("credits--bas", "credits--vide");
+      bouton.setAttribute("aria-label", "Aucune limite pour l'instant");
+      bouton.title = `Aucune limite pour l'instant · ${OFFRE.creditsParFiche()} crédits par fiche`;
+      return;
+    }
 
     const reste = quota.credits || 0;
     bouton.hidden = false;

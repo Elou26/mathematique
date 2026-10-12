@@ -86,6 +86,16 @@ function semence(fiches, paiement) {
       'un mur est apparu alors qu\'on ne peut pas payer');
     await page.click('#fermer-creation'); await page.waitForTimeout(200);
 
+    /* Le compteur reste visible, mais ne promet pas de solde : inventer
+       300 crédits qui ne descendent jamais serait un faux compteur, et le
+       masquer laissait l'élève sans repère sur ce que coûte une fiche. */
+    verifier('le compteur reste visible sans paiement branché',
+      await page.isVisible('#credits-solde'), 'compteur masqué');
+    verifier('et affiche l\'absence de limite, pas un faux solde',
+      (await page.innerText('#credits-nombre')).trim() === '∞'
+      && /Aucune limite/.test(await page.getAttribute('#credits-solde', 'title')),
+      `${await page.innerText('#credits-nombre')} · ${await page.getAttribute('#credits-solde', 'title')}`);
+
     await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(250);
     const plan = await page.innerText('#profil-abonnement');
     verifier('le profil dit que rien n\'est limité',
