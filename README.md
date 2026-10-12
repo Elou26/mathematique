@@ -29,7 +29,9 @@ python3 -m http.server 8000
 | `app.js` | Navigation, bibliothèque de fiches, sélecteur partagé, moteurs résumé / quiz / flashcards |
 | `data.js` | Données : matières, catalogue des chapitres, paliers de révision, séances d'entraînement, banques de secours (questions rédigées et cartes) |
 | `abonnement.js` | Version gratuite, mur de paiement, licence gardée sur l'appareil |
-| `serveur/` | Le serveur : paiement Stripe **et** lecture des photos — la seule pièce qui connaît les clés |
+| `compte.js` | Le compte : entrée par courriel, fusion des bibliothèques entre appareils |
+| `confidentialite.html` | Ce qui est gardé, pourquoi, et comment tout effacer |
+| `serveur/` | Le serveur : paiement Stripe, lecture des photos **et** comptes (`comptes.js`, `base.sql`) — la seule pièce qui connaît les clés |
 | `generateurs.js` | Générateurs de questions : la banque des quiz ne s'épuise pas |
 | `ocr.js` | Lecture de secours sur l'appareil (Tesseract.js) + mise en fiche par règles |
 | `moteur/` | Tesseract.js, son cœur WebAssembly et le modèle français, servis depuis le site |
@@ -73,6 +75,83 @@ pas de témoignage signé d'un prénom qui n'existe pas, pas de note moyenne sor
 mégarde, un jour où l'envie de gonfler les chiffres sera plus forte. Il vérifie aussi que les
 prix affichés sont ceux du module, que chaque image existe et se décrit, que rien ne déborde à
 390 px et que les boutons mènent vraiment à l'app.
+
+## Les comptes — la même bibliothèque partout
+
+Sans compte, l'app n'a jamais connu personne : les fiches vivent dans le
+navigateur, et un téléphone perdu les emporte. Un compte ajoute une copie
+côté serveur et la recolle sur les autres appareils. **L'app continue de
+marcher sans** : tant que `window.MATHEMATIQUE_COMPTE` n'est pas renseignée
+dans `app.html`, le bloc « Mes fiches sur tous mes appareils » n'existe pas
+et aucun appel ne part.
+
+### Entrer sans mot de passe
+
+L'élève entre son adresse, reçoit un lien, clique : il est entré. Pas de mot
+de passe — un mot de passe de plus, c'est un mot de passe réutilisé de plus,
+et une fuite qui déborderait sur sa boîte mail.
+
+Le lien porte un jeton tiré au hasard (32 octets). La base n'en garde que
+l'empreinte SHA-256 : qui lirait la table `connexions` ne pourrait entrer
+nulle part. Il vaut 20 minutes, ne sert qu'une fois (la condition
+`utilise=is.false` du `PATCH` fait l'arbitrage, même si deux onglets
+cliquent en même temps), et la réponse à « envoie-moi un lien » est la même
+pour une adresse connue et une inconnue — sinon la page deviendrait un
+outil pour savoir qui est inscrit ici.
+
+La session qui en sort est signée (HMAC-SHA256) et porte le numéro
+`jetons_version` du compte. « Me déconnecter » incrémente ce numéro : toutes
+les sessions émises avant cessent de valoir, sans table de sessions à tenir.
+
+### Fusionner plutôt qu'écraser
+
+Deux appareils peuvent travailler en même temps sans se voir. Écraser l'un
+par l'autre ferait perdre une soirée de révision, donc `fusionner()` dans
+`compte.js` applique trois règles :
+
+- **les fiches s'additionnent** — jamais de perte ; à même identifiant, on
+  garde celle qui a été révisée le plus récemment ;
+- **les compteurs prennent le maximum** — journal des jours, record de
+  survie, crédits dépensés dans le mois ;
+- **une suppression laisse une pierre tombale** (`mathematique.supprimees`),
+  sinon la fiche reviendrait de l'autre appareil à la synchronisation
+  suivante. Une fiche révisée *après* sa suppression survit quand même :
+  c'est la dernière volonté de l'élève qui compte.
+
+Côté serveur, chaque écriture annonce la version qu'elle a lue
+(`PATCH …&version=eq.N`). Si un autre appareil est passé entre-temps, la
+base ne modifie rien et le serveur répond **409** avec l'état frais ; le
+client refusionne et réessaie une fois. C'est tout le protocole.
+
+### Ce qui voyage, et ce qui ne voyage pas
+
+Voyagent : fiches, journal de révision, prénom, niveau, record, crédits
+consommés. Ne voyagent pas : la licence Stripe et l'identifiant d'appareil —
+un abonnement est lié à un appareil et à un client Stripe, pas à une
+bibliothèque.
+
+### Les droits, en deux boutons
+
+Le profil offre **Télécharger mes données** (`GET /api/compte-export`) et
+**Supprimer mon compte** (`DELETE /api/compte-effacer`, armé en deux gestes).
+La suppression efface la ligne et les liens en attente ; les fiches restent
+sur l'appareil. `confidentialite.html` dit tout ce qui est gardé, où, et
+combien de temps.
+
+### Les épreuves
+
+`node tests/comptes-serveur.js` monte un faux PostgREST et un faux service
+de courriel en mémoire : le lien ne sert qu'une fois, le jeton n'est jamais
+gardé en clair, une écriture en retard est refusée sans rien écraser, une
+session révoquée ne vaut plus rien, l'effacement efface, les envois en
+rafale sont freinés, et sans réglages toutes les routes répondent
+« comptes éteints ».
+
+`node tests/comptes-app.js` fait le reste dans un navigateur, en
+interceptant les appels : la fusion de deux bibliothèques, la fiche venue de
+l'autre appareil qui s'affiche sans recharger, le conflit 409 qui déclenche
+un second essai sans rien perdre, et la porte qui reste fermée quand le
+serveur ne propose pas de comptes.
 
 ## Écran de bienvenue (choix du profil)
 

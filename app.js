@@ -56,6 +56,9 @@
 
   function ecrireBibliotheque() {
     try { localStorage.setItem(CLE_FICHES, JSON.stringify(fiches)); } catch (erreur) { /* stockage indisponible */ }
+    /* Si un compte est ouvert, la copie du serveur suit — en différé, pour
+       ne pas envoyer dix fois pendant qu'une fiche se construit. */
+    if (typeof COMPTE !== "undefined") COMPTE.pousser();
   }
 
   /** Ajoute une fiche, ou remonte celle qui porte déjà ce titre dans la matière. */
@@ -120,6 +123,7 @@
 
   function ecrireJournal() {
     try { localStorage.setItem(CLE_JOURNAL, JSON.stringify(journal)); } catch (erreur) { /* stockage indisponible */ }
+    if (typeof COMPTE !== "undefined") COMPTE.pousser();
   }
 
   function noterRevision() {
@@ -146,6 +150,9 @@
 
   function supprimerFiche(id) {
     fiches = fiches.filter((f) => f.id !== id);
+    /* Une pierre tombale, sinon la fiche reviendrait de l'autre appareil à
+       la prochaine synchronisation : une suppression doit se propager. */
+    if (typeof COMPTE !== "undefined") COMPTE.noterSuppression(id);
     majBibliotheque();
   }
 
@@ -898,6 +905,7 @@
   function noterRecordSurvie(score) {
     if (score <= recordSurvie()) return;
     try { localStorage.setItem(CLE_RECORD, String(score)); } catch (erreur) { /* mémoire seule */ }
+    if (typeof COMPTE !== "undefined") COMPTE.pousser();
   }
 
   /* ————— Liste des défis ——————————————————————————————————————— */
@@ -1317,7 +1325,7 @@
      qui les ouvre — y arriver par l'adresse donnerait une page vide — et
      une adresse publique ne doit pas pouvoir ouvrir n'importe quoi.
      ———————————————————————————————————————————————————————————— */
-  const VUES_PAR_ADRESSE = ["scan", "abonnement", "revision"];
+  const VUES_PAR_ADRESSE = ["scan", "abonnement", "revision", "profil"];
 
   function ouvrirVueDemandee() {
     let demandee = "";
@@ -1347,6 +1355,7 @@
 
   function ecrirePrenom(valeur) {
     try { localStorage.setItem(CLE_PRENOM, valeur); } catch (erreur) { /* mémoire seule */ }
+    if (typeof COMPTE !== "undefined") COMPTE.pousser();
   }
 
   function initialesDe(nom) {
@@ -4813,6 +4822,20 @@
        ce qu'elles diront sera calculé au moment de le dire, donc toujours
        à jour — et le module reste incapable d'inventer quoi que ce soit. */
     if (typeof BULLES !== "undefined") BULLES.demarrer(faitsDActivite);
+
+    /* La synchronisation peut ramener des fiches créées sur un autre
+       appareil : l'écran doit les montrer sans qu'on recharge la page. */
+    if (typeof COMPTE !== "undefined") {
+      COMPTE.surChangement(() => {
+        fiches = lireBibliotheque();
+        journal = lireJournal();
+        prenom = lirePrenom();
+        const champ = $("#profil-prenom");
+        if (champ && prenom && champ.value !== prenom) champ.value = prenom;
+        majBibliotheque();
+        rendreEntrainements($("#liste-entrainements"));
+      });
+    }
 
     // Première visite : on demande la classe avant tout le reste.
     appliquerNiveau(lireNiveau());

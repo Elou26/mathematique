@@ -16,7 +16,15 @@ l'abonnement, on ne fait que le lui demander.
 | `GET /licence?cle=cus_…` | plus tard : cet abonnement est-il **toujours** actif ? |
 | `POST /webhook` | facultatif — vérifie la signature Stripe et journalise l'événement |
 | `POST /lecture` | **lit les photos d'un cours** : elles partent chez Claude, la fiche revient |
-| `GET /sante` | dit si les clés sont bien en place (`pret` pour le paiement, `lecture` pour la lecture) |
+| `POST /compte-demander` | envoie le lien d'entrée à une adresse e-mail |
+| `GET /compte-entrer?jeton=…` | brûle le lien et redirige vers l'app, session dans l'adresse |
+| `GET /compte-moi` | qui est au bout de cette session |
+| `GET /bibliotheque` | rend la bibliothèque gardée, et sa version |
+| `PUT /bibliotheque` | l'écrit, **si** la version annoncée est encore la bonne (sinon 409) |
+| `POST /compte-sortir` | invalide toutes les sessions de ce compte |
+| `GET /compte-export` | tout ce qui est gardé, en un fichier (RGPD) |
+| `DELETE /compte-effacer` | efface le compte et ses liens en attente (RGPD) |
+| `GET /sante` | dit si les clés sont bien en place (`pret` pour le paiement, `lecture` pour la lecture, `comptes` pour les comptes) |
 
 La licence dit aussi **quelle offre** a été payée : le tarif de l'abonnement Stripe le révèle, donc
 il n'y a toujours rien à stocker ici. Une licence d'avant les paliers, ou dont le tarif n'est plus
@@ -66,6 +74,13 @@ de suite (envoyer un mail, journaliser).
 | `CLAUDE_MODELE` | facultatif, `claude-sonnet-5-5` par défaut ; `claude-opus-5-5` pour plus de finesse, à ~2× le prix |
 | `CLAUDE_EFFORT` | facultatif, `medium` par défaut — `high` aide sur un manuscrit ingrat |
 | `LECTURE_PAGES_PAR_HEURE` | facultatif, 40 par défaut — le garde-fou de facture |
+| `BASE_URL` | l'adresse de la base (Supabase : *Project URL*) — vide = comptes éteints |
+| `BASE_CLE` | la clé **`service_role`** : elle ouvre toutes les bibliothèques, elle ne sort jamais du serveur |
+| `SECRET_COMPTES` | ce qui signe les sessions (32 caractères au hasard) ; en changer déconnecte tout le monde |
+| `RESEND_CLE` | l'envoi des liens, si tu as un nom de domaine |
+| `BREVO_CLE` | l'envoi des liens sans domaine, avec une adresse d'expéditeur vérifiée |
+| `COURRIEL_EXPEDITEUR` | `Mathématique <bonjour@exemple.fr>` |
+| `SITE_URL` | l'adresse publique du site : c'est elle qui part dans le courriel |
 
 `ORIGINES_AUTORISEES` fait deux choses : elle limite qui peut appeler le serveur (CORS) et elle
 **impose l'adresse de retour** après paiement. Sans elle, le serveur accepte n'importe quel
@@ -114,6 +129,25 @@ vide de mémoire.
 
 Elle répond `{ fiche, pages, moteur }`, ou `{ illisible: true }`. En cas de panne, l'app repasse
 toute seule sur Tesseract et le dit à l'élève.
+
+## Les comptes
+
+Deux tables (`serveur/base.sql`), aucune dépendance : la base se parle en
+HTTPS par PostgREST, le courriel aussi. Sur une fonction serverless, du HTTP
+vaut mieux qu'un pool de connexions TCP rouvert à chaque réveil.
+
+Les trois choses à ne pas perdre de vue :
+
+- la clé `BASE_CLE` est une clé de **service** : elle contourne toutes les
+  protections de la base. Elle vit dans les variables d'environnement, jamais
+  dans une page, jamais dans le dépôt ;
+- la base ne garde que l'**empreinte** des liens d'entrée, jamais le jeton ;
+- `PUT /bibliotheque` n'écrase jamais : il écrit sous condition de version et
+  rend 409 avec l'état frais, charge au client de refusionner.
+
+Sans `BASE_URL`, `BASE_CLE`, `SECRET_COMPTES` et une clé d'envoi, toutes ces
+routes répondent `503 comptes_eteints` — et l'app, qui le demande avant
+d'afficher quoi que ce soit, continue comme avant.
 
 ## Essayer en local
 

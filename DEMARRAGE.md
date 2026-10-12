@@ -1,6 +1,6 @@
 # Mettre Mathématique en ligne
 
-Quatre étapes, chacune avec une **porte** : si la porte ne s'ouvre pas, on
+Cinq étapes, chacune avec une **porte** : si la porte ne s'ouvre pas, on
 s'arrête là et on corrige — on ne paie rien avant.
 
 L'ordre compte. Il est fait pour que tu découvres les mauvaises nouvelles
@@ -89,7 +89,86 @@ fiche est juste mais trop plate, essaie `CLAUDE_EFFORT=high` d'abord — c'est
 le réglage le moins cher. Si ça ne suffit pas, `CLAUDE_MODELE=claude-opus-5-5`
 donne plus de finesse pour environ le double.
 
-## Étape 4 — Le paiement (en dernier, jamais avant)
+## Étape 4 — Les comptes (~30 min, gratuit)
+
+Sans compte, les fiches vivent dans le navigateur de l'élève : il change de
+téléphone, il perd tout. Cette étape ajoute une copie sur une base, et la
+même bibliothèque sur tous ses appareils. L'app marche sans — tant que ces
+réglages manquent, elle se comporte exactement comme avant.
+
+**Tu gardes désormais le travail scolaire d'autres personnes, souvent
+mineures.** C'est ce qui rend l'étape 7 ci-dessous non négociable.
+
+1. **La base.** [supabase.com](https://supabase.com) → **New project**.
+   Choisis la région **Frankfurt (eu-central-1)** : les données d'élèves
+   français restent en Europe. Note le mot de passe qu'il te demande (tu ne
+   t'en serviras pas ici, mais il ne se revoit pas).
+2. Dans le projet → **SQL Editor** → **New query** → colle tout le contenu de
+   `serveur/base.sql` → **Run**. Deux tables apparaissent dans « Table
+   Editor ».
+3. **Project Settings → API** : relève **Project URL** et la clé
+   **`service_role`**.
+   ⚠️ Cette clé contourne toutes les protections. Elle va dans les variables
+   d'environnement du serveur, jamais dans une page, jamais dans le dépôt,
+   jamais dans une conversation.
+4. **L'envoi des courriels.** Deux chemins :
+
+   | | Sans nom de domaine | Avec un nom de domaine (~10 €/an) |
+   | --- | --- | --- |
+   | Service | [Brevo](https://www.brevo.com) | [Resend](https://resend.com) |
+   | À faire | vérifier une adresse d'expéditeur (ton Gmail) | vérifier le domaine (3 lignes DNS) |
+   | Gratuit | 300 courriels/jour | 3 000/mois |
+   | Risque | une partie des liens tombe en indésirables | délivrabilité propre |
+
+   Prends Brevo pour commencer, Resend quand tu auras un domaine. Le code
+   gère les deux : il prend celui dont la clé est renseignée.
+5. **Les variables**, chez Vercel (Settings → Environment Variables) :
+
+   | Nom | Valeur |
+   | --- | --- |
+   | `BASE_URL` | `https://xxxx.supabase.co` |
+   | `BASE_CLE` | la clé `service_role` |
+   | `SECRET_COMPTES` | 32 caractères au hasard (voir ci-dessous) |
+   | `BREVO_CLE` *ou* `RESEND_CLE` | la clé du service choisi |
+   | `COURRIEL_EXPEDITEUR` | `Mathématique <ton-adresse-verifiee>` |
+   | `SITE_URL` | `https://mathematique-mu.vercel.app` |
+
+   Pour le secret :
+
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+   ```
+
+   En changer déconnecte tout le monde — ce qui est parfois le but.
+
+**Porte :** `/api/sante` répond `{"pret":…,"lecture":true,"comptes":true}`.
+
+6. **Alors seulement**, décommente dans `app.html` :
+
+   ```html
+   window.MATHEMATIQUE_COMPTE = { api: "/api" };
+   ```
+
+   Avant cette ligne, le bloc « Mes fiches sur tous mes appareils » n'existe
+   pas dans le profil — c'est voulu : un formulaire qui ne peut envoyer aucun
+   lien ne vaut rien.
+
+7. **Complète `confidentialite.html`** : le nom de l'éditeur du site et une
+   adresse de contact. La page dit déjà ce qui est gardé, où, combien de
+   temps, et comment tout effacer — il n'y manque que toi. Ces deux lignes
+   sont une obligation légale dès que tu collectes une adresse e-mail.
+
+8. **Essaie pour de vrai** : profil → ton adresse → tu reçois le lien
+   (regarde les indésirables) → tu cliques → le profil affiche ton adresse.
+   Crée une fiche sur un appareil, ouvre le site sur un autre, demande un
+   lien : la fiche doit être là.
+
+→ Rien ne part ? Regarde les logs de la fonction chez Vercel : `[compte-demander]`
+y écrit la raison exacte donnée par Brevo ou Resend.
+
+---
+
+## Étape 5 — Le paiement (en dernier, jamais avant)
 
 Ne viens ici que quand les fiches te satisfont. On ne vend pas 9,90 € un
 résumé qu'on trouve soi-même pas clair.
@@ -153,7 +232,9 @@ résumé qu'on trouve soi-même pas clair.
 
 ## Les règles qui ne changent pas
 
-- **Aucune clé ne passe par la conversation.** Clés Claude et Stripe ne
+- **Aucune clé ne passe par la conversation.** Clés Claude, Stripe, Brevo
+  ou Resend, et surtout la clé `service_role` de la base — qui ouvre à elle
+  seule toutes les bibliothèques des élèves — ne
   vivent que dans les variables d'environnement de l'hébergeur. Ni dans la
   page, ni dans un fichier du dépôt, ni dans un message. Une clé collée
   par erreur se révoque et se recrée en dix secondes — fais-le.

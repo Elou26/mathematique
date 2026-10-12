@@ -2537,6 +2537,48 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
 #feuille-reprise .reprises { margin-bottom: 0.6rem; }
 #feuille-reprise .reprise { padding: 0.8rem 0.35rem 0.7rem; }
 
+/* ————— Mon accès (le compte) ————————————————————————————————————
+   Le même habillage que le bloc d'abonnement juste au-dessus : ce sont
+   deux faces d'une même chose — ce que l'élève a chez nous.
+   ———————————————————————————————————————————————————————————— */
+.compte {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--bordure);
+  border-radius: 16px;
+  background: var(--blanc);
+  box-shadow: var(--ombre);
+}
+.compte-titre { margin: 0 0 8px; font-size: 15px; color: var(--marine); }
+.compte-texte { margin: 0 0 14px; color: var(--gris-texte); font-size: 13.5px; line-height: 1.5; }
+.compte-form { display: grid; gap: 8px; }
+.compte-form .bouton-principal { margin-top: 4px; }
+
+.compte-adresse {
+  margin: 0; font-weight: 700; color: var(--marine); font-size: 15px;
+  overflow-wrap: anywhere;
+}
+.compte-etat { margin: 6px 0 14px; color: var(--gris-texte); font-size: 13px; min-height: 1.2em; }
+.compte-actions {
+  display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 12px;
+  padding-top: 12px; border-top: 1px solid var(--bordure);
+}
+/* Sans largeur libre, chaque bouton prend toute la ligne (.bouton-texte est
+   en pleine largeur ailleurs) et les trois actions s'empilent en colonne. */
+.compte-actions .bouton-texte { width: auto; flex: 0 1 auto; padding: 6px 0; }
+.bouton-texte--danger { color: #B4232C; }
+/* Armé : le prochain clic supprime pour de bon, et ça doit se voir. */
+.bouton-texte--arme {
+  color: var(--blanc); background: #B4232C; border-radius: 999px; padding: 6px 14px;
+}
+
+.compte-message {
+  margin: 12px 0 0; padding: 10px 12px; border-radius: 12px;
+  background: var(--bleu-pastel); color: var(--marine); font-size: 13px; line-height: 1.5;
+}
+.compte-mention { margin: 12px 0 0; color: var(--gris-texte); font-size: 12px; line-height: 1.5; }
+.compte-mention a { color: var(--marine); }
+
 /* ————— Le filet de « hidden » ————————————————————————————————————
    L'attribut `hidden` ne masque rien dès qu'une règle donne un `display`
    explicite à l'élément : celle du navigateur perd, et l'élément reste à

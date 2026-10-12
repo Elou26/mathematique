@@ -21,6 +21,7 @@
 
 const Stripe = require("stripe");
 const Anthropic = require("@anthropic-ai/sdk");
+const COMPTES = require("./comptes.js");
 
 const CLE_SECRETE = process.env.STRIPE_CLE_SECRETE || process.env.STRIPE_SECRET_KEY || "";
 /* ————— Les trois offres ————————————————————————————————————————
@@ -80,8 +81,8 @@ function origineAutorisee(origine) {
 function enTetes(origine) {
   return {
     "Access-Control-Allow-Origin": origineAutorisee(origine),
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
   };
@@ -456,6 +457,7 @@ async function router(requete, reponse) {
       pret: Boolean(stripe && AU_MOINS_UN_TARIF),
       offres: Object.keys(TARIFS).filter((cle) => TARIFS[cle]),
       lecture: Boolean(claude),
+      comptes: COMPTES.configure(),
     }, origine);
     return;
   }
@@ -501,6 +503,101 @@ async function router(requete, reponse) {
     } catch (erreur) {
       repondre(reponse, 400, { erreur: "signature_invalide" }, origine);
     }
+    return;
+  }
+
+  /* ————— Les comptes ————————————————————————————————————————————
+     Un compte sert à retrouver ses fiches ailleurs que sur le téléphone
+     où elles sont nées. Toutes ces routes répondent « comptes_eteints »
+     tant que la base et l'envoi de courriel ne sont pas réglés : mieux
+     vaut une app qui marche comme avant qu'un compte à moitié branché.
+     ———————————————————————————————————————————————————————————— */
+
+  if (chemin === "/compte-demander" && requete.method === "POST") {
+    let corps = {};
+    try { corps = JSON.parse((await lireCorps(requete)).toString("utf8") || "{}"); }
+    catch (erreur) { repondre(reponse, 400, { erreur: "json_invalide" }, origine); return; }
+    try {
+      /* Qui demande, et non d'où : sur Vercel toutes les requêtes de l'app
+         portent la même origine, et un seul seau pour tout le monde punit
+         les élèves sans gêner personne d'autre. */
+      const venantDe = String(requete.headers["x-forwarded-for"] || "").split(",")[0].trim()
+        || (requete.socket && requete.socket.remoteAddress) || origine;
+      const resultat = await COMPTES.demanderLien(corps, venantDe);
+      repondre(reponse, resultat.code, resultat.corps, origine);
+    } catch (erreur) {
+      console.error("[compte-demander]", erreur.message);
+      repondre(reponse, 502, { erreur: "envoi_impossible" }, origine);
+    }
+    return;
+  }
+
+  /* Le lien du courriel ouvre l'app, pas un bout de JSON : on redirige,
+     la session dans l'adresse, que compte.js ramasse puis efface. */
+  if (chemin === "/compte-entrer" && requete.method === "GET") {
+    const racine = (process.env.SITE_URL || "").replace(/\/+$/, "");
+    let suite;
+    try {
+      const resultat = await COMPTES.entrer(adresse.searchParams);
+      suite = resultat.code === 200
+        ? `${racine}/app.html?acces=${encodeURIComponent(resultat.corps.session)}`
+        : `${racine}/app.html?entree=${encodeURIComponent(resultat.corps.erreur)}`;
+    } catch (erreur) {
+      console.error("[compte-entrer]", erreur.message);
+      suite = `${racine}/app.html?entree=panne`;
+    }
+    reponse.writeHead(302, { Location: suite || "/app.html", "Cache-Control": "no-store" });
+    reponse.end();
+    return;
+  }
+
+  /* Tout ce qui suit demande une session valide. On la vérifie une fois. */
+  if (chemin === "/compte-moi" || chemin === "/compte-sortir" || chemin === "/compte-export"
+      || chemin === "/compte-effacer" || chemin === "/bibliotheque") {
+    if (!COMPTES.configure()) { repondre(reponse, 503, { erreur: "comptes_eteints" }, origine); return; }
+
+    let compte = null;
+    try { compte = await COMPTES.compteDeLaRequete(requete.headers); }
+    catch (erreur) {
+      console.error("[compte]", erreur.message);
+      repondre(reponse, 502, { erreur: "base_injoignable" }, origine); return;
+    }
+    if (!compte) { repondre(reponse, 401, { erreur: "session_invalide" }, origine); return; }
+
+    try {
+      if (chemin === "/compte-moi" && requete.method === "GET") {
+        repondre(reponse, 200, { courriel: compte.courriel, creeLe: compte.cree_le, version: compte.version }, origine);
+        return;
+      }
+      if (chemin === "/compte-sortir" && requete.method === "POST") {
+        const resultat = await COMPTES.sortirDePartout(compte);
+        repondre(reponse, resultat.code, resultat.corps, origine); return;
+      }
+      if (chemin === "/compte-export" && requete.method === "GET") {
+        const resultat = COMPTES.exporter(compte);
+        repondre(reponse, resultat.code, resultat.corps, origine); return;
+      }
+      if (chemin === "/compte-effacer" && requete.method === "DELETE") {
+        const resultat = await COMPTES.effacer(compte);
+        repondre(reponse, resultat.code, resultat.corps, origine); return;
+      }
+      if (chemin === "/bibliotheque" && requete.method === "GET") {
+        const resultat = await COMPTES.lireBibliotheque(compte);
+        repondre(reponse, resultat.code, resultat.corps, origine); return;
+      }
+      if (chemin === "/bibliotheque" && requete.method === "PUT") {
+        let corps = {};
+        try { corps = JSON.parse((await lireCorps(requete, 5 * 1024 * 1024)).toString("utf8") || "{}"); }
+        catch (erreur) { repondre(reponse, 413, { erreur: "corps_trop_gros" }, origine); return; }
+        const resultat = await COMPTES.ecrireBibliotheque(compte, corps);
+        repondre(reponse, resultat.code, resultat.corps, origine); return;
+      }
+    } catch (erreur) {
+      console.error("[compte]", erreur.message);
+      repondre(reponse, 502, { erreur: "base_injoignable" }, origine);
+      return;
+    }
+    repondre(reponse, 405, { erreur: "methode_inattendue" }, origine);
     return;
   }
 

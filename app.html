@@ -680,6 +680,44 @@
     </div>
     <section class="offre-etat" id="profil-abonnement"></section>
 
+    <!-- ————— Mon accès : le compte qui recolle les appareils —————
+         Masqué tant que le serveur n'a ni base ni envoi de courriel : une
+         porte qui n'ouvre pas vaut mieux fermée. compte.js s'en charge.
+         ———————————————————————————————————————————————————————— -->
+    <section class="compte" id="profil-compte" hidden>
+      <h3 class="compte-titre">Mes fiches sur tous mes appareils</h3>
+
+      <div id="compte-dehors">
+        <p class="compte-texte">
+          Entre ton adresse : tu reçois un lien, tu cliques, et tes fiches te
+          suivent du téléphone à l'ordinateur. Pas de mot de passe à retenir.
+        </p>
+        <form class="compte-form" id="compte-form" novalidate>
+          <label class="champ-libelle champ-libelle--discret" for="compte-courriel">Ton adresse e-mail</label>
+          <input class="champ-texte" id="compte-courriel" type="email" inputmode="email"
+                 autocomplete="email" placeholder="prenom@exemple.fr" maxlength="254">
+          <button class="bouton-principal" type="submit" id="compte-envoyer">Recevoir mon lien</button>
+        </form>
+      </div>
+
+      <div id="compte-dedans" hidden>
+        <p class="compte-adresse" id="compte-adresse"></p>
+        <p class="compte-etat" id="compte-etat" aria-live="polite"></p>
+        <button class="bouton-secondaire" type="button" id="compte-synchro">Synchroniser maintenant</button>
+        <div class="compte-actions">
+          <button class="bouton-texte" type="button" id="compte-exporter">Télécharger mes données</button>
+          <button class="bouton-texte" type="button" id="compte-sortir">Me déconnecter</button>
+          <button class="bouton-texte bouton-texte--danger" type="button" id="compte-effacer">Supprimer mon compte</button>
+        </div>
+      </div>
+
+      <p class="compte-message" id="compte-message" role="status" aria-live="polite" hidden></p>
+      <p class="compte-mention">
+        Ton adresse sert à te reconnaître, à rien d'autre : aucune publicité, aucun partage.
+        <a href="confidentialite.html">Ce qui est gardé, et comment l'effacer.</a>
+      </p>
+    </section>
+
     <button class="bouton-secondaire" type="button" data-onglet="revision">Voir mon planning de révision</button>
     <button class="bouton-texte" type="button" id="changer-niveau">Changer de niveau</button>
   </section>
@@ -788,8 +826,20 @@
 </script>
      ———————————————————————————————————————————————————————————— -->
 
+<!-- Les comptes (retrouver ses fiches sur un autre appareil) ne s'allument
+     qu'ici, et seulement une fois la base et l'envoi de courriel réglés
+     côté serveur — vérifie /api/sante : il doit répondre "comptes":true.
+     Décommentée trop tôt, cette ligne ouvrirait un formulaire qui ne peut
+     envoyer aucun lien.
+
+<script>
+  window.MATHEMATIQUE_COMPTE = { api: "/api" };
+</script>
+     ———————————————————————————————————————————————————————————— -->
+
 <script src="data.js"></script>
 <script src="abonnement.js"></script>
+<script src="compte.js"></script>
 <script src="ocr.js"></script>
 <script src="generateurs.js"></script>
 <script src="app.js"></script>
