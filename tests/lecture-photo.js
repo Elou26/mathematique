@@ -20,7 +20,7 @@ window.claude = { use: async (n) => {
   f.json = async (invite, opts) => {
     window.__invite = invite;
     window.__images = opts && opts.images ? Array.from(opts.images).length : 0;
-    await new Promise(r => setTimeout(r, 150));
+    await new Promise(r => setTimeout(r, '${mode}' === 'lent' ? 2000 : 150));
     if (invite.indexOf('flashcards') === -1) {          // c'est une demande de quiz
       return { titre: 'Quiz de contrôle', questions: [
         { enonce: 'Question ?', choix: ['a','b','c','d'], bonne: 1, explication: 'Parce que.' }] };
@@ -224,6 +224,47 @@ function verifier(nom, condition, vu) {
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
     verifier('déconnecté : la raison est sous les yeux',
       /connecte-toi/i.test(await page.innerText('#scan-raison')), await page.innerText('#scan-raison'));
+    await ctx.close();
+  }
+
+  /* — 5. Une génération à la fois : la seconde attend son tour ————
+     Lancer un résumé pendant qu'une page se lit, c'est deux attentes, deux
+     fois les crédits, et une fiche qui arrive par-dessus l'autre. */
+  {
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(`window.MATHEMATIQUE_LECTURE = { api: "" };
+    window.MATHEMATIQUE_PAIEMENT = { api: "" };`);
+    await ctx.addInitScript(FAUX('lent'));
+    const page = await ctx.newPage();
+    const erreurs = [];
+    page.on('pageerror', (e) => erreurs.push(String(e)));
+    await page.goto('http://localhost:8321/app.html');
+    await page.click('text=Lycéen'); await page.waitForTimeout(400);
+    await page.click('#ouvrir-creation'); await page.click('[data-creation="scan"]'); await page.waitForTimeout(300);
+    await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
+    await page.click('#scan-analyser'); await page.waitForTimeout(300);
+    verifier('la lecture est bien en cours', await page.isVisible('#chargement-scan'), 'aucune lecture en vol');
+
+    // Pendant ce temps : on tente un résumé sur un texte collé.
+    await page.evaluate(() => {
+      document.querySelectorAll('.vue').forEach((v) => { v.hidden = v.id !== 'vue-resume'; });
+    });
+    await page.waitForTimeout(200);
+    await page.click('#form-resume [data-source="texte"]'); await page.waitForTimeout(200);
+    await page.fill('#texte-source', 'La Révolution française commence en 1789. '.repeat(8));
+    await page.click('#bouton-generer'); await page.waitForTimeout(300);
+
+    verifier('la seconde génération est refusée, et on dit pourquoi',
+      /une par une/.test(await page.innerText('#toast')), await page.innerText('#toast'));
+    verifier('et elle ne démarre pas',
+      !(await page.isVisible('#chargement-resume')), 'une seconde attente a démarré');
+
+    // La lecture finie, la place se libère : le résumé repart.
+    await page.waitForTimeout(2200);
+    await page.click('#bouton-generer'); await page.waitForTimeout(300);
+    verifier('la lecture rendue, la génération suivante passe',
+      await page.isVisible('#chargement-resume'), 'la place est restée prise');
+    verifier('aucune erreur console', erreurs.length === 0, erreurs.join(' || '));
     await ctx.close();
   }
 

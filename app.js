@@ -330,6 +330,33 @@
     return OFFRE.quotaFiches(fiches.length);
   }
 
+  /* ————— Une génération à la fois ————————————————————————————————
+     Deux fiches lancées en même temps, c'est deux attentes sur un téléphone
+     qui chauffe, deux fois les crédits, et la seconde qui arrive par-dessus
+     la première. On n'en garde donc qu'une en vol : la suivante attend que
+     celle-ci soit rendue, et on le dit au lieu de la lancer en silence.
+     ———————————————————————————————————————————————————————————— */
+
+  let generationEnCours = "";        // "" : rien en vol
+
+  const ATTENTES_GENERATION = {
+    lecture: "Ta page est en train d'être lue",
+    resume: "Ton résumé est en train d'être écrit",
+    quiz: "Ton quiz est en train d'être écrit",
+    cartes: "Tes cartes sont en train d'être écrites",
+  };
+
+  /** Vrai si la place est libre. Sinon on le dit, et rien n'est lancé. */
+  function placeLibrePourGenerer() {
+    if (!generationEnCours) return true;
+    const quoi = ATTENTES_GENERATION[generationEnCours] || "Une génération est en cours";
+    toast(`${quoi} — on les fait une par une.`);
+    return false;
+  }
+
+  function ouvrirGeneration(quoi) { generationEnCours = quoi; }
+  function fermerGeneration() { generationEnCours = ""; }
+
   /**
    * La porte : peut-on créer une fiche de plus ? Sinon on ouvre le mur de
    * paiement plutôt que de laisser l'élève buter sans comprendre.
@@ -2555,21 +2582,35 @@
 
   function lancerLecture() {
     if (!fiche.pages.length) { toast("Prends d'abord ta page en photo."); return; }
+    if (!placeLibrePourGenerer()) return;
+
+    /* La place est prise jusqu'au bout de la lecture, quel que soit le
+       chemin suivi — service, Claude, ou lecture sur l'appareil. */
+    ouvrirGeneration("lecture");
+    const rendue = () => fermerGeneration();
 
     // Le service payant d'abord : c'est lui qui lit le mieux.
     if (typeof OCR !== "undefined" && OCR.serviceConfigure()) {
-      lireParService().then((issue) => { if (!issue.fait) lireSurAppareil({ avis: issue.avis }); });
+      lireParService()
+        .then((issue) => (issue.fait ? null : lireSurAppareil({ avis: issue.avis })))
+        .then(rendue, rendue);
       return;
     }
 
     if (!claudeResolu && attenteClaude) {
       $("#scan-progres").textContent = "Connexion…";
       $("#chargement-scan").hidden = false;
-      attenteClaude.then(() => { $("#chargement-scan").hidden = true; lancerLecture(); });
+      /* On rend la place avant de repasser par ici : sinon on se bloquerait
+         soi-même en croyant qu'une lecture est déjà en vol. */
+      attenteClaude.then(() => {
+        $("#chargement-scan").hidden = true;
+        fermerGeneration();
+        lancerLecture();
+      });
       return;
     }
-    if (!peutLirePhotos()) { lireSurAppareil(); return; }
-    lirePages();
+    if (!peutLirePhotos()) { lireSurAppareil().then(rendue, rendue); return; }
+    lirePages().then(rendue, rendue);
   }
 
   function initScan() {
@@ -3370,6 +3411,9 @@
       return;
     }
 
+    // Rien n'est à lire : là, il y a bien une fiche à écrire. Une seule.
+    if (!placeLibrePourGenerer()) return;
+
     const chargement = $("#chargement-resume");
     const bouton = $("#bouton-generer");
     $("#fiche-resume").hidden = true;
@@ -3379,7 +3423,9 @@
 
     // Simulation de l'appel au service de génération (à remplacer par l'API).
     clearTimeout(minuteurGeneration);
+    ouvrirGeneration("resume");
     minuteurGeneration = setTimeout(() => {
+      fermerGeneration();
       chargement.hidden = true;
       bouton.disabled = false;
       bouton.textContent = "Regénérer le résumé";
@@ -3666,6 +3712,7 @@
       .replace("<<<PROFIL>>>", niveauChoisi ? libelleNiveau().toLowerCase() : "non précisé")
       .replace("<<<CONTENU>>>", contenu);
 
+    ouvrirGeneration("cartes");
     controleurIA = new AbortController();
     $("#form-cartes").hidden = true;
     $("#jeu-cartes").hidden = true;
@@ -3699,6 +3746,7 @@
       if (REPLIS_LOCAUX.has(code) && code !== "rate_limited") { sampleClaude = null; afficherMoteurIA(); }
       return false;
     } finally {
+      fermerGeneration();
       controleurIA = null;
       $("#chargement-cartes").hidden = true;
       $("#cartes-stop").hidden = true;
@@ -3775,6 +3823,12 @@
    * basculer sur les chapitres connus.
    */
   async function genererAvecClaude(demande, origine = "ia") {
+    /* Déjà une génération en vol : on ne lance pas la seconde, et on ne
+       bascule pas non plus sur les chapitres locaux — la demande est dite
+       traitée, l'élève a été prévenu. */
+    if (!placeLibrePourGenerer()) return true;
+    ouvrirGeneration("quiz");
+
     const zone = ZONES_ATTENTE[origine];
     const invite = CONSIGNE_QUIZ
       .replace("<<<DEMANDE>>>", demande)
@@ -3823,6 +3877,7 @@
       if (REPLIS_LOCAUX.has(code) && code !== "rate_limited") { sampleClaude = null; afficherMoteurIA(); return false; }
       return true;                       // erreur passagère : on laisse réessayer
     } finally {
+      fermerGeneration();
       clearTimeout(rappel);
       controleurIA = null;
       $(zone.chargement).hidden = true;
@@ -4735,6 +4790,9 @@
     const aEcrire = !seulement && sampleClaude && (refaire || !fiche.cartesIA)
       && (contenuDeLaFiche(fiche) || cartesDeLaFiche(fiche).length === 0);
     if (aEcrire) {
+      /* Une écriture de cartes est une génération comme une autre : on
+         attend que la précédente soit rendue plutôt que de doubler. */
+      if (!placeLibrePourGenerer()) return;
       const ecrit = await ecrireCartesAvecIA(fiche);
       if (!ecrit && !cartesDeLaFiche(fiche).length) {
         $("#form-cartes").hidden = false;

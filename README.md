@@ -836,6 +836,23 @@ deux côtés : il ne doit jamais redescendre.
 seul — attendre le 1er du mois, et vider sa bibliothèque — plus le cas des
 compteurs enregistrés avant cette règle, qui comptent quand même.
 
+**Le mois commence à l'abonnement.** S'abonner le 12, après avoir usé ses
+deux fiches d'essai, ne doit pas donner 800 crédits sur les 1 000 payés : le
+compteur du mois repart donc de zéro à l'ouverture de l'abonnement — et
+seulement là, pas à chaque revérification quotidienne, qui l'effacerait tous
+les jours. `total`, lui, n'est pas touché : l'essai reste dépensé.
+
+### Une génération à la fois
+
+Deux fiches lancées en même temps, c'est deux attentes sur un téléphone qui
+chauffe, deux fois les crédits, et la seconde qui arrive par-dessus la
+première. `app.js` ne garde donc **qu'une génération en vol** : lecture de
+pages, résumé, quiz écrit par l'IA et paquet de cartes passent tous par
+`placeLibrePourGenerer()`, qui dit ce qui est en cours plutôt que de lancer
+la suivante en silence. La place est rendue quand la génération est rendue,
+succès ou échec. `tests/lecture-photo.js` l'éprouve avec une lecture lente :
+le résumé lancé pendant est refusé, puis passe une fois la lecture finie.
+
 Une page statique **ne peut pas encaisser un paiement toute seule** : la clé secrète Stripe ne doit
 jamais s'y trouver, sinon n'importe qui peut lire les clients et créer des remboursements. Le
 travail est donc partagé en deux, et c'est le seul découpage possible :
