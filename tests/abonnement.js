@@ -380,6 +380,44 @@ function semence(fiches, paiement) {
     await ctx3.close();
   }
 
+  /* — S'abonner donne le quota entier, pas ce qui reste du mois ————
+     L'essai a été dépensé ce mois-ci : ces fiches-là ne doivent pas être
+     retirées du premier mois payé. */
+  {
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(semence([fiche(1), fiche(2)], { api }));
+    /* Semé seulement s'il n'y a rien : un script d'amorce repasse à chaque
+       navigation, et il effacerait ce que la page a consommé entre-temps. */
+    await ctx.addInitScript(`if (!localStorage.getItem('mathematique.consommation')) {
+      localStorage.setItem('mathematique.consommation',
+        ${JSON.stringify(JSON.stringify({ mois: new Date().toISOString().slice(0, 7), fiches: 2, total: 2 }))});
+    }`);
+    const page = await ctx.newPage();
+    await page.goto('http://localhost:8321/app.html?paiement=ok&session=cs_payee');
+    await page.waitForTimeout(900);
+    await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(300);
+    const dit = await page.innerText('#profil-abonnement');
+    verifier('le premier mois payé est entier, l\'essai n\'en est pas retiré',
+      /1\s000 crédits sur 1\s000/.test(dit), dit.replace(/\n+/g, ' · '));
+
+    /* Et la revérification du lendemain ne doit pas effacer ce qui a été
+       consommé depuis : seule l'ouverture de l'abonnement remet à zéro. */
+    await page.evaluate(() => {
+      const suivi = JSON.parse(localStorage.getItem('mathematique.consommation'));
+      localStorage.setItem('mathematique.consommation',
+        JSON.stringify({ ...suivi, fiches: 3 }));
+      const abo = JSON.parse(localStorage.getItem('mathematique.abonnement'));
+      localStorage.setItem('mathematique.abonnement',
+        JSON.stringify({ ...abo, verifieLe: Date.now() - 2 * 86400000 }));
+    });
+    await page.reload(); await page.waitForTimeout(900);
+    await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(300);
+    const apres = await page.innerText('#profil-abonnement');
+    verifier('une revérification ne recharge pas le compteur',
+      /700 crédits sur 1\s000/.test(apres), apres.replace(/\n+/g, ' · '));
+    await ctx.close();
+  }
+
   /* — Un seul tarif créé chez Stripe : une seule offre proposée ————
      Pendant la configuration, on commence par un tarif. Proposer les deux
      autres mènerait l'élève sur une erreur « offre inconnue ». */

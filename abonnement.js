@@ -350,6 +350,20 @@ const ABONNEMENT = (function () {
       ecrire({ actif: false, cle: "", expire: 0, verifieLe: Date.now() });
       return false;
     }
+    /* ————— Le mois commence à l'abonnement ————————————————————
+       Le compteur du mois comptait toutes les fiches du mois civil, essai
+       compris. Un élève qui s'abonnait le 12, après avoir usé ses deux
+       fiches d'essai, recevait 800 crédits sur les 1 000 qu'il venait de
+       payer — et il avait raison de le prendre mal.
+
+       On remet donc le compteur du mois à zéro au moment où l'abonnement
+       s'ouvre, et seulement à ce moment-là (pas à chaque revérification
+       quotidienne, qui l'effacerait tous les jours). Le total de toujours,
+       lui, n'est pas touché : l'essai reste dépensé.
+       ———————————————————————————————————————————————————————— */
+    const avant = etat();
+    const nouvelAbonnement = !avant || !avant.actif || avant.cle !== String(donnees.cle).slice(0, 80);
+
     ecrire({
       actif: true,
       cle: String(donnees.cle).slice(0, 80),
@@ -357,6 +371,14 @@ const ABONNEMENT = (function () {
       expire: Number(donnees.expire) || 0,
       verifieLe: Date.now(),
     });
+
+    if (nouvelAbonnement) {
+      const suivi = journal();
+      try {
+        localStorage.setItem(CLE_CONSOMMATION,
+          JSON.stringify({ mois: suivi.mois, fiches: 0, total: suivi.total }));
+      } catch (erreur) { /* mémoire seule */ }
+    }
     return true;
   }
 
