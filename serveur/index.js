@@ -43,6 +43,47 @@ const OFFRE_DU_TARIF = Object.keys(TARIFS).reduce((table, cle) => {
 const AU_MOINS_UN_TARIF = Object.keys(TARIFS).some((cle) => TARIFS[cle]);
 const SECRET_WEBHOOK = process.env.STRIPE_WEBHOOK_SECRET || "";
 
+/* ————— Mode d'essai ou vrais paiements ? ————————————————————————
+   Le préfixe de la clé le dit, et c'est la seule chose qu'on en montre :
+   « test », on encaisse des cartes de démonstration ; « reel », de vraies
+   cartes. /sante le répète, pour qu'un coup d'œil suffise après un
+   changement de variables chez l'hébergeur.
+   ———————————————————————————————————————————————————————————— */
+const MODE_STRIPE = !CLE_SECRETE ? "" : (/^(sk|rk)_live_/.test(CLE_SECRETE) ? "reel" : "test");
+
+/* ————— Ces tarifs existent-ils de ce côté-ci ? ——————————————————
+   Le piège du passage en réel : on remplace sk_test_ par sk_live_ et on
+   garde les price_… du mode test. Stripe les refuse — « No such price » —
+   et l'élève ne l'apprend qu'au moment de payer, c'est-à-dire trop tard.
+
+   On demande donc à Stripe lesquels de ces tarifs il connaît, une fois
+   toutes les dix minutes, et /sante ne propose que ceux-là. Stripe
+   injoignable ne vide pas la page de tarif : dans le doute, on garde ce
+   qui est posé — c'est le paiement qui dira non, pas une page vide.
+   ———————————————————————————————————————————————————————————— */
+const DUREE_CACHE_TARIFS = 10 * 60 * 1000;
+let tarifsConnus = null;                    // { le, offres }
+
+async function offresVendables() {
+  const posees = Object.keys(TARIFS).filter((cle) => TARIFS[cle]);
+  if (!stripe || !posees.length) return posees;
+  if (!stripe.prices || typeof stripe.prices.retrieve !== "function") return posees;
+  if (tarifsConnus && Date.now() - tarifsConnus.le < DUREE_CACHE_TARIFS) return tarifsConnus.offres;
+
+  const vivants = [];
+  for (const cle of posees) {
+    try {
+      const tarif = await stripe.prices.retrieve(TARIFS[cle]);
+      if (tarif && tarif.active !== false) vivants.push(cle);
+    } catch (erreur) {
+      // Tarif inconnu ici : pas vendable. Panne de réseau : on ne conclut rien.
+      if (!erreur || erreur.type !== "StripeInvalidRequestError") return posees;
+    }
+  }
+  tarifsConnus = { le: Date.now(), offres: vivants };
+  return vivants;
+}
+
 /* ————— Lecture des photos : Claude ————————————————————————————
    La clé ne doit pas plus se trouver dans la page que celle de Stripe :
    la photo monte ici, part chez Claude, et seule la fiche revient.
@@ -471,9 +512,11 @@ async function router(requete, reponse) {
   if (requete.method === "OPTIONS") { reponse.writeHead(204, enTetes(origine)); reponse.end(); return; }
 
   if (chemin === "/sante") {
+    const offres = await offresVendables();
     repondre(reponse, 200, {
-      pret: Boolean(stripe && AU_MOINS_UN_TARIF),
-      offres: Object.keys(TARIFS).filter((cle) => TARIFS[cle]),
+      pret: Boolean(stripe && offres.length),
+      mode: MODE_STRIPE,
+      offres,
       lecture: Boolean(claude),
       comptes: COMPTES.configure(),
       google: COMPTES.clientGoogle(),      // public : la page en a besoin pour le bouton
@@ -649,6 +692,9 @@ if (require.main === module) {
   }).listen(port, () => {
     console.log(`Paiement en écoute sur http://localhost:${port}`);
     if (!stripe) console.log("⚠ STRIPE_CLE_SECRETE manquante : les routes répondront « non configuré ».");
+    else console.log(MODE_STRIPE === "reel"
+      ? "Stripe en mode RÉEL : les cartes sont débitées pour de bon."
+      : "Stripe en mode test : seules les cartes de démonstration passent.");
     if (!AU_MOINS_UN_TARIF) console.log("⚠ Aucun STRIPE_PRIX_* : impossible de créer une session.");
     else {
       const absentes = Object.keys(TARIFS).filter((cle) => !TARIFS[cle]);

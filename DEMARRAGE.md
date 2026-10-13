@@ -238,8 +238,47 @@ résumé qu'on trouve soi-même pas clair.
 
 6. Teste avec `4242 4242 4242 4242`, n'importe quelle date future,
    n'importe quel CVC. Ton profil doit passer à « Illimité ».
-7. Remplace par `sk_live_…` et fais un vrai paiement sur ta propre carte
-   pour valider. Tu te rembourseras depuis Stripe.
+**Porte :** `/api/sante` répond `"mode":"test"` et liste tes offres dans
+`offres`. Une offre absente de cette liste veut dire que Stripe ne connaît
+pas son `price_…` — c'est lui qu'il faut corriger, pas l'app.
+
+### 7. Passer en mode réel
+
+Le mode test et le mode réel sont **deux Stripe séparés** : rien ne traverse.
+Les produits, les tarifs et les clés du mode test n'existent pas de l'autre
+côté. Tout se refait une fois, dans cet ordre.
+
+1. **Activer le compte** : Stripe → *Activer le compte*. Il demande ton
+   identité, ton adresse, ton activité et un **IBAN** pour les virements.
+   Le titulaire doit être **majeur** : si tu ne l'es pas, le compte se fait
+   au nom d'un parent (ou d'une société), pas au tien.
+2. Bascule le tableau de bord en **mode réel** (l'interrupteur en haut à
+   droite ; il n'y est qu'une fois le compte activé).
+3. **Recrée le produit et son tarif** en mode réel : *Catalogue de produits
+   → Ajouter un produit*, « Brainoko Essentiel », **4,90 €**, récurrent
+   mensuel. Note le nouveau `price_…` : il est différent de celui du test.
+4. **Développeurs → Clés API** → la clé secrète `sk_live_…`.
+5. Chez ton hébergeur, remplace **les deux** variables, pas seulement la
+   clé :
+
+   | Nom | Nouvelle valeur |
+   | --- | --- |
+   | `STRIPE_CLE_SECRETE` | `sk_live_…` |
+   | `STRIPE_PRIX_ESSENTIEL` | le `price_…` du mode réel |
+
+   Garder l'ancien `price_…` est l'erreur classique : Stripe le refuse, et
+   l'élève ne l'apprend qu'au moment de payer. Le serveur demande donc à
+   Stripe, toutes les dix minutes, lesquels de ces tarifs il connaît, et
+   `/sante` ne propose que ceux-là : une offre qui disparaît de la liste
+   après la bascule, c'est un `price_…` resté en mode test.
+6. Redéploie, puis **vérifie `/api/sante`** : `"mode":"reel"` et
+   `"offres":["essentiel"]`. Si `mode` dit encore `test`, la variable n'a
+   pas été reprise — un redéploiement est nécessaire après l'avoir changée.
+7. Fais **un vrai paiement sur ta propre carte** : 4,90 € réellement
+   débités, ton profil doit passer à Essentiel avec 1 000 crédits. Puis
+   rembourse-toi depuis Stripe (*Paiements → le paiement → Rembourser*) et
+   résilie l'abonnement (*Clients → ton client → Abonnements*), sinon il se
+   reconduit le mois prochain.
 8. **Avant d'encaisser le premier euro**, ajoute deux pages à la vitrine :
    des **mentions légales** (qui édite le site, comment te joindre, l'hébergeur)
    et des **CGV** (ce qui est vendu, le prix, la durée, le droit de

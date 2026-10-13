@@ -47,6 +47,16 @@ function fauxStripe() {
         }] };
       },
     },
+    prices: {
+      retrieve: async (id) => {
+        /* « price_regulier » joue ici le tarif resté en mode test après le
+           passage en réel : Stripe, de ce côté-ci, ne le connaît pas. */
+        if (id === 'price_regulier') {
+          const e = new Error('No such price'); e.type = 'StripeInvalidRequestError'; throw e;
+        }
+        return { id, active: true };
+      },
+    },
     webhooks: { constructEvent: () => ({ type: 'checkout.session.completed' }) },
   };
 }
@@ -96,6 +106,16 @@ serveur.listen(0, async () => {
   const sante = await appeler('/sante');
   verifier('le serveur se dit prêt quand les clés sont là',
     sante.code === 200 && sante.corps.pret === true, JSON.stringify(sante.corps));
+  /* ————— Le mode, et les tarifs qui existent vraiment ——————————
+     Le piège du passage en réel : garder les price_… du mode test. Stripe
+     les refuse, et l'élève ne l'apprendrait qu'au moment de payer. */
+  verifier('la santé dit dans quel mode Stripe tourne',
+    sante.corps.mode === 'test', JSON.stringify(sante.corps.mode));
+  verifier('un tarif que Stripe ne connaît pas n\'est pas proposé',
+    Array.isArray(sante.corps.offres) && sante.corps.offres.join() === 'essentiel,intensif',
+    JSON.stringify(sante.corps.offres));
+  verifier('la clé secrète ne fuit pas dans la santé',
+    !/sk_|price_/.test(JSON.stringify(sante.corps)), JSON.stringify(sante.corps));
 
   /* — 2. Créer un paiement — */
   const paiement = await appeler('/paiement', {

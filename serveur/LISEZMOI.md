@@ -25,7 +25,7 @@ l'abonnement, on ne fait que le lui demander.
 | `POST /compte-sortir` | invalide toutes les sessions de ce compte |
 | `GET /compte-export` | tout ce qui est gardé, en un fichier (RGPD) |
 | `DELETE /compte-effacer` | efface le compte et ses liens en attente (RGPD) |
-| `GET /sante` | dit si les clés sont bien en place (`pret` pour le paiement, `lecture` pour la lecture, `comptes` pour les comptes) |
+| `GET /sante` | dit si les clés sont bien en place (`pret` pour le paiement, `lecture` pour la lecture, `comptes` pour les comptes), dans quel `mode` Stripe tourne (`test` ou `reel`) et quelles `offres` sont réellement vendables |
 
 La licence dit aussi **quelle offre** a été payée : le tarif de l'abonnement Stripe le révèle, donc
 il n'y a toujours rien à stocker ici. Une licence d'avant les paliers, ou dont le tarif n'est plus
@@ -166,6 +166,13 @@ STRIPE_CLE_SECRETE=sk_test_… STRIPE_PRIX_REGULIER=price_… CLAUDE_CLE=sk-ant-
 
 Les deux moitiés sont indépendantes : le paiement marche sans `CLAUDE_CLE`, la lecture marche sans
 les clés Stripe. Chacune annonce ce qui lui manque au démarrage, et `/sante` le dit aussi.
+
+**Les tarifs sont vérifiés auprès de Stripe.** Un `price_…` du mode test
+laissé en place après le passage en `sk_live_…` ne serait découvert qu'au
+moment de payer. Le serveur demande donc à Stripe, au plus une fois toutes
+les dix minutes, lesquels de ces tarifs il connaît, et `/sante` ne propose
+que ceux-là. Si Stripe est injoignable, il ne conclut rien et garde la liste
+posée : mieux vaut un paiement qui échoue qu'une page de tarif vide.
 
 Puis, dans `abonnement.js`, mets `api: "http://localhost:8787"` et sers l'app
 (`python3 -m http.server 8321`). Les cartes d'essai de Stripe : `4242 4242 4242 4242`, n'importe
