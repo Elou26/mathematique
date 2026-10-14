@@ -902,6 +902,13 @@ calcule le prorata. Le passage en caisse reste pour qui n'a pas encore
 d'abonnement. Pour que le changement soit possible côté Stripe, le portail
 doit autoriser la modification des abonnements et lister les trois tarifs.
 
+**Le retour du portail revérifie tout de suite.** La licence n'est relue
+qu'une fois par jour ; un élève qui vient de passer au Régulier verrait
+l'Essentiel jusqu'au lendemain et croirait son paiement perdu. Le serveur
+ramène donc sur `?vue=profil&portail=ok` — adresse qu'il compose lui-même,
+pour qu'elle ne dépende pas de ce que la page demande — et l'app redemande
+la licence à Stripe sans attendre.
+
 ### Une génération à la fois
 
 Deux fiches lancées en même temps, c'est deux attentes sur un téléphone qui

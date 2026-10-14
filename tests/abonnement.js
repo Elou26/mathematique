@@ -468,7 +468,7 @@ function semence(fiches, paiement) {
     verifier('et il demande le portail au serveur, avec la licence',
       demande.cle === 'cus_bon', JSON.stringify(demande));
     verifier('en disant où revenir ensuite',
-      /app\.html\?vue=profil$/.test(demande.retour || ''), demande.retour);
+      /app\.html$/.test(demande.retour || ''), demande.retour);
     verifier('l\'élève est bien conduit au portail',
       /faux-portail=1/.test(page.url()), page.url());
     await ctx.close();
@@ -493,6 +493,30 @@ function semence(fiches, paiement) {
     verifier('il mène au portail, qui sait modifier un abonnement',
       (recu.portails || []).length === 1 && /faux-portail=1/.test(page.url()),
       `${(recu.portails || []).length} · ${page.url()}`);
+    await ctx.close();
+  }
+
+  /* — Au retour du portail, l'offre changée se voit tout de suite ————
+     La licence n'est revérifiée qu'une fois par jour : sans ce rattrapage,
+     l'élève qui vient de passer au Régulier verrait l'Essentiel jusqu'au
+     lendemain, et croirait son paiement perdu. */
+  {
+    offreRendue = 'regulier';
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(semence([fiche(1)], { api }));
+    await ctx.addInitScript(`localStorage.setItem('mathematique.abonnement', JSON.stringify({
+      actif: true, cle: 'cus_bon', offre: 'essentiel',
+      expire: ${Date.now() + 20 * 86400000}, depuis: ${Date.now() - 86400000},
+      verifieLe: ${Date.now()} }));`);           // vérifiée à l'instant : rien ne la relirait
+    const page = await ctx.newPage();
+    await page.goto('http://localhost:8321/app.html?vue=profil&portail=ok');
+    await page.waitForTimeout(900);
+    const dit = await page.innerText('#profil-abonnement');
+    verifier('au retour du portail, la nouvelle offre est lue sans attendre',
+      /RÉGULIER|Régulier/.test(dit), dit.replace(/\n+/g, ' · '));
+    verifier('et l\'adresse est nettoyée du marqueur',
+      !/portail=ok/.test(page.url()), page.url());
+    offreRendue = 'essentiel';
     await ctx.close();
   }
 

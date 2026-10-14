@@ -250,8 +250,8 @@ serveur.listen(0, async () => {
     portail.code === 200 && /^https:\/\/billing\.stripe\.com\//.test(portail.corps.url || ''),
     JSON.stringify(portail.corps));
   const demandePortail = (journal.portails || [])[0] || {};
-  verifier('il ramène l\'élève là d\'où il vient',
-    demandePortail.return_url === 'http://localhost:8321/app.html',
+  verifier('il ramène l\'élève sur son profil, en marquant le retour',
+    demandePortail.return_url === 'http://localhost:8321/app.html?vue=profil&portail=ok',
     demandePortail.return_url);
   verifier('et il est ouvert pour le bon client',
     demandePortail.customer === 'cus_abc', demandePortail.customer);
@@ -276,7 +276,8 @@ serveur.listen(0, async () => {
     corps: { cle: 'cus_abc', retour: 'https://brainoko.com.pirate.net/app.html' } });
   verifier('un domaine sosie ne détourne pas le retour du portail',
     ailleursPortail.code === 200
-      && (journal.portails || []).slice(-1)[0].return_url === 'http://localhost:8321/app.html',
+      && (journal.portails || []).slice(-1)[0].return_url
+         === 'http://localhost:8321/app.html?vue=profil&portail=ok',
     JSON.stringify((journal.portails || []).slice(-1)[0]));
 
   /* — 6. Aucune donnée sensible ne sort — */

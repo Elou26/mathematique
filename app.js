@@ -545,7 +545,9 @@
     if (bouton) { bouton.disabled = true; bouton.textContent = "Ouverture…"; }
     try {
       const url = await OFFRE.ouvrirPortail({
-        retour: `${window.location.origin}${window.location.pathname}?vue=profil`,
+        /* Le serveur ajoute lui-même « ?vue=profil&portail=ok » : l'adresse
+           de retour ne doit pas dépendre de ce que la page demande. */
+        retour: `${window.location.origin}${window.location.pathname}`,
         entetes: typeof COMPTE !== "undefined" ? COMPTE.entetes() : {},
       });
       window.location.href = url;
@@ -573,11 +575,33 @@
     }
   }
 
+  /** Rentre-t-on du portail de Stripe ? L'offre a pu y changer. */
+  function retourDuPortail() {
+    try { return new URLSearchParams(window.location.search).get("portail") === "ok"; }
+    catch (erreur) { return false; }
+  }
+
   /** Au retour de Stripe : on confirme auprès du serveur, jamais sur parole. */
   async function verifierRetourDePaiement() {
     if (!OFFRE) return;
     const session = OFFRE.sessionDeRetour();
-    if (!session) { OFFRE.rafraichir().then(majBibliotheque); return; }
+    if (!session) {
+      /* ————— Changer d'offre doit se voir tout de suite ——————————
+         La licence n'est revérifiée qu'une fois par jour : l'élève qui
+         vient de passer au Régulier verrait l'Essentiel jusqu'au
+         lendemain, et croirait son paiement perdu. Au retour du portail,
+         on redemande donc à Stripe sans attendre. */
+      const courant = OFFRE.etat();
+      if (retourDuPortail() && courant.actif && courant.cle) {
+        OFFRE.nettoyerAdresse();
+        OFFRE.verifierLicence(courant.cle)
+          .then(majBibliotheque)
+          .catch(() => { OFFRE.rafraichir().then(majBibliotheque); });
+        return;
+      }
+      OFFRE.rafraichir().then(majBibliotheque);
+      return;
+    }
     OFFRE.nettoyerAdresse();
     try {
       const actif = await OFFRE.confirmerSession(session);

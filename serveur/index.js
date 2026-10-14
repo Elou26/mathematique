@@ -256,8 +256,13 @@ async function ouvrirPortail(corps, entetes) {
   if (!retour) return { code: 400, corps: { erreur: "retour_invalide" } };
 
   try {
+    /* On ramène l'élève sur son profil, et on marque le retour : l'app
+       revérifie alors la licence tout de suite, au lieu d'attendre sa
+       revérification quotidienne — sans quoi une offre changée au portail
+       n'apparaîtrait que le lendemain. La requête est posée ici, pas par la
+       page : l'adresse de retour reste entièrement de notre main. */
     const session = await stripe.billingPortal.sessions.create({
-      customer: client, return_url: retour, locale: "fr",
+      customer: client, return_url: `${retour}?vue=profil&portail=ok`, locale: "fr",
     });
     return { code: 200, corps: { url: session.url } };
   } catch (erreur) {
