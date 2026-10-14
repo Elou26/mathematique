@@ -32,6 +32,13 @@ function fauxServeur(etat) {
     if (adresse.includes('/api/sante')) return rendre(200, { pret: false, lecture: false, comptes: etat.comptes !== false });
     if (adresse.includes('/api/compte-demander')) { etat.demandes.push(JSON.parse(route.request().postData() || '{}')); return rendre(200, { envoye: true }); }
     if (adresse.includes('/api/compte-sortir')) { etat.sorties = (etat.sorties || 0) + 1; return rendre(200, { sorti: true }); }
+    if (adresse.includes('/api/licence')) {
+      const cle = new URL(adresse).searchParams.get('cle');
+      etat.licences = (etat.licences || []).concat(cle);
+      return rendre(200, cle === 'cus_bon'
+        ? { actif: true, cle: 'cus_bon', offre: 'essentiel', expire: Date.now() + 30 * 86400000 }
+        : { actif: false });
+    }
     if (adresse.includes('/api/bibliotheque') && methode === 'GET') {
       return rendre(200, { courriel: etat.courriel || 'lea@exemple.fr', version: etat.version, donnees: etat.donnees });
     }
@@ -317,6 +324,59 @@ async function ouvrir(nav, { semence = '', etat, adresse = 'http://localhost:832
       /sur ton compte/i.test(await page.innerText('#compte-message')),
       await page.innerText('#compte-message').catch(() => '—'));
     await ctx.close();
+  }
+
+  /* — 6. L'abonnement suit le compte ———————————————————————————
+     Payer sur un téléphone et retrouver le mur sur l'autre, connecté au
+     même compte, n'a aucun sens. Ce qui voyage est l'identifiant client ;
+     il n'ouvre rien tant que Stripe ne l'a pas confirmé. */
+  {
+    const etat = { version: 4, donnees: {}, envois: [], demandes: [] };
+    const paiement = `window.MATHEMATIQUE_PAIEMENT = { api: '/api' };`;
+
+    // L'appareil qui a payé : il raconte sa licence au compte.
+    const abonne = await ouvrir(nav, {
+      semence: `${paiement}
+        localStorage.setItem('mathematique.abonnement', JSON.stringify({
+          actif: true, cle: 'cus_bon', offre: 'essentiel',
+          expire: ${Date.now() + 30 * 86400000}, depuis: ${Date.now() - 86400000},
+          verifieLe: ${Date.now()} }));`,
+      etat, adresse: 'http://localhost:8321/app.html?acces=jeton-de-test',
+    });
+    await abonne.page.waitForTimeout(600);
+    verifier('l\'appareil qui a payé confie sa licence au compte',
+      etat.donnees.licence && etat.donnees.licence.cle === 'cus_bon',
+      JSON.stringify(etat.donnees.licence));
+    verifier('et rien d\'autre : ni offre, ni échéance',
+      etat.donnees.licence && Object.keys(etat.donnees.licence).sort().join() === 'cle,depuis',
+      JSON.stringify(etat.donnees.licence));
+    await abonne.ctx.close();
+
+    // L'autre téléphone : même compte, aucun abonnement sur place.
+    const autre = await ouvrir(nav, {
+      semence: paiement, etat,
+      adresse: 'http://localhost:8321/app.html?acces=jeton-de-test',
+    });
+    await autre.page.waitForTimeout(900);
+    verifier('l\'autre téléphone retrouve l\'abonnement sans la clé',
+      await autre.page.evaluate(() => ABONNEMENT.estIllimite()),
+      JSON.stringify(await autre.page.evaluate(() => ABONNEMENT.etat())));
+    verifier('et il l\'a fait confirmer par le serveur, pas cru sur parole',
+      (etat.licences || []).includes('cus_bon'), JSON.stringify(etat.licences));
+    verifier('le profil montre l\'offre payée',
+      /ESSENTIEL|Essentiel/.test(await autre.page.evaluate(() => {
+        document.querySelectorAll('.vue').forEach((v) => { v.hidden = v.id !== 'vue-profil'; });
+        return document.querySelector('#profil-abonnement').textContent;
+      })), 'profil sans offre');
+    verifier('aucune erreur console', autre.soucis.length === 0, autre.soucis.join(' || '));
+
+    // En partant, l'abonnement ne reste pas pour le suivant.
+    await autre.page.click('#compte-sortir');
+    await autre.page.waitForTimeout(700);
+    verifier('quitter le compte retire aussi l\'abonnement de l\'appareil',
+      !(await autre.page.evaluate(() => ABONNEMENT.estIllimite())),
+      JSON.stringify(await autre.page.evaluate(() => ABONNEMENT.etat())));
+    await autre.ctx.close();
   }
 
   await nav.close();

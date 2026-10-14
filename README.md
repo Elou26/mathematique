@@ -816,7 +816,7 @@ catalogue : il sort en erreur si un cas échoue, et liste les thèmes appariés 
 
 Un compte neuf reçoit **2 fiches, soit 200 crédits**, à son ouverture. Ils ne
 se rechargent pas — c'est toute la différence avec un abonnement, dont le
-quota repart le 1er de chaque mois. Un essai sert à juger, pas à réviser
+quota repart à chaque mois payé. Un essai sert à juger, pas à réviser
 gratuitement toute l'année en attendant le mois suivant.
 
 Deux compteurs vivent donc dans `mathematique.consommation` :
@@ -848,6 +848,26 @@ mois civil quand il n'y a pas d'abonnement. Le compteur repart de lui-même
 quand l'étiquette change — c'est-à-dire au prélèvement suivant, et là
 seulement : une revérification quotidienne rend la même période et n'efface
 rien. `total`, lui, n'est jamais touché : l'essai reste dépensé.
+
+### L'abonnement suit le compte
+
+Payer sur un téléphone et retrouver le mur sur un autre, connecté au même
+compte, n'a aucun sens pour l'élève. L'identifiant client Stripe voyage donc
+avec la bibliothèque — **lui seul** : l'offre et l'échéance, c'est Stripe qui
+les redit à l'appareil qui l'adopte, et une licence trouvée dans le compte
+n'ouvre jamais l'accès à elle seule (`adopterLicence` la fait vérifier comme
+une clé saisie à la main).
+
+Deux appareils du même compte portant deux licences : la plus récemment
+adoptée gagne, c'est le dernier paiement. Une licence contre rien gagne
+toujours — on n'efface pas un abonnement parce qu'un appareil l'ignore
+encore. Et quitter le compte efface aussi la licence de l'appareil : la
+laisser donnerait l'illimité au frère qui se connecte ensuite sur le
+téléphone de la famille.
+
+La clé `cus_…` reste affichée dans le profil, en secours : elle sert à
+retrouver l'abonnement sans se connecter. Elle ouvre l'accès payant, et
+l'écran le dit.
 
 ### Une génération à la fois
 

@@ -387,11 +387,20 @@ const ABONNEMENT = (function () {
        revérification quotidienne, qui rend la même période, ne l'efface
        pas. Le total de toujours n'est pas touché : l'essai reste dépensé.
        ———————————————————————————————————————————————————————— */
+    /* `depuis` date l'adoption de CETTE licence par cet appareil : c'est
+       lui qui départage deux appareils d'un même compte quand ils ne
+       portent pas la même (voir `licencePartagee`). Une revérification ne
+       le bouge pas, sinon le dernier appareil allumé gagnerait toujours. */
+    const avant = etat();
+    const cle = String(donnees.cle).slice(0, 80);
+    const memeLicence = avant && avant.actif && avant.cle === cle;
+
     ecrire({
       actif: true,
-      cle: String(donnees.cle).slice(0, 80),
+      cle,
       offre: String(donnees.offre || "").slice(0, 40),
       expire: Number(donnees.expire) || 0,
+      depuis: memeLicence ? (Number(avant.depuis) || Date.now()) : Date.now(),
       verifieLe: Date.now(),
     });
     return true;
@@ -418,6 +427,34 @@ const ABONNEMENT = (function () {
   /** L'élève se désabonne de cet appareil (le compte Stripe n'est pas touché). */
   function oublier() { ecrire(null); }
 
+  /* ————— L'abonnement suit le compte ——————————————————————————
+     Payer sur un téléphone et se retrouver devant le mur sur un autre,
+     alors qu'on est connecté au même compte, n'a aucun sens pour l'élève.
+     Ce qui voyage est l'identifiant client, rien d'autre : l'échéance et
+     l'offre, c'est Stripe qui les redira à l'appareil qui l'adopte. Une
+     licence trouvée dans le compte n'ouvre donc jamais l'accès à elle
+     seule — elle est vérifiée, comme une clé saisie à la main.
+     ———————————————————————————————————————————————————————————— */
+
+  /** Ce que cet appareil peut apprendre aux autres. */
+  function licencePartagee() {
+    const courant = etat();
+    if (!courant.actif || !courant.cle) return null;
+    return { cle: courant.cle, depuis: Number(courant.depuis) || 0 };
+  }
+
+  /**
+   * Adopte la licence du compte, si cet appareil n'a pas déjà la bonne.
+   * Rend `true` si l'accès vient d'être ouvert ici.
+   */
+  async function adopterLicence(partagee) {
+    if (!partagee || !partagee.cle || !CONFIG.api) return false;
+    const courant = etat();
+    if (courant.actif && courant.cle === partagee.cle) return false;
+    try { return await verifierLicence(partagee.cle); }
+    catch (erreur) { return false; }      // hors ligne : on réessaiera
+  }
+
   /** La session de paiement présente dans l'adresse, au retour de Stripe. */
   function sessionDeRetour() {
     try {
@@ -443,6 +480,7 @@ const ABONNEMENT = (function () {
     consommation, consommationTotale, noterFiche, moisCourant,
     estIllimite, estConfigure, quotaFiches,
     ouvrirPaiement, confirmerSession, verifierLicence, rafraichir, oublier,
+    licencePartagee, adopterLicence,
     sessionDeRetour, nettoyerAdresse, etat,
   };
 })();

@@ -81,12 +81,21 @@ const COMPTE = (function () {
   function courriel() { return lireTexte(CLE_COURRIEL); }
   function version() { return Number(lireTexte(CLE_VERSION)) || 0; }
 
+  /** L'abonnement de cet appareil, tel qu'il peut voyager : l'identifiant
+      client Stripe et depuis quand. Jamais l'échéance ni l'offre — c'est
+      Stripe qui les redit à l'appareil qui l'adopte. */
+  function licenceLocale() {
+    if (typeof ABONNEMENT === "undefined" || !ABONNEMENT.licencePartagee) return null;
+    try { return ABONNEMENT.licencePartagee(); } catch (erreur) { return null; }
+  }
+
   /** Tout ce qui voyage, lu d'un bloc. */
   function lireTout() {
     return {
       fiches: lireBrut(CLES.fiches, []) || [],
       journal: lireBrut(CLES.journal, {}) || {},
       consommation: lireBrut(CLES.consommation, null),
+      licence: licenceLocale(),
       prenom: lireTexte(CLES.prenom),
       niveau: lireTexte(CLES.niveau),
       record: Number(lireTexte(CLES.record)) || 0,
@@ -102,6 +111,9 @@ const COMPTE = (function () {
     Object.keys(CLES).forEach((nom) => ecrireTexte(CLES[nom], ""));
     ecrireTexte(CLE_TOMBES, "");
     ecrireTexte(CLE_VERSION, "");
+    /* L'abonnement suit le compte : le laisser ici donnerait l'illimité au
+       frère qui se connecte après, sur le téléphone de la famille. */
+    if (typeof ABONNEMENT !== "undefined" && ABONNEMENT.oublier) ABONNEMENT.oublier();
   }
 
   /** Et réécrit d'un bloc, après fusion. */
@@ -109,6 +121,12 @@ const COMPTE = (function () {
     ecrireBrut(CLES.fiches, donnees.fiches || []);
     ecrireBrut(CLES.journal, donnees.journal || {});
     if (donnees.consommation) ecrireBrut(CLES.consommation, donnees.consommation);
+    /* La licence du compte n'ouvre rien par elle-même : on la fait vérifier
+       auprès de Stripe, exactement comme une clé saisie à la main. */
+    if (donnees.licence && donnees.licence.cle
+        && typeof ABONNEMENT !== "undefined" && ABONNEMENT.adopterLicence) {
+      ABONNEMENT.adopterLicence(donnees.licence).then((ouvert) => { if (ouvert) prevenir(); });
+    }
     if (donnees.prenom) ecrireTexte(CLES.prenom, donnees.prenom);
     if (donnees.niveau) ecrireTexte(CLES.niveau, donnees.niveau);
     if (donnees.record) ecrireTexte(CLES.record, String(donnees.record));
@@ -147,6 +165,19 @@ const COMPTE = (function () {
       return { mois: recent.mois, fiches: recent.fiches || 0, total };
     }
     return { mois: a.mois, fiches: Math.max(a.fiches || 0, b.fiches || 0), total };
+  }
+
+  /* Deux appareils, deux licences : celle qui a été adoptée en dernier
+     gagne — c'est le dernier paiement. Une licence contre rien gagne
+     toujours : on n'efface pas un abonnement parce qu'un appareil ne le
+     connaît pas encore. */
+  function fusionnerLicence(a, b) {
+    if (!a || !a.cle) return b && b.cle ? b : null;
+    if (!b || !b.cle) return a;
+    if (a.cle === b.cle) {
+      return { cle: a.cle, depuis: Math.min(Number(a.depuis) || 0, Number(b.depuis) || 0) };
+    }
+    return (Number(a.depuis) || 0) >= (Number(b.depuis) || 0) ? a : b;
   }
 
   function fusionnerTombes(a, b) {
@@ -191,6 +222,7 @@ const COMPTE = (function () {
       fiches: [...parId.values()],
       journal: maxParCle(ici.journal, ailleurs.journal),
       consommation: fusionnerConsommation(ici.consommation, ailleurs.consommation),
+      licence: fusionnerLicence(ici.licence, ailleurs.licence),
       prenom: ici.prenom || ailleurs.prenom || "",
       niveau: ici.niveau || ailleurs.niveau || "",
       record: Math.max(ici.record || 0, ailleurs.record || 0),

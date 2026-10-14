@@ -577,12 +577,14 @@
         ? `${quota.faites} fiche${quota.faites > 1 ? "s" : ""} ce mois-ci.`
         : `${quota.credits.toLocaleString("fr-FR")} crédits sur ${quota.creditsMax.toLocaleString("fr-FR")} ce mois-ci,`
           + ` soit ${quota.reste} fiche${quota.reste > 1 ? "s" : ""}.`
-          + (quota.reste ? "" : " Le compteur repart le 1er.");
+          + (quota.reste ? "" : " Le compteur repart au prochain prélèvement.");
       bloc.innerHTML = `
         <p class="offre-etiquette offre-etiquette--actif">${echapper(quota.offre.nom)}</p>
         <p class="offre-detail">${compte} ${fin}</p>
         <label class="champ-libelle champ-libelle--discret" for="profil-licence">
-          Ta clé, pour retrouver l'abonnement sur un autre téléphone</label>
+          Ton abonnement suit ton compte : connecte-toi avec ton adresse sur
+          l'autre téléphone et il revient. Cette clé n'est qu'un secours —
+          elle ouvre l'accès payant, ne la fais pas circuler.</label>
         <input class="champ-texte" id="profil-licence" type="text" readonly value="${echapper(courant.cle)}">
         <button class="bouton-texte" type="button" data-offre="payer">Changer d'offre</button>
         <button class="bouton-texte" type="button" data-offre="oublier">Retirer l'abonnement de cet appareil</button>`;
