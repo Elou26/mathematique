@@ -199,15 +199,10 @@ function semence(fiches, paiement) {
       && /soit 10 fiches/.test(await page.innerText('#illimite-offres'))
       && /par mois/.test(await page.innerText('#illimite-offres')),
       await page.innerText('#illimite-offres'));
-    /* Le tarif de lancement : licite parce que vrai — on annonce une
-       hausse à venir, on ne barre pas un prix jamais pratiqué. */
-    verifier('le tarif de lancement annonce le prix d\'après',
-      /Lancement — ensuite 6,90 €/.test(await page.innerText('#illimite-offres'))
-      && /Lancement — ensuite 12,90 €/.test(await page.innerText('#illimite-offres')),
-      await page.innerText('#illimite-offres'));
-    verifier('et la promesse ne se dit qu\'une fois, sous les cartes',
-      /gardes ton prix/.test(await page.innerText('#illimite-note-lancement')),
-      await page.innerText('#illimite-note-lancement').catch(() => '—'));
+    /* Éteint par défaut : une carte ne montre que le prix du jour. */
+    verifier('aucune mention de lancement tant qu\'il n\'y a pas d\'opération',
+      !/Lancement/.test(await page.innerText('#illimite-offres')),
+      await page.innerText('#illimite-offres').then((t) => t.slice(0, 120)));
 
     verifier('chaque offre dit ce que coûte vraiment une fiche',
       /0,49 € la fiche/.test(await page.innerText('#illimite-offres'))
@@ -551,6 +546,24 @@ function semence(fiches, paiement) {
     verifier('et l\'adresse est nettoyée du marqueur',
       !/portail=ok/.test(page.url()), page.url());
     offreRendue = 'essentiel';
+    await ctx.close();
+  }
+
+  /* — L'opération de lancement, quand on l'allume ————————————————
+     Licite parce que vraie : on annonce une hausse à venir, on ne barre
+     pas un prix jamais pratiqué. */
+  {
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(semence([fiche(1)], { api, lancement: { jusquau: '2099-12-31' } }));
+    const page = await ctx.newPage();
+    await page.goto('http://localhost:8321/app.html?vue=abonnement'); await page.waitForTimeout(900);
+    verifier('allumée, elle annonce le prix d\'après sur chaque carte',
+      /Lancement — ensuite 6,90 €/.test(await page.innerText('#illimite-offres'))
+      && /Lancement — ensuite 12,90 €/.test(await page.innerText('#illimite-offres')),
+      await page.innerText('#illimite-offres'));
+    verifier('et la promesse ne se dit qu\'une fois, sous les cartes',
+      /gardes ton prix/.test(await page.innerText('#illimite-note-lancement')),
+      await page.innerText('#illimite-note-lancement').catch(() => '—'));
     await ctx.close();
   }
 

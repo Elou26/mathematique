@@ -897,6 +897,11 @@ Annoncer « ce prix va augmenter » est licite, contrairement à un prix barré
 inventé — à une condition : que ce soit vrai. Le jour dit, les prix doivent
 réellement monter, chez Stripe **et** dans `CONFIG.offres`.
 
+Le mécanisme est en place mais **éteint** (`lancement: null`) : les cartes
+n'affichent que le prix du jour. Pour l'allumer, une ligne suffit —
+`lancement: { jusquau: "2026-11-30" }` — et chaque offre annonce alors son
+`apres`.
+
 `CONFIG.lancement.jusquau` porte la date, chaque offre porte son `apres`.
 Les cartes disent « Lancement — ensuite 6,90 € », et la promesse (« tu
 gardes ton prix tant que tu restes abonné ») se dit **une seule fois** sous

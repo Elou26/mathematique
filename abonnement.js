@@ -63,10 +63,10 @@ const ABONNEMENT = (function () {
        date, la mention disparaît d'elle-même : mieux vaut plus de mention
        du tout qu'une promesse périmée qui traîne.
 
-       Pour arrêter l'opération : mettre `lancement` à null. */
-    lancement: {
-      jusquau: "2026-11-30",
-    },
+       Éteint pour l'instant : les cartes n'affichent que le prix du jour.
+       Pour l'allumer : `lancement: { jusquau: "2026-11-30" }`, et chaque
+       offre annonce alors son `apres`. */
+    lancement: null,
 
     offres: [
       {
