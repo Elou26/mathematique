@@ -201,7 +201,7 @@ résumé qu'on trouve soi-même pas clair.
    | --- | --- | --- |
    | Brainoko Essentiel | 4,90 € | 1 000 crédits (10 fiches) |
    | Brainoko Régulier | 9,90 € | 3 000 crédits (30 fiches) |
-   | Brainoko Intensif | 14,90 € | 7 000 crédits (70 fiches) |
+   | Brainoko Intensif | 14,90 € | 6 000 crédits (60 fiches) |
 
    Une fiche coûte 100 crédits. Le site affiche des crédits ; tu règles des
    fiches dans `abonnement.js`.

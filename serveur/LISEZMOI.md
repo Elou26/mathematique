@@ -49,7 +49,7 @@ de suite (envoyer un mail, journaliser).
    | --- | --- | --- |
    | Essentiel | 4,90 € | 1 000 crédits (10 fiches) |
    | Régulier | 9,90 € | 3 000 crédits (30 fiches) |
-   | Intensif | 14,90 € | 7 000 crédits (70 fiches) |
+   | Intensif | 14,90 € | 6 000 crédits (60 fiches) |
 
    L'élève voit des crédits, le réglage se fait en fiches : `CONFIG.offres`
    donne le nombre de fiches, `CONFIG.creditsParFiche` (100) fait le reste.
@@ -69,7 +69,7 @@ de suite (envoyer un mail, journaliser).
 | `STRIPE_CLE_SECRETE` | la clé secrète (`sk_test_…` ou `sk_live_…`) |
 | `STRIPE_PRIX_ESSENTIEL` | le tarif de l'offre à 10 fiches/mois (`price_…`) |
 | `STRIPE_PRIX_REGULIER` | le tarif de l'offre à 30 fiches/mois |
-| `STRIPE_PRIX_INTENSIF` | le tarif de l'offre à 70 fiches/mois |
+| `STRIPE_PRIX_INTENSIF` | le tarif de l'offre à 60 fiches/mois |
 | `ORIGINES_AUTORISEES` | les adresses de l'app, séparées par des virgules — **à remplir en production** |
 | `STRIPE_WEBHOOK_SECRET` | facultatif, pour le webhook (`whsec_…`) |
 | `CLAUDE_CLE` | la clé Claude, pour la lecture des photos |

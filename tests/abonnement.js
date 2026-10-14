@@ -206,7 +206,7 @@ function semence(fiches, paiement) {
       /200/.test(await page.innerText('#illimite-comparatif'))
       && /en tout/.test(await page.innerText('#illimite-comparatif'))
       && /1\s000/.test(await page.innerText('#illimite-comparatif'))
-      && /7\s000/.test(await page.innerText('#illimite-comparatif')),
+      && /6\s000/.test(await page.innerText('#illimite-comparatif')),
       await page.innerText('#illimite-comparatif'));
     /* Cinq colonnes sur 390 px : si le tableau déborde, deux offres
        deviennent invisibles sans que l'élève sache qu'il faut faire

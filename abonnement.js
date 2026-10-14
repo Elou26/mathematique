@@ -65,7 +65,7 @@ const ABONNEMENT = (function () {
       },
       {
         cle: "intensif", nom: "Intensif", prix: "14,90 €", periode: "par mois",
-        fiches: 70, argument: "Pour les semaines de révisions à plein régime.",
+        fiches: 60, argument: "Pour les semaines de révisions à plein régime.",
       },
     ],
   };
