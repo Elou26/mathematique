@@ -56,15 +56,15 @@ const ABONNEMENT = (function () {
        ———————————————————————————————————————————————————————————— */
     offres: [
       {
-        cle: "essentiel", nom: "Essentiel", prix: "4,90 €", periode: "par mois",
+        cle: "essentiel", nom: "Essentiel", prix: "4,90 €", cents: 490, periode: "par mois",
         fiches: 10, argument: "Pour une matière, ou un trimestre tranquille.",
       },
       {
-        cle: "regulier", nom: "Régulier", prix: "9,90 €", periode: "par mois",
+        cle: "regulier", nom: "Régulier", prix: "9,90 €", cents: 990, periode: "par mois",
         fiches: 30, argument: "Toutes tes matières, toute l'année.", conseille: true,
       },
       {
-        cle: "intensif", nom: "Intensif", prix: "14,90 €", periode: "par mois",
+        cle: "intensif", nom: "Intensif", prix: "14,90 €", cents: 1490, periode: "par mois",
         fiches: 60, argument: "Pour les semaines de révisions à plein régime.",
       },
     ],
@@ -216,6 +216,40 @@ const ABONNEMENT = (function () {
   }
 
   function offres() { return CONFIG.offres.slice(); }
+
+  /* ————— Ce que coûte vraiment une fiche ————————————————————————
+     Un prix barré est, en droit français, un prix de référence : un prix
+     qu'on a réellement pratiqué. Brainoko n'a jamais été vendu plus cher,
+     donc barrer un montant inventé serait une fausse réduction.
+
+     Le prix à la fiche dit la même chose et il est vrai : 0,25 € contre
+     0,49 €, l'élève voit tout de suite ce que le palier lui fait gagner.
+     ———————————————————————————————————————————————————————————— */
+
+  /** Le prix d'une fiche, en centimes, pour une offre donnée. */
+  function centsParFiche(offre) {
+    if (!offre || !offre.cents || !offre.fiches) return 0;
+    return offre.cents / offre.fiches;
+  }
+
+  /** « 0,25 € la fiche », tel qu'on l'écrit. */
+  function prixParFiche(offre) {
+    const cents = centsParFiche(offre);
+    if (!cents) return "";
+    return `${(cents / 100).toFixed(2).replace(".", ",")} € la fiche`;
+  }
+
+  /**
+   * De combien cette offre descend le prix à la fiche, par rapport à
+   * l'offre la plus chère à l'unité. 0 quand il n'y a rien à dire.
+   */
+  function economieParFiche(offre) {
+    const sien = centsParFiche(offre);
+    if (!sien) return 0;
+    const plusCher = CONFIG.offres.reduce((max, autre) => Math.max(max, centsParFiche(autre)), 0);
+    if (!plusCher || sien >= plusCher) return 0;
+    return Math.round((1 - sien / plusCher) * 100);
+  }
 
   /* ————— Ce que le serveur sait vraiment vendre ————————————————
      Une offre n'existe que si son identifiant de tarif est posé côté
@@ -504,6 +538,7 @@ const ABONNEMENT = (function () {
     creditsParFiche: () => CONFIG.creditsParFiche,
     creditsDe: (fiches) => fiches * CONFIG.creditsParFiche,
     consommation, consommationTotale, noterFiche, moisCourant,
+    prixParFiche, economieParFiche,
     estIllimite, estConfigure, quotaFiches,
     ouvrirPaiement, ouvrirPortail, confirmerSession, verifierLicence, rafraichir, oublier,
     licencePartagee, adopterLicence,

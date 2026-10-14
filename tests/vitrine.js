@@ -75,6 +75,15 @@ function jetons(fichier) {
       attendu.length === 3 && manquants.length === 0,
       manquants.map((o) => o.nom).join(', ') || `${attendu.length} offres`);
 
+    /* L'ancrage honnête : le prix à la fiche, pas un prix barré inventé —
+       en droit français, un prix barré est un prix réellement pratiqué. */
+    verifier('la vitrine donne le prix à la fiche de chaque offre',
+      /0,49 € la fiche/.test(texte) && /0,33 € la fiche/.test(texte)
+      && /0,25 € la fiche/.test(texte), texte.replace(/\n+/g, ' · ').slice(0, 200));
+    verifier('et aucun prix barré ne traîne',
+      !/<s[ >]|<del|line-through/.test(await page.innerHTML('#tarifs')),
+      'un prix barré traîne dans la vitrine');
+
     const parFiche = await page.evaluate(() => ABONNEMENT.creditsParFiche());
     verifier('le coût d\'une fiche est celui du module',
       (await page.innerText('#credits-par-fiche')) === String(parFiche), parFiche);

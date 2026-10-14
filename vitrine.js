@@ -54,6 +54,10 @@
         <p class="offre-prix">${offre.prix}<span> ${offre.periode}</span></p>
         <p class="offre-volume">${offre.fiches} fiches par mois</p>
         <p class="offre-credits">soit ${credits} crédits</p>
+        <p class="offre-unitaire">${ABONNEMENT.prixParFiche(offre)}${
+          ABONNEMENT.economieParFiche(offre)
+            ? ` <span class="offre-gain">− ${ABONNEMENT.economieParFiche(offre)} %</span>`
+            : ""}</p>
         <p class="offre-argument">${offre.argument}</p>
         <a class="bouton ${offre.conseille ? "bouton--principal" : "bouton--creux"}"
            href="${ouvert ? "app.html?vue=abonnement" : "app.html?vue=scan"}">

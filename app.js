@@ -436,6 +436,10 @@
             <span class="tarif-periode">${echapper(offre.periode)}</span></p>
           <p class="offre-volume">${echapper(volume)}</p>
           ${offre.illimite ? "" : `<p class="offre-equivalent">soit ${offre.fiches} fiches</p>`}
+          ${offre.illimite ? "" : `<p class="offre-unitaire">${echapper(OFFRE.prixParFiche(offre))}${
+            OFFRE.economieParFiche(offre)
+              ? ` <span class="offre-gain">− ${OFFRE.economieParFiche(offre)} %</span>`
+              : ""}</p>`}
           <p class="offre-argument">${echapper(offre.argument)}</p>
           ${offre.illimite
             ? `<p class="offre-loyaute">Usage loyal : ${offre.fiches} fiches par mois.

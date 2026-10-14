@@ -876,6 +876,21 @@ est connecté : la licence reviendrait à la synchronisation suivante, et un
 bouton qui ne fait rien est pire que pas de bouton. Sans compte, il reste —
 là, l'appareil est bien le seul endroit où vit la licence.
 
+### Pas de prix barré, un prix à la fiche
+
+Un prix barré est, en droit français, un **prix de référence** : un prix
+réellement pratiqué pendant les trente jours précédents (article L112-1-1 du
+code de la consommation). Brainoko n'a jamais été vendu plus cher, donc
+barrer un montant inventé serait une annonce de réduction illicite — et une
+tromperie envers des élèves.
+
+Chaque carte affiche donc le **prix à la fiche**, et de combien le palier le
+fait baisser : 0,49 € → 0,33 € (− 33 %) → 0,25 € (− 49 %). C'est vrai, c'est
+vérifiable, et ça dit mieux ce que l'élève gagne à monter. `prixParFiche()`
+et `economieParFiche()` le calculent depuis `cents` et `fiches`, à un seul
+endroit. Deux suites vérifient qu'aucun prix barré ne s'est glissé dans
+l'app ou la vitrine.
+
 ### Résilier
 
 Un abonnement pris en ligne doit pouvoir être quitté en ligne, aussi

@@ -2218,6 +2218,24 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
   font-size: 0.82rem;
   color: var(--gris-texte);
 }
+/* Le prix à la fiche : l'ancrage honnête. Pas de prix barré inventé —
+   en droit français un prix barré est un prix réellement pratiqué. */
+.offre-unitaire {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--noir);
+}
+.offre-gain {
+  display: inline-block;
+  margin-left: 0.3rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: #E8F3EC;
+  color: #1E6B3A;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
 .comparatif small { font-weight: 400; color: var(--gris-texte); }
 
 /* ————— Les bulles d'activité ————————————————————————————————————

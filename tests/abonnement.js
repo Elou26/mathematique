@@ -199,6 +199,20 @@ function semence(fiches, paiement) {
       && /soit 10 fiches/.test(await page.innerText('#illimite-offres'))
       && /par mois/.test(await page.innerText('#illimite-offres')),
       await page.innerText('#illimite-offres'));
+    verifier('chaque offre dit ce que coûte vraiment une fiche',
+      /0,49 € la fiche/.test(await page.innerText('#illimite-offres'))
+      && /0,33 € la fiche/.test(await page.innerText('#illimite-offres'))
+      && /0,25 € la fiche/.test(await page.innerText('#illimite-offres')),
+      await page.innerText('#illimite-offres'));
+    verifier('et de combien le palier fait baisser ce prix',
+      /− 33 %/.test(await page.innerText('#illimite-offres'))
+      && /− 49 %/.test(await page.innerText('#illimite-offres')),
+      await page.innerText('#illimite-offres'));
+    /* Un prix barré est, en droit français, un prix réellement pratiqué :
+       on n'en invente pas un pour faire joli. */
+    verifier('aucun prix barré inventé',
+      !/<s>|<del>|line-through/.test(await page.innerHTML('#illimite-offres')),
+      'un prix barré traîne dans les cartes');
     verifier('elle dit ce que l\'abonnement débloque',
       /Lecture de tes photos/.test(await page.innerText('.offre')),
       await page.innerText('.offre').then((t) => t.slice(0, 80)));
