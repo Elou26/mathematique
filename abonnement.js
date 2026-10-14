@@ -152,11 +152,35 @@ const ABONNEMENT = (function () {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   }
 
+  /* ————— La fenêtre que compte « fiches » ————————————————————————
+     Un quota mensuel qui repart le 1er ne tombe pas avec la facture :
+     Stripe prélève à la date d'anniversaire. Qui s'abonne le 28 recevrait
+     son quota, puis un second trois jours plus tard — deux quotas pour un
+     paiement. Et une carte refusée (statut « past_due ») en toucherait un
+     de plus au passage du mois, sans avoir payé.
+
+     Le compteur suit donc la **période payée** quand il y a un abonnement :
+     Stripe dit jusqu'à quand elle court (`expire`), et ce repère ne bouge
+     qu'au prélèvement suivant. Sans abonnement, c'est le mois civil — mais
+     l'essai, lui, se compte sur `total`, qui ne repart jamais.
+     ———————————————————————————————————————————————————————————— */
+  function fenetreCourante() {
+    const courant = etat();
+    /* Au jour près : l'échéance d'une période ne bouge pas jusqu'au
+       prélèvement suivant, et arrondir absorbe les quelques secondes
+       d'écart qu'un renvoi de Stripe pourrait porter — on ne veut pas
+       qu'un compteur reparte parce qu'une date a frémi. */
+    if (courant.actif && courant.expire) {
+      return `p${Math.floor(Number(courant.expire) / 86400000)}`;
+    }
+    return moisCourant();
+  }
+
   /**
    * Deux compteurs, parce qu'ils ne répondent pas à la même question :
    *
-   *   `fiches` — combien ce mois-ci, pour un abonné dont le quota repart
-   *              le 1er ;
+   *   `fiches` — combien sur la période en cours, pour un abonné dont le
+   *              quota repart à chaque mois payé ;
    *   `total`  — combien depuis toujours, pour l'essai, qui ne repart
    *              jamais.
    *
@@ -168,13 +192,14 @@ const ABONNEMENT = (function () {
     let brut = null;
     try { brut = JSON.parse(localStorage.getItem(CLE_CONSOMMATION) || "null"); }
     catch (erreur) { brut = null; }
+    const fenetre = fenetreCourante();
     const duMois = Number(brut && brut.fiches) || 0;
     const total = Math.max(Number(brut && brut.total) || 0, duMois);
-    if (brut && brut.mois === moisCourant()) return { mois: brut.mois, fiches: duMois, total };
-    return { mois: moisCourant(), fiches: 0, total };
+    if (brut && brut.mois === fenetre) return { mois: brut.mois, fiches: duMois, total };
+    return { mois: fenetre, fiches: 0, total };
   }
 
-  /** Combien de fiches ce mois-ci. */
+  /** Combien de fiches sur la période en cours. */
   function consommation() { return journal().fiches; }
 
   /** Combien de fiches depuis l'ouverture du compte. C'est ce que mange l'essai. */
@@ -350,20 +375,18 @@ const ABONNEMENT = (function () {
       ecrire({ actif: false, cle: "", expire: 0, verifieLe: Date.now() });
       return false;
     }
-    /* ————— Le mois commence à l'abonnement ————————————————————
-       Le compteur du mois comptait toutes les fiches du mois civil, essai
-       compris. Un élève qui s'abonnait le 12, après avoir usé ses deux
-       fiches d'essai, recevait 800 crédits sur les 1 000 qu'il venait de
-       payer — et il avait raison de le prendre mal.
+    /* ————— Le mois commence au paiement, pas le 1er ————————————
+       Le compteur comptait toutes les fiches du mois civil, essai compris.
+       Un élève qui s'abonnait le 12, après avoir usé ses deux fiches
+       d'essai, recevait 800 crédits sur les 1 000 qu'il venait de payer —
+       et il avait raison de le prendre mal.
 
-       On remet donc le compteur du mois à zéro au moment où l'abonnement
-       s'ouvre, et seulement à ce moment-là (pas à chaque revérification
-       quotidienne, qui l'effacerait tous les jours). Le total de toujours,
-       lui, n'est pas touché : l'essai reste dépensé.
+       C'est la fenêtre de comptage (voir `fenetreCourante`) qui règle ça :
+       en rangeant la période payée que Stripe vient de dire, le compteur
+       repart de lui-même, et seulement quand une période commence. Une
+       revérification quotidienne, qui rend la même période, ne l'efface
+       pas. Le total de toujours n'est pas touché : l'essai reste dépensé.
        ———————————————————————————————————————————————————————— */
-    const avant = etat();
-    const nouvelAbonnement = !avant || !avant.actif || avant.cle !== String(donnees.cle).slice(0, 80);
-
     ecrire({
       actif: true,
       cle: String(donnees.cle).slice(0, 80),
@@ -371,14 +394,6 @@ const ABONNEMENT = (function () {
       expire: Number(donnees.expire) || 0,
       verifieLe: Date.now(),
     });
-
-    if (nouvelAbonnement) {
-      const suivi = journal();
-      try {
-        localStorage.setItem(CLE_CONSOMMATION,
-          JSON.stringify({ mois: suivi.mois, fiches: 0, total: suivi.total }));
-      } catch (erreur) { /* mémoire seule */ }
-    }
     return true;
   }
 

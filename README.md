@@ -836,11 +836,18 @@ deux côtés : il ne doit jamais redescendre.
 seul — attendre le 1er du mois, et vider sa bibliothèque — plus le cas des
 compteurs enregistrés avant cette règle, qui comptent quand même.
 
-**Le mois commence à l'abonnement.** S'abonner le 12, après avoir usé ses
-deux fiches d'essai, ne doit pas donner 800 crédits sur les 1 000 payés : le
-compteur du mois repart donc de zéro à l'ouverture de l'abonnement — et
-seulement là, pas à chaque revérification quotidienne, qui l'effacerait tous
-les jours. `total`, lui, n'est pas touché : l'essai reste dépensé.
+**Le mois commence au paiement, pas le 1er.** Stripe prélève à la date
+d'anniversaire de l'abonnement ; un quota qui repartirait le 1er du mois
+civil donnerait deux quotas pour un paiement à qui s'abonne le 28, et un
+quota neuf à une carte refusée (statut `past_due`) au passage du mois.
+
+`fiches` se compte donc sur la **période payée** : `fenetreCourante()`
+étiquette le compteur avec l'échéance que Stripe vient de dire (`expire`,
+arrondie au jour, pour qu'une date qui frémit ne recharge rien), ou avec le
+mois civil quand il n'y a pas d'abonnement. Le compteur repart de lui-même
+quand l'étiquette change — c'est-à-dire au prélèvement suivant, et là
+seulement : une revérification quotidienne rend la même période et n'efface
+rien. `total`, lui, n'est jamais touché : l'essai reste dépensé.
 
 ### Une génération à la fois
 

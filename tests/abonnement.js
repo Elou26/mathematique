@@ -22,6 +22,7 @@ function verifier(nom, condition, vu) {
    fait la page, pas ce que fait Stripe (voir tests/serveur-paiement.js). */
 const recu = { paiements: [], licences: [] , offresEnVente: ['essentiel', 'regulier', 'intensif']};
 let offreRendue = 'essentiel';     // l'offre que le faux serveur dit avoir vendue
+let expireRendu = null;            // l'échéance de la période, quand un cas l'impose
 const faux = http.createServer((requete, reponse) => {
   const adresse = new URL(requete.url, 'http://localhost');
   const entetes = {
@@ -55,7 +56,8 @@ const faux = http.createServer((requete, reponse) => {
     const actif = session === 'cs_payee' || cle === 'cus_bon';
     reponse.writeHead(200, entetes);
     reponse.end(JSON.stringify(actif
-      ? { actif: true, cle: 'cus_bon', offre: offreRendue, expire: Date.now() + 30 * 86400000 }
+      ? { actif: true, cle: 'cus_bon', offre: offreRendue,
+          expire: expireRendu || Date.now() + 30 * 86400000 }
       : { actif: false }));
     return;
   }
@@ -401,20 +403,39 @@ function semence(fiches, paiement) {
       /1\s000 crédits sur 1\s000/.test(dit), dit.replace(/\n+/g, ' · '));
 
     /* Et la revérification du lendemain ne doit pas effacer ce qui a été
-       consommé depuis : seule l'ouverture de l'abonnement remet à zéro. */
-    await page.evaluate(() => {
-      const suivi = JSON.parse(localStorage.getItem('mathematique.consommation'));
+       consommé depuis : seule une nouvelle période payée remet à zéro.
+       On écrit donc trois fiches dans la fenêtre en cours — celle que
+       Stripe vient de donner, au jour près. */
+    const fenetre = await page.evaluate(() => {
+      const abo = JSON.parse(localStorage.getItem('mathematique.abonnement'));
+      const f = `p${Math.floor(abo.expire / 86400000)}`;
       localStorage.setItem('mathematique.consommation',
-        JSON.stringify({ ...suivi, fiches: 3 }));
+        JSON.stringify({ mois: f, fiches: 3, total: 5 }));
+      localStorage.setItem('mathematique.abonnement',
+        JSON.stringify({ ...abo, verifieLe: Date.now() - 2 * 86400000 }));
+      return f;
+    });
+    await page.reload(); await page.waitForTimeout(900);
+    await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(300);
+    const apres = await page.innerText('#profil-abonnement');
+    verifier('une revérification ne recharge pas le compteur',
+      /700 crédits sur 1\s000/.test(apres), `${fenetre} · ${apres.replace(/\n+/g, ' · ')}`);
+
+    /* ————— Le mois suivant est payé : le quota repart ————————————
+       Le compteur suit la période payée, pas le 1er du mois : c'est le
+       prélèvement suivant qui le recharge, et lui seul. */
+    expireRendu = Date.now() + 60 * 86400000;        // Stripe a avancé la période
+    await page.evaluate(() => {
       const abo = JSON.parse(localStorage.getItem('mathematique.abonnement'));
       localStorage.setItem('mathematique.abonnement',
         JSON.stringify({ ...abo, verifieLe: Date.now() - 2 * 86400000 }));
     });
     await page.reload(); await page.waitForTimeout(900);
     await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(300);
-    const apres = await page.innerText('#profil-abonnement');
-    verifier('une revérification ne recharge pas le compteur',
-      /700 crédits sur 1\s000/.test(apres), apres.replace(/\n+/g, ' · '));
+    const renouvele = await page.innerText('#profil-abonnement');
+    verifier('une nouvelle période payée recharge le quota entier',
+      /1\s000 crédits sur 1\s000/.test(renouvele), renouvele.replace(/\n+/g, ' · '));
+    expireRendu = null;
     await ctx.close();
   }
 
