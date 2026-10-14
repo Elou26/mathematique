@@ -49,6 +49,17 @@ const faux = http.createServer((requete, reponse) => {
     return;
   }
 
+  if (adresse.pathname === '/portail') {
+    const morceaux = [];
+    requete.on('data', (m) => morceaux.push(m));
+    requete.on('end', () => {
+      recu.portails = (recu.portails || []).concat(JSON.parse(Buffer.concat(morceaux).toString('utf8') || '{}'));
+      reponse.writeHead(200, entetes);
+      reponse.end(JSON.stringify({ url: 'http://localhost:8321/app.html?faux-portail=1' }));
+    });
+    return;
+  }
+
   if (adresse.pathname === '/licence') {
     const session = adresse.searchParams.get('session');
     const cle = adresse.searchParams.get('cle');
@@ -436,6 +447,30 @@ function semence(fiches, paiement) {
     verifier('une nouvelle période payée recharge le quota entier',
       /1\s000 crédits sur 1\s000/.test(renouvele), renouvele.replace(/\n+/g, ' · '));
     expireRendu = null;
+    await ctx.close();
+  }
+
+  /* — Résilier : le profil mène au portail de Stripe ————————————————
+     Un abonnement pris en trois taps doit pouvoir être quitté de même. */
+  {
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(semence([fiche(1)], { api }));
+    const page = await ctx.newPage();
+    await page.goto('http://localhost:8321/app.html?paiement=ok&session=cs_payee');
+    await page.waitForTimeout(900);
+    await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(300);
+
+    const bouton = await page.$('#profil-abonnement [data-offre="gerer"]');
+    verifier('le profil propose de gérer ou résilier l\'abonnement',
+      Boolean(bouton), 'aucun bouton de résiliation');
+    await bouton.click(); await page.waitForTimeout(600);
+    const demande = (recu.portails || [])[0] || {};
+    verifier('et il demande le portail au serveur, avec la licence',
+      demande.cle === 'cus_bon', JSON.stringify(demande));
+    verifier('en disant où revenir ensuite',
+      /app\.html\?vue=profil$/.test(demande.retour || ''), demande.retour);
+    verifier('l\'élève est bien conduit au portail',
+      /faux-portail=1/.test(page.url()), page.url());
     await ctx.close();
   }
 

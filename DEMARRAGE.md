@@ -274,12 +274,19 @@ côté. Tout se refait une fois, dans cet ordre.
 6. Redéploie, puis **vérifie `/api/sante`** : `"mode":"reel"` et
    `"offres":["essentiel"]`. Si `mode` dit encore `test`, la variable n'a
    pas été reprise — un redéploiement est nécessaire après l'avoir changée.
-7. Fais **un vrai paiement sur ta propre carte** : 4,90 € réellement
+7. **Active le portail client** (c'est lui qui permet de résilier) :
+   *Paramètres → Facturation → Portail client* → enregistre une
+   configuration, en autorisant au minimum l'annulation de l'abonnement et
+   la mise à jour du moyen de paiement. Si ta clé est une clé limitée,
+   ajoute-lui la permission **Billing Portal Sessions → écriture**. Sans
+   ça, le bouton « Gérer ou résilier mon abonnement » répond que la gestion
+   n'est pas encore ouverte.
+8. Fais **un vrai paiement sur ta propre carte** : 4,90 € réellement
    débités, ton profil doit passer à Essentiel avec 1 000 crédits. Puis
    rembourse-toi depuis Stripe (*Paiements → le paiement → Rembourser*) et
    résilie l'abonnement (*Clients → ton client → Abonnements*), sinon il se
    reconduit le mois prochain.
-8. **Avant d'encaisser le premier euro**, ajoute deux pages à la vitrine :
+9. **Avant d'encaisser le premier euro**, ajoute deux pages à la vitrine :
    des **mentions légales** (qui édite le site, comment te joindre, l'hébergeur)
    et des **CGV** (ce qui est vendu, le prix, la durée, le droit de
    rétractation). En France, un site qui vend un abonnement doit les afficher.

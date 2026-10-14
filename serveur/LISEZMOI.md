@@ -25,6 +25,7 @@ l'abonnement, on ne fait que le lui demander.
 | `POST /compte-sortir` | invalide toutes les sessions de ce compte |
 | `GET /compte-export` | tout ce qui est gardé, en un fichier (RGPD) |
 | `DELETE /compte-effacer` | efface le compte et ses liens en attente (RGPD) |
+| `POST /portail` | ouvre le portail client de Stripe (résilier, changer de carte, factures) |
 | `GET /sante` | dit si les clés sont bien en place (`pret` pour le paiement, `lecture` pour la lecture, `comptes` pour les comptes), dans quel `mode` Stripe tourne (`test` ou `reel`) et quelles `offres` sont réellement vendables |
 
 La licence dit aussi **quelle offre** a été payée : le tarif de l'abonnement Stripe le révèle, donc

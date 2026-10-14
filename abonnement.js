@@ -328,7 +328,14 @@ const ABONNEMENT = (function () {
         signal: controleur.signal,
         headers: { "Content-Type": "application/json", ...(options && options.headers) },
       });
-      if (!reponse.ok) throw { code: reponse.status === 404 ? "introuvable" : "serveur" };
+      if (!reponse.ok) {
+        /* Le serveur nomme ce qui cloche (« portail_non_configure »…) :
+           le dire à l'élève vaut mieux qu'un « erreur » pour tout. */
+        let dit = null;
+        try { dit = await reponse.json(); } catch (erreur) { dit = null; }
+        const motif = (dit && dit.erreur) || "";
+        throw { code: reponse.status === 404 ? "introuvable" : (motif || "serveur") };
+      }
       return await reponse.json();
     } catch (erreur) {
       if (erreur && erreur.code) throw erreur;
@@ -350,6 +357,25 @@ const ABONNEMENT = (function () {
       body: JSON.stringify({
         appareil: appareil(),
         offre: choisie.cle,
+        retour: retour || window.location.href.split("?")[0],
+      }),
+    });
+    if (!donnees || !donnees.url) throw { code: "serveur" };
+    return donnees.url;
+  }
+
+  /**
+   * Ouvre le portail client de Stripe : résilier, changer de carte, lire
+   * ses factures. C'est Stripe qui tient cet écran, à jour et complet ;
+   * l'app n'a qu'à y conduire.
+   */
+  async function ouvrirPortail({ retour, entetes } = {}) {
+    const courant = etat();
+    const donnees = await demander("/portail", {
+      method: "POST",
+      headers: entetes || {},
+      body: JSON.stringify({
+        cle: courant.cle || "",
         retour: retour || window.location.href.split("?")[0],
       }),
     });
@@ -479,7 +505,7 @@ const ABONNEMENT = (function () {
     creditsDe: (fiches) => fiches * CONFIG.creditsParFiche,
     consommation, consommationTotale, noterFiche, moisCourant,
     estIllimite, estConfigure, quotaFiches,
-    ouvrirPaiement, confirmerSession, verifierLicence, rafraichir, oublier,
+    ouvrirPaiement, ouvrirPortail, confirmerSession, verifierLicence, rafraichir, oublier,
     licencePartagee, adopterLicence,
     sessionDeRetour, nettoyerAdresse, etat,
   };

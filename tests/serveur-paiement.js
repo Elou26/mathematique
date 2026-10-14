@@ -47,6 +47,17 @@ function fauxStripe() {
         }] };
       },
     },
+    billingPortal: {
+      sessions: {
+        create: async (options) => {
+          journal.portails = (journal.portails || []).concat(options);
+          if (options.customer === 'cus_sansportail') {
+            const e = new Error('No configuration provided'); e.type = 'StripeInvalidRequestError'; throw e;
+          }
+          return { url: 'https://billing.stripe.com/p/session/abc' };
+        },
+      },
+    },
     prices: {
       retrieve: async (id) => {
         /* « price_regulier » joue ici le tarif resté en mode test après le
@@ -229,6 +240,44 @@ serveur.listen(0, async () => {
   const malforme = await appeler('/licence?cle=oups');
   verifier('une clé malformée est refusée',
     malforme.code === 400, JSON.stringify(malforme.corps));
+
+  /* — 5 bis. Résilier : le portail client de Stripe ————————————————
+     Un abonnement pris en ligne doit pouvoir être quitté en ligne. On n'
+     écrit pas cet écran : on y conduit. */
+  const portail = await appeler('/portail', { method: 'POST',
+    corps: { cle: 'cus_abc', retour: 'http://localhost:8321/app.html?vue=profil' } });
+  verifier('le portail de résiliation s\'ouvre sur une adresse Stripe',
+    portail.code === 200 && /^https:\/\/billing\.stripe\.com\//.test(portail.corps.url || ''),
+    JSON.stringify(portail.corps));
+  const demandePortail = (journal.portails || [])[0] || {};
+  verifier('il ramène l\'élève là d\'où il vient',
+    demandePortail.return_url === 'http://localhost:8321/app.html',
+    demandePortail.return_url);
+  verifier('et il est ouvert pour le bon client',
+    demandePortail.customer === 'cus_abc', demandePortail.customer);
+
+  const sansCle = await appeler('/portail', { method: 'POST',
+    corps: { retour: 'http://localhost:8321/app.html' } });
+  verifier('sans licence, aucun portail ne s\'ouvre',
+    sansCle.code === 401, JSON.stringify(sansCle.corps));
+
+  const malFormee = await appeler('/portail', { method: 'POST',
+    corps: { cle: 'oups', retour: 'http://localhost:8321/app.html' } });
+  verifier('une clé malformée non plus',
+    malFormee.code === 401, JSON.stringify(malFormee.corps));
+
+  const pasConfigure = await appeler('/portail', { method: 'POST',
+    corps: { cle: 'cus_sansportail', retour: 'http://localhost:8321/app.html' } });
+  verifier('un portail non configuré chez Stripe se dit, au lieu d\'une page blanche',
+    pasConfigure.code === 409 && pasConfigure.corps.erreur === 'portail_non_configure',
+    JSON.stringify(pasConfigure.corps));
+
+  const ailleursPortail = await appeler('/portail', { method: 'POST',
+    corps: { cle: 'cus_abc', retour: 'https://brainoko.com.pirate.net/app.html' } });
+  verifier('un domaine sosie ne détourne pas le retour du portail',
+    ailleursPortail.code === 200
+      && (journal.portails || []).slice(-1)[0].return_url === 'http://localhost:8321/app.html',
+    JSON.stringify((journal.portails || []).slice(-1)[0]));
 
   /* — 6. Aucune donnée sensible ne sort — */
   const fuite = JSON.stringify(licence.corps);

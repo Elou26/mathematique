@@ -717,6 +717,9 @@ const COMPTE = (function () {
     demander, synchroniser, pousser, noterSuppression,
     sortir, effacer, exporter, peindre,
     connecte: () => Boolean(session()),
+    /* Pour les appels d'un autre module qui doivent se présenter au nom de
+       l'élève — le portail de résiliation, par exemple. */
+    entetes: () => (session() ? { Authorization: `Bearer ${session()}` } : {}),
     courriel,
     surChangement: (fn) => { if (typeof fn === "function") abonnes.push(fn); },
     /* exposés pour les tests */

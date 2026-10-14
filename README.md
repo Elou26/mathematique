@@ -876,6 +876,24 @@ est connecté : la licence reviendrait à la synchronisation suivante, et un
 bouton qui ne fait rien est pire que pas de bouton. Sans compte, il reste —
 là, l'appareil est bien le seul endroit où vit la licence.
 
+### Résilier
+
+Un abonnement pris en ligne doit pouvoir être quitté en ligne, aussi
+simplement qu'il a été pris. Le profil mène donc au **portail client de
+Stripe** (`POST /portail`) : résiliation, changement de carte, factures. On
+n'écrit pas cet écran, on y conduit — il est à jour, complet, et aucune
+donnée bancaire ne traverse le serveur.
+
+Qui a le droit de l'ouvrir : le compte d'abord, puisque c'est lui qui porte
+la licence ; à défaut — comptes éteints, élève qui a payé sans s'inscrire —
+la clé `cus_…`, comme pour `/licence`. Elle ouvre déjà l'accès payant, elle
+ouvre donc aussi la porte pour s'en aller.
+
+Le portail se configure **une fois** dans le tableau de bord Stripe
+(*Paramètres → Facturation → Portail client*) et la clé limitée a besoin de
+*Billing Portal Sessions → écriture*. Tant que ce n'est pas fait, Stripe
+refuse et l'app le dit, au lieu d'ouvrir une page blanche.
+
 ### Une génération à la fois
 
 Deux fiches lancées en même temps, c'est deux attentes sur un téléphone qui

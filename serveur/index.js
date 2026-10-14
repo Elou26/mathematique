@@ -153,6 +153,34 @@ function licenceDe(abonnement, client) {
   };
 }
 
+/* ————— Où l'on revient après Stripe ——————————————————————————
+   Deux pièges, et on est tombé dans les deux.
+
+   Le premier : ne garder que l'origine renvoyait l'élève sur la vitrine,
+   qui ne sait pas confirmer un paiement — c'est l'app qui le fait. On garde
+   donc le chemin demandé (/app.html), sans la requête ni l'ancre.
+
+   Le second : comparer avec startsWith() laissait passer
+   « https://brainoko.com.pirate.net/ », qui commence bien par l'origine
+   autorisée. On compare les origines, pas les débuts de chaîne.
+
+   Rend "" si rien d'acceptable ne s'en dégage.
+   ———————————————————————————————————————————————————————————— */
+function adresseDeRetour(voulueBrute) {
+  const parDefaut = ORIGINES.length ? `${ORIGINES[0].replace(/\/+$/, "")}/app.html` : "";
+  let base = "";
+  try {
+    const voulue = new URL(String(voulueBrute || ""));
+    const permise = !ORIGINES.length || ORIGINES.some((o) => {
+      try { return new URL(o).origin === voulue.origin; } catch (erreur) { return false; }
+    });
+    base = permise ? `${voulue.origin}${voulue.pathname}` : parDefaut;
+  } catch (erreur) {
+    base = parDefaut;
+  }
+  return /^https?:\/\//.test(base) ? base : "";
+}
+
 /* ————— Les routes ————————————————————————————————————————————— */
 
 /** Crée la session de paiement et renvoie son adresse. */
@@ -169,29 +197,8 @@ async function creerPaiement(corps, origine) {
   const appareil = String((corps && corps.appareil) || "").slice(0, 64) || undefined;
   const retour = String((corps && corps.retour) || "").slice(0, 500);
 
-  /* ————— Où Stripe nous renvoie ————————————————————————————————
-     Deux pièges, et on est tombé dans les deux.
-
-     Le premier : ne garder que l'origine renvoyait l'élève sur la vitrine,
-     qui ne sait pas confirmer un paiement — c'est l'app qui le fait. On
-     garde donc le chemin demandé (/app.html), sans la requête ni l'ancre.
-
-     Le second : comparer avec startsWith() laissait passer
-     « https://brainoko.com.pirate.net/ », qui commence bien par l'origine
-     autorisée. On compare les origines, pas les débuts de chaîne.
-     ———————————————————————————————————————————————————————————— */
-  const parDefaut = ORIGINES.length ? `${ORIGINES[0].replace(/\/+$/, "")}/app.html` : "";
-  let base = "";
-  try {
-    const voulue = new URL(retour);
-    const permise = !ORIGINES.length || ORIGINES.some((o) => {
-      try { return new URL(o).origin === voulue.origin; } catch (erreur) { return false; }
-    });
-    base = permise ? `${voulue.origin}${voulue.pathname}` : parDefaut;
-  } catch (erreur) {
-    base = parDefaut;
-  }
-  if (!base || !/^https?:\/\//.test(base)) return { code: 400, corps: { erreur: "retour_invalide" } };
+  const base = adresseDeRetour(retour);
+  if (!base) return { code: 400, corps: { erreur: "retour_invalide" } };
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
@@ -204,6 +211,64 @@ async function creerPaiement(corps, origine) {
   });
 
   return { code: 200, corps: { url: session.url } };
+}
+
+/* ————— Résilier ——————————————————————————————————————————————
+   Un abonnement vendu en ligne doit pouvoir être résilié en ligne, aussi
+   simplement qu'il a été pris — c'est la loi, et c'est surtout la moindre
+   des choses. Plutôt que d'écrire un écran de résiliation (et la mise à
+   jour de carte, et les factures, et les relances), on ouvre le portail
+   client de Stripe : il fait tout cela, il est à jour, et aucune donnée
+   bancaire ne traverse ce serveur.
+
+   Qui a le droit de l'ouvrir ? Le compte d'abord : c'est lui qui porte la
+   licence depuis que l'abonnement suit le compte. À défaut — comptes
+   éteints, élève qui a payé sans s'inscrire — la clé `cus_…` fait foi,
+   comme pour /licence : elle ouvre déjà l'accès payant, elle ouvre donc
+   aussi la porte pour s'en aller.
+   ———————————————————————————————————————————————————————————— */
+async function clientDeLaDemande(corps, entetes) {
+  if (COMPTES.configure()) {
+    try {
+      const compte = await COMPTES.compteDeLaRequete(entetes);
+      if (compte) {
+        const vue = await COMPTES.lireBibliotheque(compte);
+        const licence = vue && vue.corps && vue.corps.donnees && vue.corps.donnees.licence;
+        const cle = (licence && licence.cle) || "";
+        if (/^cus_[A-Za-z0-9]+$/.test(cle)) return cle;
+      }
+    } catch (erreur) { /* base muette : il reste la clé */ }
+  }
+  const brute = String((corps && corps.cle) || "");
+  return /^cus_[A-Za-z0-9]+$/.test(brute) ? brute : "";
+}
+
+async function ouvrirPortail(corps, entetes) {
+  if (!stripe) return { code: 500, corps: { erreur: "serveur_non_configure" } };
+  if (!stripe.billingPortal || !stripe.billingPortal.sessions) {
+    return { code: 501, corps: { erreur: "portail_indisponible" } };
+  }
+
+  const client = await clientDeLaDemande(corps, entetes);
+  if (!client) return { code: 401, corps: { erreur: "licence_inconnue" } };
+
+  const retour = adresseDeRetour(String((corps && corps.retour) || "").slice(0, 500));
+  if (!retour) return { code: 400, corps: { erreur: "retour_invalide" } };
+
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: client, return_url: retour, locale: "fr",
+    });
+    return { code: 200, corps: { url: session.url } };
+  } catch (erreur) {
+    /* Le portail se configure une fois dans le tableau de bord. Tant que
+       ce n'est pas fait, Stripe refuse — et l'élève doit l'apprendre
+       autrement que par une page blanche. */
+    if (erreur && erreur.type === "StripeInvalidRequestError") {
+      return { code: 409, corps: { erreur: "portail_non_configure" } };
+    }
+    throw erreur;
+  }
 }
 
 /** Répond « actif » ou non, à partir d'une session ou d'une clé de licence. */
@@ -537,6 +602,19 @@ async function router(requete, reponse) {
     return;
   }
 
+  if (chemin === "/portail" && requete.method === "POST") {
+    let corps = {};
+    try { corps = JSON.parse((await lireCorps(requete)).toString("utf8") || "{}"); }
+    catch (erreur) { repondre(reponse, 400, { erreur: "json_invalide" }, origine); return; }
+    try {
+      const resultat = await ouvrirPortail(corps, requete.headers);
+      repondre(reponse, resultat.code, resultat.corps, origine);
+    } catch (erreur) {
+      repondre(reponse, 502, { erreur: "stripe_injoignable" }, origine);
+    }
+    return;
+  }
+
   if (chemin === "/lecture" && requete.method === "POST") {
     let corps = {};
     try { corps = JSON.parse((await lireCorps(requete, OCTETS_MAX)).toString("utf8") || "{}"); }
@@ -707,5 +785,6 @@ if (require.main === module) {
 module.exports = router;
 module.exports.router = router;
 module.exports.__creerPaiement = creerPaiement;
+module.exports.__ouvrirPortail = ouvrirPortail;
 module.exports.__lirePhotos = lirePhotos;
 module.exports.__lireLicence = lireLicence;

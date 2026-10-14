@@ -494,6 +494,9 @@
     delai: "Le service de paiement met trop de temps à répondre. Réessaie dans un instant.",
     serveur: "Le service de paiement a répondu de travers. Réessaie dans un instant.",
     introuvable: "Cette clé d'abonnement est inconnue.",
+    portail_non_configure: "La gestion de l'abonnement n'est pas encore ouverte côté Stripe. Écris-nous, on résilie à la main.",
+    portail_indisponible: "La gestion de l'abonnement n'est pas disponible sur cette version.",
+    licence_inconnue: "Aucun abonnement trouvé pour ce compte.",
   };
 
   async function lancerPaiement(cle) {
@@ -516,6 +519,28 @@
       messageIllimite(ENNUIS_PAIEMENT[code] || ENNUIS_PAIEMENT.serveur, "erreur");
     } finally {
       boutons.forEach((b) => { b.disabled = false; });
+    }
+  }
+
+  /**
+   * Conduit au portail client de Stripe : résilier, changer de carte, lire
+   * ses factures. Résilier doit être aussi simple que s'abonner — et c'est
+   * Stripe qui tient cet écran, pas nous.
+   */
+  async function ouvrirGestionAbonnement(bouton) {
+    if (!OFFRE || !OFFRE.estConfigure()) return;
+    const texte = bouton ? bouton.textContent : "";
+    if (bouton) { bouton.disabled = true; bouton.textContent = "Ouverture…"; }
+    try {
+      const url = await OFFRE.ouvrirPortail({
+        retour: `${window.location.origin}${window.location.pathname}?vue=profil`,
+        entetes: typeof COMPTE !== "undefined" ? COMPTE.entetes() : {},
+      });
+      window.location.href = url;
+    } catch (erreur) {
+      const code = (erreur && erreur.code) || "serveur";
+      toast(ENNUIS_PAIEMENT[code] || ENNUIS_PAIEMENT.serveur);
+      if (bouton) { bouton.disabled = false; bouton.textContent = texte; }
     }
   }
 
@@ -608,6 +633,7 @@
              ${secours}`
           : sansCompte}
         <button class="bouton-texte" type="button" data-offre="payer">Changer d'offre</button>
+        <button class="bouton-texte" type="button" data-offre="gerer">Gérer ou résilier mon abonnement</button>
         ${avecCompte ? "" :
           `<button class="bouton-texte" type="button" data-offre="oublier">Retirer l'abonnement de cet appareil</button>`}`;
     } else {
@@ -624,6 +650,7 @@
     $$("[data-offre]", bloc).forEach((bouton) => {
       bouton.addEventListener("click", () => {
         if (bouton.dataset.offre === "payer") { ouvrirPageIllimite(null, "profil"); return; }
+        if (bouton.dataset.offre === "gerer") { ouvrirGestionAbonnement(bouton); return; }
         OFFRE.oublier();
         majBibliotheque();
         toast("Abonnement retiré de cet appareil.");
