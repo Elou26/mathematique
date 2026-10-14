@@ -257,6 +257,19 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 /* Le prix à la fiche : ce que le palier fait vraiment gagner. Pas de prix
    barré inventé — un prix barré est un prix qu'on a réellement pratiqué. */
 .offre-unitaire { margin: 6px 0 0; font-size: 14px; font-weight: 700; color: var(--marine); }
+/* Le tarif de lancement : licite parce que vrai — le jour dit, les prix
+   montent pour de bon. La mention s'éteint toute seule après la date. */
+.mention--lancement { color: #8A6214; font-weight: 700; }
+.offre-lancement {
+  margin: -0.1rem 0 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 10px;
+  background: #FDF8EE;
+  color: #8A6214;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
 .offre-gain {
   display: inline-block;
   margin-left: 4px;

@@ -52,6 +52,9 @@
         ${offre.conseille ? '<span class="offre-ruban">Conseillé</span>' : ""}
         <p class="offre-nom">${offre.nom}</p>
         <p class="offre-prix">${offre.prix}<span> ${offre.periode}</span></p>
+        ${ABONNEMENT.prixApres(offre)
+          ? `<p class="offre-lancement">Lancement — ensuite ${ABONNEMENT.prixApres(offre)}</p>`
+          : ""}
         <p class="offre-volume">${offre.fiches} fiches par mois</p>
         <p class="offre-credits">soit ${credits} crédits</p>
         <p class="offre-unitaire">${ABONNEMENT.prixParFiche(offre)}${
@@ -65,6 +68,16 @@
         </a>`;
       hote.appendChild(carte);
     });
+
+    /* Une seule fois sous les cartes : la promesse, pas le matraquage. */
+    const note = document.querySelector("#tarifs-lancement");
+    if (note) {
+      const actif = ABONNEMENT.lancementActif();
+      note.hidden = !actif;
+      note.textContent = actif
+        ? `Tarifs de lancement jusqu'au ${ABONNEMENT.finDuLancement()}. En t'abonnant avant, tu gardes ton prix tant que tu restes abonné.`
+        : "";
+    }
   }
 
   /* ————— Celui qui revient ——————————————————————————————————— */

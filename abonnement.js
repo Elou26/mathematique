@@ -54,17 +54,31 @@ const ABONNEMENT = (function () {
        une offre sans compteur affiché : il garde le plafond mais cesse de
        l'annoncer comme une limite.
        ———————————————————————————————————————————————————————————— */
+    /* ————— Le tarif de lancement ————————————————————————————————
+       Annoncer « ce prix va augmenter » est licite, contrairement à un
+       prix barré inventé — à une condition : que ce soit vrai. Le jour
+       dit, les tarifs doivent réellement monter, chez Stripe et ici.
+
+       `jusquau` est le dernier jour du tarif de lancement. Passée cette
+       date, la mention disparaît d'elle-même : mieux vaut plus de mention
+       du tout qu'une promesse périmée qui traîne.
+
+       Pour arrêter l'opération : mettre `lancement` à null. */
+    lancement: {
+      jusquau: "2026-11-30",
+    },
+
     offres: [
       {
-        cle: "essentiel", nom: "Essentiel", prix: "4,90 €", cents: 490, periode: "par mois",
+        cle: "essentiel", nom: "Essentiel", prix: "4,90 €", cents: 490, apres: "6,90 €", periode: "par mois",
         fiches: 10, argument: "Pour une matière, ou un trimestre tranquille.",
       },
       {
-        cle: "regulier", nom: "Régulier", prix: "9,90 €", cents: 990, periode: "par mois",
+        cle: "regulier", nom: "Régulier", prix: "9,90 €", cents: 990, apres: "12,90 €", periode: "par mois",
         fiches: 30, argument: "Toutes tes matières, toute l'année.", conseille: true,
       },
       {
-        cle: "intensif", nom: "Intensif", prix: "14,90 €", cents: 1490, periode: "par mois",
+        cle: "intensif", nom: "Intensif", prix: "14,90 €", cents: 1490, apres: "19,90 €", periode: "par mois",
         fiches: 60, argument: "Pour les semaines de révisions à plein régime.",
       },
     ],
@@ -225,6 +239,37 @@ const ABONNEMENT = (function () {
      Le prix à la fiche dit la même chose et il est vrai : 0,25 € contre
      0,49 €, l'élève voit tout de suite ce que le palier lui fait gagner.
      ———————————————————————————————————————————————————————————— */
+
+  /* ————— L'opération de lancement ————————————————————————————————
+     Elle ne vaut que tant qu'elle est vraie : passée la date annoncée, la
+     mention s'éteint toute seule. Reste à monter les prix pour de bon,
+     chez Stripe et dans `offres` — c'est le seul geste que le code ne peut
+     pas faire à ta place.
+     ———————————————————————————————————————————————————————————— */
+
+  /** L'opération court-elle encore ? */
+  function lancementActif() {
+    const regle = CONFIG.lancement;
+    if (!regle || !regle.jusquau) return false;
+    const fin = Date.parse(`${regle.jusquau}T23:59:59`);
+    return Number.isFinite(fin) && Date.now() <= fin;
+  }
+
+  /** « 30 novembre », pour l'écrire dans une phrase. */
+  function finDuLancement() {
+    const regle = CONFIG.lancement;
+    if (!lancementActif()) return "";
+    const date = new Date(`${regle.jusquau}T12:00:00`);
+    try {
+      return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long" }).format(date);
+    } catch (erreur) { return regle.jusquau; }
+  }
+
+  /** Le prix annoncé pour après l'opération, s'il y en a un. */
+  function prixApres(offre) {
+    if (!lancementActif() || !offre || !offre.apres) return "";
+    return String(offre.apres);
+  }
 
   /** Le prix d'une fiche, en centimes, pour une offre donnée. */
   function centsParFiche(offre) {
@@ -539,6 +584,7 @@ const ABONNEMENT = (function () {
     creditsDe: (fiches) => fiches * CONFIG.creditsParFiche,
     consommation, consommationTotale, noterFiche, moisCourant,
     prixParFiche, economieParFiche,
+    lancementActif, finDuLancement, prixApres,
     estIllimite, estConfigure, quotaFiches,
     ouvrirPaiement, ouvrirPortail, confirmerSession, verifierLicence, rafraichir, oublier,
     licencePartagee, adopterLicence,

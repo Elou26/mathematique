@@ -199,6 +199,16 @@ function semence(fiches, paiement) {
       && /soit 10 fiches/.test(await page.innerText('#illimite-offres'))
       && /par mois/.test(await page.innerText('#illimite-offres')),
       await page.innerText('#illimite-offres'));
+    /* Le tarif de lancement : licite parce que vrai — on annonce une
+       hausse à venir, on ne barre pas un prix jamais pratiqué. */
+    verifier('le tarif de lancement annonce le prix d\'après',
+      /Lancement — ensuite 6,90 €/.test(await page.innerText('#illimite-offres'))
+      && /Lancement — ensuite 12,90 €/.test(await page.innerText('#illimite-offres')),
+      await page.innerText('#illimite-offres'));
+    verifier('et la promesse ne se dit qu\'une fois, sous les cartes',
+      /gardes ton prix/.test(await page.innerText('#illimite-note-lancement')),
+      await page.innerText('#illimite-note-lancement').catch(() => '—'));
+
     verifier('chaque offre dit ce que coûte vraiment une fiche',
       /0,49 € la fiche/.test(await page.innerText('#illimite-offres'))
       && /0,33 € la fiche/.test(await page.innerText('#illimite-offres'))
@@ -541,6 +551,22 @@ function semence(fiches, paiement) {
     verifier('et l\'adresse est nettoyée du marqueur',
       !/portail=ok/.test(page.url()), page.url());
     offreRendue = 'essentiel';
+    await ctx.close();
+  }
+
+  /* — Une opération de lancement périmée s'efface d'elle-même ————————
+     Une promesse datée qui traîne après sa date est pire que pas de
+     promesse : elle dit que l'annonce n'était pas sérieuse. */
+  {
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(semence([fiche(1)], { api, lancement: { jusquau: '2020-01-31' } }));
+    const page = await ctx.newPage();
+    await page.goto('http://localhost:8321/app.html?vue=abonnement'); await page.waitForTimeout(900);
+    verifier('passée la date, plus un mot de lancement sur les cartes',
+      !/Lancement/.test(await page.innerText('#illimite-offres')),
+      await page.innerText('#illimite-offres').then((t) => t.slice(0, 120)));
+    verifier('ni sous les cartes',
+      !(await page.isVisible('#illimite-note-lancement')), 'la promesse périmée est restée');
     await ctx.close();
   }
 

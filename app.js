@@ -434,6 +434,9 @@
           <h3 class="offre-nom">${echapper(offre.nom)}</h3>
           <p class="offre-prix"><strong>${echapper(offre.prix)}</strong>
             <span class="tarif-periode">${echapper(offre.periode)}</span></p>
+          ${OFFRE.prixApres(offre)
+            ? `<p class="offre-lancement">Lancement — ensuite ${echapper(OFFRE.prixApres(offre))}</p>`
+            : ""}
           <p class="offre-volume">${echapper(volume)}</p>
           ${offre.illimite ? "" : `<p class="offre-equivalent">soit ${offre.fiches} fiches</p>`}
           ${offre.illimite ? "" : `<p class="offre-unitaire">${echapper(OFFRE.prixParFiche(offre))}${
@@ -451,6 +454,17 @@
           </button>
         </article>`;
     }).join("");
+
+    /* La promesse du lancement se dit une fois, sous les trois cartes :
+       répétée sur chacune, elle mangeait la carte. */
+    const lancement = $("#illimite-note-lancement");
+    if (lancement) {
+      const actif = OFFRE.lancementActif();
+      lancement.hidden = !actif;
+      lancement.textContent = actif
+        ? `Tarifs de lancement jusqu'au ${OFFRE.finDuLancement()}. En t'abonnant avant, tu gardes ton prix tant que tu restes abonné.`
+        : "";
+    }
 
     /* Déjà abonné : le changement se fait chez Stripe, qui ajuste le
        prélèvement au prorata. Autant le dire avant le clic. */

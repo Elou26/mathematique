@@ -891,6 +891,25 @@ et `economieParFiche()` le calculent depuis `cents` et `fiches`, à un seul
 endroit. Deux suites vérifient qu'aucun prix barré ne s'est glissé dans
 l'app ou la vitrine.
 
+### Le tarif de lancement
+
+Annoncer « ce prix va augmenter » est licite, contrairement à un prix barré
+inventé — à une condition : que ce soit vrai. Le jour dit, les prix doivent
+réellement monter, chez Stripe **et** dans `CONFIG.offres`.
+
+`CONFIG.lancement.jusquau` porte la date, chaque offre porte son `apres`.
+Les cartes disent « Lancement — ensuite 6,90 € », et la promesse (« tu
+gardes ton prix tant que tu restes abonné ») se dit **une seule fois** sous
+les cartes : répétée sur chacune, elle les mangeait.
+
+Passée la date, la mention s'efface d'elle-même, partout. Une promesse
+périmée qui traîne est pire que pas de promesse : elle dit que l'annonce
+n'était pas sérieuse. Pour arrêter l'opération plus tôt, `lancement: null`.
+
+Au 15 novembre environ, ces prix auront été pratiqués trente jours : un
+vrai prix de référence existera, et une réduction pourra être annoncée en
+bonne et due forme.
+
 ### Résilier
 
 Un abonnement pris en ligne doit pouvoir être quitté en ligne, aussi
