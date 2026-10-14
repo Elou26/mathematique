@@ -501,6 +501,18 @@
 
   async function lancerPaiement(cle) {
     if (!OFFRE || !OFFRE.estConfigure()) return;
+
+    /* ————— Déjà abonné : on change, on ne rachète pas ——————————
+       Un second passage en caisse ouvre un second abonnement, et l'élève
+       se retrouve prélevé deux fois sans l'avoir demandé. Changer d'offre,
+       c'est modifier celui qui existe — et c'est le portail de Stripe qui
+       sait le faire, avec le prorata qui va avec. */
+    if (OFFRE.estIllimite()) {
+      messageIllimite("Ouverture de la gestion de ton abonnement…");
+      ouvrirGestionAbonnement(null);
+      return;
+    }
+
     const boutons = $$("[data-payer]");
     boutons.forEach((b) => { b.disabled = true; });
     messageIllimite("Ouverture du paiement sécurisé…");
@@ -649,7 +661,13 @@
 
     $$("[data-offre]", bloc).forEach((bouton) => {
       bouton.addEventListener("click", () => {
-        if (bouton.dataset.offre === "payer") { ouvrirPageIllimite(null, "profil"); return; }
+        if (bouton.dataset.offre === "payer") {
+          /* Abonné, « Changer d'offre » mène au portail : repasser en
+             caisse ouvrirait un second abonnement. */
+          if (OFFRE.estIllimite()) { ouvrirGestionAbonnement(bouton); return; }
+          ouvrirPageIllimite(null, "profil");
+          return;
+        }
         if (bouton.dataset.offre === "gerer") { ouvrirGestionAbonnement(bouton); return; }
         OFFRE.oublier();
         majBibliotheque();

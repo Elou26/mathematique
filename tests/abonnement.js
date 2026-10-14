@@ -474,6 +474,28 @@ function semence(fiches, paiement) {
     await ctx.close();
   }
 
+  /* — Changer d'offre quand on est déjà abonné ————————————————————
+     Repasser en caisse ouvrirait un SECOND abonnement : l'élève serait
+     prélevé deux fois sans l'avoir demandé. On passe par le portail. */
+  {
+    recu.paiements.length = 0;
+    recu.portails = [];
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(semence([fiche(1)], { api }));
+    const page = await ctx.newPage();
+    await page.goto('http://localhost:8321/app.html?paiement=ok&session=cs_payee');
+    await page.waitForTimeout(900);
+    await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(300);
+    await page.click('#profil-abonnement [data-offre="payer"]'); await page.waitForTimeout(700);
+
+    verifier('déjà abonné, « changer d\'offre » ne repasse pas en caisse',
+      recu.paiements.length === 0, JSON.stringify(recu.paiements));
+    verifier('il mène au portail, qui sait modifier un abonnement',
+      (recu.portails || []).length === 1 && /faux-portail=1/.test(page.url()),
+      `${(recu.portails || []).length} · ${page.url()}`);
+    await ctx.close();
+  }
+
   /* — Un seul tarif créé chez Stripe : une seule offre proposée ————
      Pendant la configuration, on commence par un tarif. Proposer les deux
      autres mènerait l'élève sur une erreur « offre inconnue ». */
