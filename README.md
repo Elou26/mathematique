@@ -894,6 +894,12 @@ Le portail se configure **une fois** dans le tableau de bord Stripe
 *Billing Portal Sessions → écriture*. Tant que ce n'est pas fait, Stripe
 refuse et l'app le dit, au lieu d'ouvrir une page blanche.
 
+**Changer d'offre se regarde ici, se fait chez Stripe.** « Changer d'offre »
+rouvre la page de tarif de l'app — les trois cartes et le comparatif, qui
+expliquent mieux que le portail ce qu'on achète. C'est le clic sur une
+carte qui mène au portail, et les cartes le disent (« Passer à cette
+offre », plus une ligne sur le prorata).
+
 **Changer d'offre ne repasse pas en caisse.** Une seconde session Checkout
 ouvre un **second** abonnement : l'élève serait prélevé deux fois sans
 l'avoir demandé. Quand une licence est active, « Changer d'offre » et les

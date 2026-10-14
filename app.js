@@ -419,6 +419,7 @@
     const bloc = $("#illimite-offres");
     if (!bloc || !OFFRE) return;
     const active = OFFRE.offreActive();
+    const abonne = OFFRE.estIllimite();
 
     bloc.innerHTML = OFFRE.offresEnVente().map((offre) => {
       const sienne = active && active.cle === offre.cle;
@@ -442,10 +443,20 @@
             : ""}
           <button class="${offre.conseille ? "bouton-principal" : "bouton-secondaire"}" type="button"
                   data-payer="${echapper(offre.cle)}"${pret && !sienne ? "" : " disabled"}>
-            ${sienne ? "Offre en cours" : pret ? "Choisir" : "Bientôt disponible"}
+            ${sienne ? "Offre en cours" : pret ? (abonne ? "Passer à cette offre" : "Choisir") : "Bientôt disponible"}
           </button>
         </article>`;
     }).join("");
+
+    /* Déjà abonné : le changement se fait chez Stripe, qui ajuste le
+       prélèvement au prorata. Autant le dire avant le clic. */
+    const note = $("#illimite-note-changement");
+    if (note) {
+      note.hidden = !abonne;
+      note.textContent = abonne
+        ? "Changer d'offre passe par Stripe, qui ajuste le prélèvement au prorata des jours restants."
+        : "";
+    }
   }
 
   function rendreComparatif() {
@@ -685,13 +696,7 @@
 
     $$("[data-offre]", bloc).forEach((bouton) => {
       bouton.addEventListener("click", () => {
-        if (bouton.dataset.offre === "payer") {
-          /* Abonné, « Changer d'offre » mène au portail : repasser en
-             caisse ouvrirait un second abonnement. */
-          if (OFFRE.estIllimite()) { ouvrirGestionAbonnement(bouton); return; }
-          ouvrirPageIllimite(null, "profil");
-          return;
-        }
+        if (bouton.dataset.offre === "payer") { ouvrirPageIllimite(null, "profil"); return; }
         if (bouton.dataset.offre === "gerer") { ouvrirGestionAbonnement(bouton); return; }
         OFFRE.oublier();
         majBibliotheque();

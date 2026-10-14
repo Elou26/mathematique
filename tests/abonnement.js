@@ -488,9 +488,19 @@ function semence(fiches, paiement) {
     await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(300);
     await page.click('#profil-abonnement [data-offre="payer"]'); await page.waitForTimeout(700);
 
-    verifier('déjà abonné, « changer d\'offre » ne repasse pas en caisse',
+    verifier('« changer d\'offre » montre d\'abord les offres, dans l\'app',
+      await page.isVisible('#vue-abonnement'), 'page de tarif non ouverte');
+    verifier('et prévient que le changement passe par Stripe',
+      /prorata/.test(await page.innerText('#illimite-note-changement')),
+      await page.innerText('#illimite-note-changement').catch(() => '—'));
+    verifier('les cartes disent qu\'on change, pas qu\'on choisit',
+      /Passer à cette offre/.test(await page.innerText('#illimite-offres')),
+      await page.innerText('#illimite-offres').then((t) => t.slice(0, 120)));
+
+    await page.click('#illimite-offres [data-payer="regulier"]'); await page.waitForTimeout(700);
+    verifier('choisir une autre offre ne repasse pas en caisse',
       recu.paiements.length === 0, JSON.stringify(recu.paiements));
-    verifier('il mène au portail, qui sait modifier un abonnement',
+    verifier('elle mène au portail, qui sait modifier un abonnement',
       (recu.portails || []).length === 1 && /faux-portail=1/.test(page.url()),
       `${(recu.portails || []).length} · ${page.url()}`);
     await ctx.close();
