@@ -1495,6 +1495,21 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 }
 .offre-etiquette--actif { background: var(--bleu-pastel); color: var(--marine); }
 .offre-detail { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--noir); }
+.offre-detail--discret { color: var(--gris-texte); font-size: 12.5px; }
+
+/* La clé de secours : rangée, mais à portée de main. */
+.licence-secours { margin: 10px 0 0; }
+.licence-secours > summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--gris-texte);
+  list-style: none;
+}
+.licence-secours > summary::-webkit-details-marker { display: none; }
+.licence-secours > summary::before { content: "▸ "; }
+.licence-secours[open] > summary::before { content: "▾ "; }
+.licence-secours .champ-texte { margin-top: 6px; }
 .offre-etat .bouton-secondaire { margin-top: 12px; }
 .offre-etat .bouton-texte { margin-top: 8px; }
 .offre-etat .champ-texte {

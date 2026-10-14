@@ -865,9 +865,16 @@ encore. Et quitter le compte efface aussi la licence de l'appareil : la
 laisser donnerait l'illimité au frère qui se connecte ensuite sur le
 téléphone de la famille.
 
-La clé `cus_…` reste affichée dans le profil, en secours : elle sert à
-retrouver l'abonnement sans se connecter. Elle ouvre l'accès payant, et
+La clé `cus_…` ne disparaît pas, mais elle se range : connecté, le profil
+annonce que l'abonnement suit le compte et met la clé sous un « Ma clé de
+secours » replié — elle sert encore si les comptes sont injoignables, ou
+pour ouvrir l'accès sans se connecter. Elle ouvre l'accès payant, et
 l'écran le dit.
+
+Le bouton « Retirer l'abonnement de cet appareil » disparaît, lui, quand on
+est connecté : la licence reviendrait à la synchronisation suivante, et un
+bouton qui ne fait rien est pire que pas de bouton. Sans compte, il reste —
+là, l'appareil est bien le seul endroit où vit la licence.
 
 ### Une génération à la fois
 

@@ -370,6 +370,20 @@ async function ouvrir(nav, { semence = '', etat, adresse = 'http://localhost:832
       })), 'profil sans offre');
     verifier('aucune erreur console', autre.soucis.length === 0, autre.soucis.join(' || '));
 
+    /* Connecté, la clé se range et le bouton « retirer de cet appareil »
+       disparaît : la licence reviendrait à la synchronisation suivante. */
+    const profil = await autre.page.innerText('#profil-abonnement');
+    verifier('connecté, l\'écran dit que l\'abonnement suit le compte',
+      /suit ton compte/.test(profil), profil.replace(/\n+/g, ' · '));
+    verifier('la clé est rangée, pas affichée d\'emblée',
+      !(await autre.page.isVisible('#profil-licence')), 'clé affichée');
+    verifier('et le bouton qui ne ferait rien a disparu',
+      !(await autre.page.$('#profil-abonnement [data-offre="oublier"]')), 'bouton encore là');
+    await autre.page.click('.licence-secours summary'); await autre.page.waitForTimeout(200);
+    verifier('mais elle reste accessible en secours',
+      (await autre.page.inputValue('#profil-licence')) === 'cus_bon',
+      await autre.page.inputValue('#profil-licence'));
+
     // En partant, l'abonnement ne reste pas pour le suivant.
     await autre.page.click('#compte-sortir');
     await autre.page.waitForTimeout(700);

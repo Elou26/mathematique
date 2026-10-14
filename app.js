@@ -578,16 +578,38 @@
         : `${quota.credits.toLocaleString("fr-FR")} crédits sur ${quota.creditsMax.toLocaleString("fr-FR")} ce mois-ci,`
           + ` soit ${quota.reste} fiche${quota.reste > 1 ? "s" : ""}.`
           + (quota.reste ? "" : " Le compteur repart au prochain prélèvement.");
+      /* ————— La clé, selon qu'on a un compte ou non ————————————
+         Connecté, l'abonnement suit le compte : la clé ne sert plus qu'en
+         secours (comptes injoignables, accès sans se connecter), et elle
+         se range. Le bouton « retirer de cet appareil », lui, disparaît :
+         la licence reviendrait à la synchronisation suivante, et un bouton
+         qui ne fait rien est pire que pas de bouton.
+         Sans compte, rien n'a changé : la clé est le seul fil. */
+      const avecCompte = typeof COMPTE !== "undefined" && COMPTE.connecte();
+      const secours = `
+        <details class="licence-secours">
+          <summary>Ma clé de secours</summary>
+          <p class="offre-detail offre-detail--discret">Elle retrouve l'abonnement sans se
+            connecter. Elle ouvre l'accès payant : ne la fais pas circuler.</p>
+          <input class="champ-texte" id="profil-licence" type="text" readonly
+            value="${echapper(courant.cle)}">
+        </details>`;
+      const sansCompte = `
+        <label class="champ-libelle champ-libelle--discret" for="profil-licence">
+          Ta clé, pour retrouver l'abonnement sur un autre téléphone</label>
+        <input class="champ-texte" id="profil-licence" type="text" readonly value="${echapper(courant.cle)}">`;
+
       bloc.innerHTML = `
         <p class="offre-etiquette offre-etiquette--actif">${echapper(quota.offre.nom)}</p>
         <p class="offre-detail">${compte} ${fin}</p>
-        <label class="champ-libelle champ-libelle--discret" for="profil-licence">
-          Ton abonnement suit ton compte : connecte-toi avec ton adresse sur
-          l'autre téléphone et il revient. Cette clé n'est qu'un secours —
-          elle ouvre l'accès payant, ne la fais pas circuler.</label>
-        <input class="champ-texte" id="profil-licence" type="text" readonly value="${echapper(courant.cle)}">
+        ${avecCompte
+          ? `<p class="offre-detail offre-detail--discret">Ton abonnement suit ton compte :
+               connecte-toi avec ton adresse sur un autre téléphone, il revient tout seul.</p>
+             ${secours}`
+          : sansCompte}
         <button class="bouton-texte" type="button" data-offre="payer">Changer d'offre</button>
-        <button class="bouton-texte" type="button" data-offre="oublier">Retirer l'abonnement de cet appareil</button>`;
+        ${avecCompte ? "" :
+          `<button class="bouton-texte" type="button" data-offre="oublier">Retirer l'abonnement de cet appareil</button>`}`;
     } else {
       bloc.innerHTML = `
         <p class="offre-etiquette">Essai gratuit</p>
