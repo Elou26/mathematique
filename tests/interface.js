@@ -68,6 +68,22 @@ function verifier(nom, condition, vu) {
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
     const salut = await page.innerText('#bloc-salut');
+    /* Le zoom par mégarde : la balise pour Android et l'app installée, les
+       champs à 16 px pour iOS (en dessous, Safari agrandit à la saisie). */
+    const vue = await page.getAttribute('meta[name="viewport"]', 'content');
+    verifier('la page refuse le zoom là où c\'est possible',
+      /maximum-scale=1/.test(vue) && /user-scalable=no/.test(vue), vue);
+    const champs = await page.evaluate(() => {
+      const trop = [];
+      document.querySelectorAll('input[type="text"], input:not([type]), textarea').forEach((champ) => {
+        const taille = parseFloat(getComputedStyle(champ).fontSize);
+        if (taille < 16) trop.push(`${champ.id || champ.className}: ${taille}px`);
+      });
+      return trop;
+    });
+    verifier('aucun champ sous 16 px, qu\'iOS agrandirait à la saisie',
+      champs.length === 0, champs.join(' | '));
+
     verifier('sans fiche, l\'accueil invite à en créer une',
       /premier cours en photo/.test(salut), salut.replace(/\n+/g, ' / '));
 

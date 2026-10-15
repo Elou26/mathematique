@@ -80,6 +80,13 @@
     }
   }
 
+  /* Safari ignore « user-scalable=no » : les gestes, eux, s'arrêtent. Le
+     zoom par les réglages du téléphone reste possible. */
+  ["gesturestart", "gesturechange", "gestureend"].forEach((nom) => {
+    document.addEventListener(nom, (evenement) => evenement.preventDefault(), { passive: false });
+  });
+
+
   /* ————— Celui qui revient ——————————————————————————————————— */
 
   function compterLesFiches() {

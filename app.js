@@ -5025,7 +5025,24 @@
 
   /* ————— Démarrage ————————————————————————————————————————————— */
 
+  /* ————— Le pincement sur iPhone ————————————————————————————————
+     Safari ignore « user-scalable=no » depuis iOS 10 : une page ne peut pas
+     refuser le zoom par la balise. Les événements de geste, eux, se
+     laissent arrêter — c'est le seul levier qui reste dans le navigateur.
+
+     Dans une app installée sur l'écran d'accueil, la balise suffit et ce
+     code ne sert à rien : il ne fait alors que doubler.
+
+     À noter : le zoom reste accessible par les réglages du téléphone
+     (taille du texte, loupe), ce qui laisse une porte à qui en a besoin. */
+  function couperLePincement() {
+    ["gesturestart", "gesturechange", "gestureend"].forEach((nom) => {
+      document.addEventListener(nom, (evenement) => evenement.preventDefault(), { passive: false });
+    });
+  }
+
   function init() {
+    couperLePincement();
     fiches = lireBibliotheque();
     journal = lireJournal();
     prenom = lirePrenom();

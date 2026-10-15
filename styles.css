@@ -23,6 +23,17 @@
 
 html { -webkit-text-size-adjust: 100%; }
 
+/* ————— Le zoom par mégarde ——————————————————————————————————
+   Deux zooms involontaires gâchent la lecture sur téléphone : le double-tap
+   sur un bouton, et l'agrandissement automatique qu'iOS déclenche quand on
+   touche un champ écrit en moins de 16 px. Le premier se coupe avec
+   touch-action, le second en écrivant les champs à 16 px — c'est la seule
+   chose qui marche vraiment sur iPhone, où Safari ignore « user-scalable ».
+   Le pincement volontaire, lui, reste possible sur iOS : c'est une sécurité
+   d'accessibilité d'Apple, et on ne la contourne pas.
+   ———————————————————————————————————————————————————————————— */
+* { touch-action: manipulation; }
+
 body {
   margin: 0;
   background: var(--gris-fond);
@@ -997,7 +1008,8 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   border: 1px solid var(--bordure);
   border-radius: 12px;
   font: inherit;
-  font-size: 14px;
+  /* 16 px : en dessous, iOS agrandit l'écran dès qu'on touche le champ. */
+  font-size: 16px;
   color: var(--noir);
   resize: vertical;
 }
@@ -1958,7 +1970,8 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
   border: 1px solid var(--bordure);
   border-radius: 12px;
   font: inherit;
-  font-size: 14px;
+  /* 16 px : en dessous, iOS agrandit l'écran dès qu'on touche le champ. */
+  font-size: 16px;
   color: var(--noir);
 }
 .champ-texte::placeholder, .zone-texte::placeholder { color: #9AA1B2; }
@@ -2090,7 +2103,7 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
 /* Le prénom se saisit sur place : personne n'est nommé à sa place. */
 .carte-profil-texte { flex: 1; min-width: 0; }
 .champ-libelle--discret { margin: 0 0 4px; font-size: 11px; font-weight: 600; color: var(--gris-texte); }
-.champ-texte--prenom { padding: 8px 10px; font-size: 15px; font-weight: 700; }
+.champ-texte--prenom { padding: 8px 10px; font-size: 16px; font-weight: 700; }
 .stats + .stats { margin-top: 10px; }
 .vue#vue-profil .bouton-secondaire { margin-top: 16px; }
 

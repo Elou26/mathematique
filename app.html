@@ -2,7 +2,12 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- maximum-scale/user-scalable : honorés sur Android et dans une app
+     installée sur l'écran d'accueil. Safari les ignore depuis iOS 10 —
+     le vrai confort sur iPhone vient des champs à 16 px et de
+     touch-action, plus bas. -->
+<meta name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#CFE0F7">
 <meta name="description" content="Brainoko — réviser toutes les matières avec la répétition espacée, des résumés, des quiz et des flashcards générés par IA.">
 <title>Brainoko</title>

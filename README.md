@@ -886,6 +886,25 @@ est connecté : la licence reviendrait à la synchronisation suivante, et un
 bouton qui ne fait rien est pire que pas de bouton. Sans compte, il reste —
 là, l'appareil est bien le seul endroit où vit la licence.
 
+### Le zoom par mégarde
+
+Trois zooms involontaires gâchent la lecture sur téléphone, et chacun se
+coupe autrement :
+
+| Geste | Ce qui le coupe |
+| --- | --- |
+| Double-tap sur un bouton | `touch-action: manipulation` |
+| Agrandissement à la saisie (iOS) | les champs écrits en **16 px** — en dessous, Safari agrandit tout seul |
+| Pincement à deux doigts | la balise `user-scalable=no` sur Android et en app installée ; les événements `gesture*` arrêtés dans Safari |
+
+**Safari ignore `user-scalable=no` depuis iOS 10** : Apple en a fait une
+garantie d'accessibilité qu'une page ne peut pas révoquer. Arrêter les
+événements de geste est le seul levier qui reste dans le navigateur ; dans
+une app installée sur l'écran d'accueil, la balise suffit.
+
+Le zoom par les réglages du téléphone (taille du texte, loupe) reste
+possible dans tous les cas : c'est ce qui rend ce réglage acceptable.
+
 ### L'accueil : créer, et rien d'autre
 
 L'accueil portait trois rubriques : créer, s'entraîner, les chapitres du
