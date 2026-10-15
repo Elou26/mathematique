@@ -356,6 +356,26 @@ serveur.listen(0, async () => {
          === 'http://localhost:8321/app.html?vue=profil&portail=ok',
     JSON.stringify((journal.portails || []).slice(-1)[0]));
 
+  /* — 5 ter. Une boucle partie en vrille s'arrête ——————————————
+     Chaque passage en caisse ouvre une session chez Stripe. Sans seau,
+     une page qui boucle en ouvrirait des milliers, et c'est Stripe qui
+     finirait par nous fermer la porte. Ce test est en fin de parcours :
+     il épuise volontairement le quota de /paiement. */
+  let refus = null;
+  for (let essai = 0; essai < 40 && !refus; essai++) {
+    const coup = await appeler('/paiement', { method: 'POST',
+      corps: { appareil: 'a1234', offre: 'essentiel', retour: 'http://localhost:8321/app.html' } });
+    if (coup.code === 429) refus = coup;
+  }
+  verifier('un appel en boucle finit par être refusé',
+    Boolean(refus) && refus.corps.erreur === 'trop_de_demandes',
+    JSON.stringify(refus && refus.corps));
+  /* Mais une autre route garde son propre seau : on ne punit pas tout le
+     site parce qu'une page a bouclé sur le paiement. */
+  const ailleursQuota = await appeler('/sante');
+  verifier('et les autres routes continuent de répondre',
+    ailleursQuota.code === 200, String(ailleursQuota.code));
+
   /* — 6. Aucune donnée sensible ne sort — */
   const fuite = JSON.stringify(licence.corps);
   verifier('la réponse ne contient ni clé secrète ni donnée de carte',

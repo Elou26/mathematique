@@ -301,7 +301,13 @@ côté. Tout se refait une fois, dans cet ordre.
    rembourse-toi depuis Stripe (*Paiements → le paiement → Rembourser*) et
    résilie l'abonnement (*Clients → ton client → Abonnements*), sinon il se
    reconduit le mois prochain.
-9. **Avant d'encaisser le premier euro**, ajoute deux pages à la vitrine :
+9. **Vérifie `ORIGINES_AUTORISEES`** dans les variables Vercel : elle doit
+   contenir l'adresse du site (`https://brainoko.com,https://www.brainoko.com`).
+   Vide, le serveur accepte d'être appelé depuis n'importe quelle page — il
+   l'écrit dans ses journaux au démarrage. Les en-têtes de sécurité du site
+   (CSP, HSTS, Referrer-Policy…) sont dans `vercel.json` et n'ont rien à
+   régler : `node tests/securite.js` les éprouve dans un vrai navigateur.
+10. **Avant d'encaisser le premier euro**, ajoute deux pages à la vitrine :
    des **mentions légales** (qui édite le site, comment te joindre, l'hébergeur)
    et des **CGV** (ce qui est vendu, le prix, la durée, le droit de
    rétractation). En France, un site qui vend un abonnement doit les afficher.

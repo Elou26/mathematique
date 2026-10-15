@@ -7,5 +7,25 @@
     "api/*.js": {
       "includeFiles": "serveur/**"
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data: blob:; font-src 'self'; style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style; script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com/gsi/client https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/ https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/; worker-src 'self' blob:; child-src 'self' blob:; connect-src 'self' blob: data: https://accounts.google.com/gsi/ https://cdn.jsdelivr.net/npm/ https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/; frame-src https://accounts.google.com/gsi/; manifest-src 'self'; upgrade-insecure-requests"
+        },
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=(), browsing-topics=()"
+        }
+      ]
+    }
+  ]
 }

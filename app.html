@@ -852,26 +852,10 @@
      Sur Vercel, le site et le serveur partent ensemble : l'adresse est
      donc "/api". Ailleurs (Render…), mets l'adresse complète du service.
      ———————————————————————————————————————————————————————————— -->
-<script>
-  /* « ||= » et non « = » : un réglage déjà posé avant cette page — un test,
-     un autre hébergeur — doit gagner. La page donne le défaut, pas la loi. */
-  window.MATHEMATIQUE_LECTURE = window.MATHEMATIQUE_LECTURE || { api: "/api" };
-</script>
-
-<!-- Le paiement, branché le 12 octobre 2026 : /api/sante répond
-     "pret":true. Cette ligne allume trois choses en même temps — l'essai
-     limité (une fiche, 100 crédits, non renouvelables), le mur de paiement
-     et la page de tarif. Seules les offres dont le tarif existe chez Stripe
-     sont proposées : /api/sante dit lesquelles. -->
-<script>
-  window.MATHEMATIQUE_PAIEMENT = window.MATHEMATIQUE_PAIEMENT || { api: "/api" };
-</script>
-
-<!-- Les comptes : retrouver ses fiches sur un autre appareil. Branchés le
-     12 octobre 2026 — /api/sante répond "comptes":true. -->
-<script>
-  window.MATHEMATIQUE_COMPTE = window.MATHEMATIQUE_COMPTE || { api: "/api" };
-</script>
+<!-- Les réglages de la page (lecture, paiement, comptes) sont dans
+     reglages.js : aucun script écrit dans le HTML, pour que la politique de
+     sécurité du contenu n'ait pas à autoriser les scripts en ligne. -->
+<script src="reglages.js"></script>
 
 <script src="data.js"></script>
 <script src="abonnement.js"></script>

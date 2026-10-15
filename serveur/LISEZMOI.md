@@ -175,6 +175,14 @@ les dix minutes, lesquels de ces tarifs il connaît, et `/sante` ne propose
 que ceux-là. Si Stripe est injoignable, il ne conclut rien et garde la liste
 posée : mieux vaut un paiement qui échoue qu'une page de tarif vide.
 
+**Les routes qui coûtent ont un seau.** Trente passages en caisse et trente
+ouvertures du portail par dix minutes et par visiteur, soixante
+vérifications de licence, vingt entrées Google ; au-delà, `429
+trop_de_demandes`. La mémoire est celle du processus et l'hébergeur en
+lance plusieurs : c'est un garde-fou contre une page partie en boucle, pas
+contre un adversaire décidé. Les liens de connexion ont le leur, plus
+serré, dans `comptes.js`.
+
 **Et le montant est vérifié, pas seulement l'existence.** Un produit recopié
 d'une autre application, un prix retouché chez Stripe, un `price_…` annuel
 collé dans la variable du mois : la page annoncerait 4,90 € pendant que la

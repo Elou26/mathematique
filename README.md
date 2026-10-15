@@ -1108,6 +1108,57 @@ donnée sensible dans les réponses.
 bon moment, paiement demandé au serveur, retour vérifié, session non payée sans effet, licence
 retrouvée sur un autre appareil.
 
+## La sécurité du site
+
+Six mesures, toutes vérifiées par `node tests/securite.js` — qui sert les pages avec les
+en-têtes réels de `vercel.json`, les ouvre dans un navigateur et n'accepte aucune violation.
+
+**Une politique de sécurité du contenu (CSP) stricte.** `default-src 'self'` : par défaut, la
+page ne peut rien charger qui ne vienne du site. Les trois exceptions sont nommées une à une,
+avec leur chemin exact — le bouton Google (`accounts.google.com/gsi/`) et les deux miroirs du
+moteur de lecture. Surtout, les scripts écrits dans la page sont interdits : `'unsafe-inline'`
+aurait rendu toute la politique décorative, puisqu'un script glissé dans le HTML se serait
+exécuté comme les autres. C'est pourquoi les réglages des pages ont déménagé dans
+`reglages.js` — trois lignes dans un fichier, pour qu'aucun `<script>` ne reste écrit dans le
+HTML.
+
+**Le contenu lu dans un document s'affiche, il ne s'exécute pas.** Une photo de cours portant
+`<img src=x onerror=…>` revenait de la lecture telle quelle, et l'énoncé d'un quiz, le recto
+d'une carte, l'accroche d'une fiche étaient insérés en HTML. Le script aurait tourné dans la
+session de l'élève, avec son jeton de connexion à portée. Tout ce qui vient de la lecture
+passe désormais par `echapper()` ou par `textContent`. Les formules continuent d'être rendues :
+KaTeX lit le texte, pas le HTML.
+
+**Les en-têtes qui vont avec** : HSTS (deux ans, sous-domaines compris) pour qu'aucune visite ne
+reparte en clair, `nosniff` pour que le navigateur ne devine pas les types de fichiers,
+`frame-ancestors 'none'` et `X-Frame-Options: DENY` pour qu'aucun site ne puisse enfermer
+Brainoko dans un cadre, `Referrer-Policy: strict-origin-when-cross-origin` pour que l'adresse
+visitée ne fuie pas, et une `Permissions-Policy` qui refuse micro, position et paiement — mais
+garde l'appareil photo, qui est le cœur du scan.
+
+**Un seau par visiteur sur les routes qui coûtent** : trente passages en caisse et trente
+ouvertures du portail par dix minutes, soixante vérifications de licence, vingt entrées Google.
+C'est un garde-fou contre la boucle partie en vrille, pas contre un adversaire déterminé : la
+mémoire est celle du processus, et l'hébergeur en lance plusieurs. Les liens de connexion ont
+le leur, plus serré et plus ancien, dans `serveur/comptes.js` — trois par adresse et trente par
+visiteur tous les quarts d'heure, avec la même réponse qu'un compte existe ou non, pour que la
+page ne devienne pas un outil permettant de savoir qui est inscrit.
+
+**Aucune clé dans le dépôt.** Le test cherche les huit formes de clés que ce projet manipule
+(Stripe, Claude, Resend, Brevo, Supabase) et échoue si l'une d'elles apparaît, où que ce soit.
+Il vérifie aussi qu'aucun nom de variable secrète n'est cité dans les fichiers que le navigateur
+télécharge : tout ce qui est servi à la page est lisible par qui l'ouvre.
+
+**Ce qui était déjà en place** et qui n'a pas eu à changer : les jetons de session signés
+(HMAC-SHA256) et comparés en temps constant, les liens de connexion gardés en empreinte et
+jamais en clair, le jeton Google vérifié contre les clés publiques de Google plutôt que cru sur
+parole, l'adresse de retour de Stripe contrainte aux domaines déclarés, la signature des
+webhooks vérifiée, et la base fermée par « row level security ».
+
+**Ce qui reste à ta main** : `ORIGINES_AUTORISEES` doit contenir l'adresse du site chez
+l'hébergeur — vide, le serveur accepte d'être appelé depuis n'importe quelle page, et il le dit
+désormais au démarrage.
+
 ## Ce qui reste simulé
 
 Le repli hors ligne des trois outils utilise un `setTimeout` en guise d'appel réseau et pioche

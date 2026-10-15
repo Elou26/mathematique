@@ -2533,7 +2533,7 @@
         <h3 class="fiche-titre">${echapper(lecture.titre)}</h3>
         <p class="fiche-soustexte">${lecture.matiere ? MATIERES[lecture.matiere].nom + " · " : ""}${lecture.cartes.length} flashcards prêtes</p>
       </header>
-      <p class="fiche-accroche">${lecture.contenu.accroche}</p>
+      <p class="fiche-accroche">${echapper(lecture.contenu.accroche)}</p>
       ${(lecture.contenu.sections || []).length
         ? `<ul class="fiche-sommaire">${lecture.contenu.sections
             .map((section) => `<li>${echapper(section.titre)}</li>`).join("")}</ul>`
@@ -3232,7 +3232,7 @@
             : `notion la plus fragile · ${faible.maitrise} %`}</span>
         </button>` : ""}
 
-      ${contenu && contenu.accroche ? `<p class="page-fiche-avis">${contenu.accroche}</p>` : ""}
+      ${contenu && contenu.accroche ? `<p class="page-fiche-avis">${echapper(contenu.accroche)}</p>` : ""}
 
       ${aVerifier.length ? `
         <section class="page-fiche-verifier">
@@ -3542,7 +3542,7 @@
         <h3 class="fiche-titre">${echapper(titre)}</h3>
         <p class="fiche-soustexte">${sousTitre}</p>
       </header>
-      <p class="fiche-accroche">${contenu.accroche}</p>
+      <p class="fiche-accroche">${echapper(contenu.accroche)}</p>
       ${parties || sectionFiche("L'essentiel", anciens.slice(0, max), "fiche-section--points")}
       ${formules ? sectionFiche(
           contenu.libelleFormules || "Formules clés",
@@ -4493,7 +4493,10 @@
     $("#quiz-score").textContent = score <= 1 ? `${score} point` : `${score} points`;
     $("#quiz-progression").hidden = partieQuiz.sansFin;
     if (!partieQuiz.sansFin) $("#quiz-barre").style.width = `${(index / questions.length) * 100}%`;
-    $("#quiz-question").innerHTML = question.enonce;
+    /* Le texte vient de la lecture d'un document : il s'affiche, il ne
+       s'exécute pas. Une photo de cours portant une balise deviendrait
+       sinon du script tournant dans la session de l'élève. */
+    $("#quiz-question").textContent = question.enonce;
     $("#quiz-explication").hidden = true;
     $("#quiz-suivant").hidden = true;
 
@@ -4504,7 +4507,7 @@
       bouton.type = "button";
       bouton.className = "reponse";
       bouton.dataset.rang = rang;
-      bouton.innerHTML = choix.texte;
+      bouton.textContent = choix.texte;
       bouton.addEventListener("click", () => repondre(choix, bouton));
       conteneur.appendChild(bouton);
     });
@@ -4529,7 +4532,7 @@
 
       const explication = $("#quiz-explication");
       explication.className = `explication ${choix.correct ? "explication--juste" : "explication--faux"}`;
-      explication.innerHTML = `<strong>${choix.correct ? "Bonne réponse" : "Raté"}</strong> — ${question.explication}`;
+      explication.innerHTML = `<strong>${choix.correct ? "Bonne réponse" : "Raté"}</strong> — ${echapper(question.explication)}`;
       explication.hidden = false;
 
       const suivant = $("#quiz-suivant");
@@ -4588,10 +4591,10 @@
       <ul class="bilan-erreurs">
         ${rates.map((q) => `
           <li>
-            <span class="bilan-question">${q.enonce}</span>
-            <span class="bilan-mauvaise">Ta réponse : ${q.donnee}</span>
-            <span class="bilan-bonne">Réponse : ${q.choix.find((c) => c.correct).texte}</span>
-            <span class="bilan-explication">${q.explication}</span>
+            <span class="bilan-question">${echapper(q.enonce)}</span>
+            <span class="bilan-mauvaise">Ta réponse : ${echapper(q.donnee)}</span>
+            <span class="bilan-bonne">Réponse : ${echapper(q.choix.find((c) => c.correct).texte)}</span>
+            <span class="bilan-explication">${echapper(q.explication)}</span>
           </li>`).join("")}
       </ul>` : "";
 
@@ -4865,8 +4868,11 @@
 
     $("#carte-flip").classList.remove("carte-flip--retournee");
     $("#verdicts-cartes").hidden = true;
-    $("#carte-recto").innerHTML = carte.recto;
-    $("#carte-verso").innerHTML = carte.verso;
+    /* Même raison que pour le quiz : du texte tiré d'un document reste
+       du texte. KaTeX, lui, lit le contenu textuel — les formules sont
+       rendues après coup, sans passer par du HTML. */
+    $("#carte-recto").textContent = carte.recto;
+    $("#carte-verso").textContent = carte.verso;
     $("#cartes-position").textContent = paquet.file.length <= 1
       ? "Dernière carte"
       : `${paquet.file.length} cartes restantes`;

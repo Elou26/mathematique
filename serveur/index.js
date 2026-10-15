@@ -671,6 +671,44 @@ function lireCorps(requete, plafond = 64 * 1024) {
   });
 }
 
+/* ————— Un seau par visiteur et par route ————————————————————————
+   Les routes qui coûtent — créer une session Stripe, interroger une
+   licence, vérifier un jeton Google — n'ont pas de raison d'être appelées
+   cent fois par minute depuis la même machine. Ce n'est pas une sécurité
+   contre un adversaire déterminé : la mémoire est celle du processus, et
+   l'hébergeur en lance plusieurs. C'est un garde-fou contre la boucle
+   partie en vrille et le curieux qui tape à la main — les deux cas qui
+   arrivent vraiment, et qui se paient en appels Stripe.
+
+   Les routes qui envoient un courriel ont le leur, plus serré, dans
+   comptes.js : une boîte mail inondée se répare moins bien qu'un quota.
+   ———————————————————————————————————————————————————————————— */
+const CADENCES = {
+  "/paiement": { plafond: 30, fenetre: 10 * 60 * 1000 },
+  "/portail": { plafond: 30, fenetre: 10 * 60 * 1000 },
+  "/licence": { plafond: 60, fenetre: 10 * 60 * 1000 },
+  "/compte-google": { plafond: 20, fenetre: 10 * 60 * 1000 },
+};
+const appels = new Map();
+
+/** Qui appelle, derrière l'hébergeur : la première adresse de la chaîne. */
+function venantDe(requete) {
+  return String(requete.headers["x-forwarded-for"] || "").split(",")[0].trim()
+    || (requete.socket && requete.socket.remoteAddress) || "inconnu";
+}
+
+function tropSouvent(chemin, requete) {
+  const regle = CADENCES[chemin];
+  if (!regle) return false;
+  const cle = `${chemin}|${venantDe(requete)}`;
+  const maintenant = Date.now();
+  const passes = (appels.get(cle) || []).filter((date) => maintenant - date < regle.fenetre);
+  passes.push(maintenant);
+  appels.set(cle, passes);
+  if (appels.size > 5000) appels.clear();        // on ne grossit pas sans fin
+  return passes.length > regle.plafond;
+}
+
 async function router(requete, reponse) {
   const origine = requete.headers.origin || "";
   const adresse = new URL(requete.url, `http://${requete.headers.host || "localhost"}`);
@@ -679,6 +717,11 @@ async function router(requete, reponse) {
   const chemin = adresse.pathname.replace(/^\/api(?=\/|$)/, "") || "/";
 
   if (requete.method === "OPTIONS") { reponse.writeHead(204, enTetes(origine)); reponse.end(); return; }
+
+  if (tropSouvent(chemin, requete)) {
+    repondre(reponse, 429, { erreur: "trop_de_demandes" }, origine);
+    return;
+  }
 
   if (chemin === "/sante") {
     const vendables = await cequonVend();
@@ -771,9 +814,7 @@ async function router(requete, reponse) {
       /* Qui demande, et non d'où : sur Vercel toutes les requêtes de l'app
          portent la même origine, et un seul seau pour tout le monde punit
          les élèves sans gêner personne d'autre. */
-      const venantDe = String(requete.headers["x-forwarded-for"] || "").split(",")[0].trim()
-        || (requete.socket && requete.socket.remoteAddress) || origine;
-      const resultat = await COMPTES.demanderLien(corps, venantDe);
+      const resultat = await COMPTES.demanderLien(corps, venantDe(requete));
       repondre(reponse, resultat.code, resultat.corps, origine);
     } catch (erreur) {
       console.error("[compte-demander]", erreur.message);
@@ -892,6 +933,10 @@ if (require.main === module) {
       if (absentes.length) console.log(`⚠ Offres sans tarif, donc invendables : ${absentes.join(", ")}`);
     }
     if (!claude) console.log("⚠ CLAUDE_CLE manquante : /lecture répondra « non configuré ».");
+    if (!ORIGINES.length) {
+      console.log("⚠ ORIGINES_AUTORISEES vide : n'importe quelle page peut appeler ce serveur.");
+      console.log("  En production, pose ORIGINES_AUTORISEES=https://ton-domaine (plusieurs : séparées par des virgules).");
+    }
   });
 }
 
