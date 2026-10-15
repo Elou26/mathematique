@@ -25,3 +25,13 @@ window.MATHEMATIQUE_PAIEMENT = window.MATHEMATIQUE_PAIEMENT || { api: "/api" };
 
 /* Les comptes : retrouver ses fiches sur un autre appareil. */
 window.MATHEMATIQUE_COMPTE = window.MATHEMATIQUE_COMPTE || { api: "/api" };
+
+/* ————— Signaler un problème ————————————————————————————————————
+   L'adresse du formulaire où un élève raconte ce qui s'est mal passé.
+   Tant qu'elle est vide, le bouton n'existe pas : mieux vaut pas de
+   bouton qu'un bouton qui ouvre une page blanche.
+
+   Colle ici le lien du formulaire (Envoyer → 🔗 → Copier) :
+     formulaire: "https://forms.gle/…"
+   ———————————————————————————————————————————————————————————— */
+window.MATHEMATIQUE_AIDE = window.MATHEMATIQUE_AIDE || { formulaire: "" };

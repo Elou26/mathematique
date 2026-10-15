@@ -1108,6 +1108,24 @@ donnée sensible dans les réponses.
 bon moment, paiement demandé au serveur, retour vérifié, session non payée sans effet, licence
 retrouvée sur un autre appareil.
 
+## Signaler un problème
+
+Un élève bloqué qui n'a nulle part où le dire s'en va, et on ne saura jamais pourquoi. Le
+profil porte donc un lien **« Signaler un problème »**, qui ouvre un formulaire externe
+(Google Forms ou autre) dans un nouvel onglet.
+
+L'adresse se pose dans `reglages.js` :
+
+```js
+window.MATHEMATIQUE_AIDE = window.MATHEMATIQUE_AIDE || { formulaire: "" };
+```
+
+Tant qu'elle est vide, **le lien n'existe pas** — même principe que le bouton Google ou
+le mur de paiement : rien d'affiché qui ne mène quelque part. Et seule une adresse en
+`https://` est acceptée : un réglage reste une entrée comme une autre, et un
+`javascript:` posé là s'exécuterait d'un clic dans la session de l'élève.
+`tests/securite.js` éprouve les quatre cas.
+
 ## Les pages obligatoires — mentions légales et CGV
 
 Un site qui encaisse un abonnement doit dire qui le tient et ce qu'il vend. Trois pages,

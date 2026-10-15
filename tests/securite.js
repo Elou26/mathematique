@@ -269,6 +269,33 @@ serveur.listen(0, async () => {
     await ctx.close();
   }
 
+  /* ————— Le lien « signaler un problème » ————————————————————————
+     Il vient d'un réglage, donc il mérite la même méfiance qu'une
+     saisie : un « javascript: » posé là s'exécuterait d'un clic, dans
+     la session de l'élève. Seul « https:// » passe, et le lien reste
+     absent tant qu'il ne mène nulle part. */
+  for (const [reglage, attendu, quoi] of [
+    ['', false, 'sans formulaire, aucun bouton'],
+    ['https://forms.gle/abc123', true, 'avec un formulaire, le bouton apparaît'],
+    ['javascript:alert(1)', false, 'un lien « javascript: » est refusé'],
+    ['http://forms.gle/abc123', false, 'un lien non chiffré est refusé'],
+  ]) {
+    const ctx = await navigateur.newContext();
+    const vue = await ctx.newPage();
+    await vue.addInitScript(`window.MATHEMATIQUE_AIDE = { formulaire: ${JSON.stringify(reglage)} };`);
+    await vue.goto(`${base}/app.html`);
+    await vue.waitForTimeout(500);
+    const etat = await vue.evaluate(() => {
+      const lien = document.querySelector('#signaler-probleme');
+      return { visible: lien ? !lien.hidden : false, href: lien ? lien.getAttribute('href') : null };
+    });
+    verifier(quoi, etat.visible === attendu, JSON.stringify(etat));
+    if (attendu) {
+      verifier('et il mène bien au formulaire', etat.href === reglage, String(etat.href));
+    }
+    await ctx.close();
+  }
+
   await navigateur.close();
   serveur.close();
   console.log(echecs ? `\n${echecs} vérification(s) en échec` : '\nTout est vert.');

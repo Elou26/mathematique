@@ -5100,8 +5100,25 @@
     });
   }
 
+  /* ————— Signaler un problème ——————————————————————————————————
+     Un élève bloqué qui n'a nulle part où le dire s'en va, et on ne
+     saura jamais pourquoi. Le lien n'apparaît que s'il mène quelque
+     part : sans formulaire renseigné, pas de bouton.
+
+     Le formulaire s'ouvre dans un autre onglet, pour qu'un élève en
+     train de réviser ne perde pas son écran — et avec rel="noopener",
+     pour que la page ouverte n'ait aucune prise sur la nôtre. */
+  function initSignalement() {
+    const lien = $("#signaler-probleme");
+    const adresse = (window.MATHEMATIQUE_AIDE && window.MATHEMATIQUE_AIDE.formulaire) || "";
+    if (!lien || !/^https:\/\//.test(adresse)) return;
+    lien.href = adresse;
+    lien.hidden = false;
+  }
+
   function init() {
     couperLePincement();
+    initSignalement();
     fiches = lireBibliotheque();
     journal = lireJournal();
     prenom = lirePrenom();
