@@ -231,8 +231,8 @@ résumé qu'on trouve soi-même pas clair.
    window.MATHEMATIQUE_PAIEMENT = { api: "/api" };
    ```
 
-   ⚠️ Cette ligne allume **aussi** l'essai limité : 2 fiches, soit
-   200 crédits donnés une fois à l'ouverture du compte, qui ne se
+   ⚠️ Cette ligne allume **aussi** l'essai limité : une fiche, soit
+   100 crédits donnés une fois à l'ouverture du compte, qui ne se
    rechargent jamais. Mise avant que Stripe réponde `pret: true`, tes
    élèves butent sur un mur sans porte.
 

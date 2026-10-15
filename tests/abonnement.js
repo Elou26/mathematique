@@ -151,7 +151,9 @@ function semence(fiches, paiement) {
   /* — 1. Avec une offre, la gratuité s'arrête là où c'est annoncé — */
   {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
-    await ctx.addInitScript(semence([fiche(1)], { api }));
+    /* L'essai ne donne qu'une fiche : « sous le quota », c'est donc une
+       bibliothèque encore vide. */
+    await ctx.addInitScript(semence([], { api }));
     const page = await ctx.newPage();
     const erreurs = [];
     page.on('pageerror', (e) => erreurs.push(String(e)));
@@ -177,7 +179,7 @@ function semence(fiches, paiement) {
 
     await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(250);
     verifier('le profil dit où en est le quota',
-      /100 crédits sur 200, soit 1 fiche/.test(await page.innerText('#profil-abonnement')),
+      /100 crédits sur 100, soit 1 fiche/.test(await page.innerText('#profil-abonnement')),
       await page.innerText('#profil-abonnement'));
     verifier('aucune erreur console', erreurs.length === 0, erreurs.join(' || '));
     await ctx.close();
@@ -186,7 +188,7 @@ function semence(fiches, paiement) {
   /* — 2. Au bout du quota, le mur s'ouvre avant la photo — */
   {
     const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
-    await ctx.addInitScript(semence([fiche(1), fiche(2)], { api }));
+    await ctx.addInitScript(semence([fiche(1)], { api }));
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
 
@@ -223,7 +225,7 @@ function semence(fiches, paiement) {
       /Lecture de tes photos/.test(await page.innerText('.offre')),
       await page.innerText('.offre').then((t) => t.slice(0, 80)));
     verifier('le comparatif oppose l\'essai aux trois offres',
-      /200/.test(await page.innerText('#illimite-comparatif'))
+      /100/.test(await page.innerText('#illimite-comparatif'))
       && /en tout/.test(await page.innerText('#illimite-comparatif'))
       && /1\s000/.test(await page.innerText('#illimite-comparatif'))
       && /6\s000/.test(await page.innerText('#illimite-comparatif')),
@@ -246,7 +248,7 @@ function semence(fiches, paiement) {
       tableau.titres.join('|') === 'Gratuit|Essentiel|Régulier|Intensif', tableau.titres.join(' | '));
 
     verifier('le mur dit pourquoi',
-      /200 crédits d'essai sont dépensés/.test(await page.innerText('#illimite-raison')),
+      /100 crédits d'essai sont dépensés/.test(await page.innerText('#illimite-raison')),
       await page.innerText('#illimite-raison'));
     verifier('aucun abonnement n\'est inventé',
       (await page.evaluate(() => localStorage.getItem('mathematique.abonnement'))) === null,
@@ -258,7 +260,7 @@ function semence(fiches, paiement) {
       await page.isVisible('#vue-accueil'), 'accueil masqué');
     const restantes = await page.evaluate(
       () => JSON.parse(localStorage.getItem('mathematique.fiches')).length);
-    verifier('la bibliothèque reste à deux fiches', restantes === 2, restantes);
+    verifier('la bibliothèque n\'a pas grossi en douce', restantes === 1, restantes);
     await ctx.close();
   }
 
@@ -396,7 +398,7 @@ function semence(fiches, paiement) {
     verifier('supprimer ses fiches ne rend pas les crédits dépensés',
       await page2.isVisible('#vue-abonnement'), 'la création s\'est ouverte');
     verifier('et le mur le dit avec le bon chiffre',
-      /200 crédits d'essai sont dépensés/.test(await page2.innerText('#illimite-raison')),
+      /100 crédits d'essai sont dépensés/.test(await page2.innerText('#illimite-raison')),
       await page2.innerText('#illimite-raison'));
     await ctx2.close();
 

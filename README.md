@@ -822,9 +822,9 @@ catalogue : il sort en erreur si un cas échoue, et liste les thèmes appariés 
 
 ## Gratuit ou illimité — l'abonnement Stripe
 
-### L'essai : 200 crédits, une fois
+### L'essai : 100 crédits, une fois
 
-Un compte neuf reçoit **2 fiches, soit 200 crédits**, à son ouverture. Ils ne
+Un compte neuf reçoit **une fiche, soit 100 crédits**, à son ouverture. Ils ne
 se rechargent pas — c'est toute la différence avec un abonnement, dont le
 quota repart à chaque mois payé. Un essai sert à juger, pas à réviser
 gratuitement toute l'année en attendant le mois suivant.

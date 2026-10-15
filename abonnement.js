@@ -23,11 +23,15 @@ const ABONNEMENT = (function () {
   const CONFIG = {
     api: "",                                  // ex. « https://brainoko.com/api »
     essai: "",                                // ex. « 7 jours offerts »
-    /* L'essai : 2 fiches — 200 crédits — données une fois à l'ouverture du
-       compte. Elles ne se rechargent jamais, et c'est toute la différence
-       avec un abonnement : l'essai sert à juger, pas à réviser gratuitement
-       toute l'année en attendant le 1er du mois. */
-    gratuit: { fiches: 2 },
+    /* L'essai : une fiche — 100 crédits — donnée une fois à l'ouverture du
+       compte. Elle ne se recharge jamais, et c'est toute la différence avec
+       un abonnement : l'essai sert à juger sur pièce, pas à réviser
+       gratuitement toute l'année en attendant le 1er du mois.
+
+       Une seule suffit à juger : l'élève photographie son cours, lit la
+       fiche qui en sort et sait s'il veut la suite. La deuxième ne
+       démontrait rien de plus, et elle coûtait le double. */
+    gratuit: { fiches: 1 },
 
     /* ————— Les crédits ————————————————————————————————————————
        Ce que l'élève voit est un solde de crédits ; ce qu'on règle ici
