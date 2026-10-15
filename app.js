@@ -2253,6 +2253,19 @@
       bande.appendChild(vignette);
     });
 
+    /* Une page de plus s'ajoute ici, au bout de la bande, et non par un
+       bouton de plus sous l'écran : la page n'a qu'une action à proposer,
+       lire. La tuile disparaît quand le document est au complet. */
+    if (fiche.apercus.length && fiche.pages.length < maxPagesScan()) {
+      const plus = document.createElement("button");
+      plus.type = "button";
+      plus.className = "scan-page scan-page--plus";
+      plus.setAttribute("aria-label", "Ajouter une page");
+      plus.innerHTML = `<span aria-hidden="true">+</span>`;
+      plus.addEventListener("click", () => $("#scan-page-plus").click());
+      bande.appendChild(plus);
+    }
+
     const apercu = $("#scan-apercu");
     if (fiche.apercus.length) {
       apercu.src = fiche.apercus[fiche.apercus.length - 1];
@@ -2269,12 +2282,27 @@
     const prete = fiche.pages.length > 0;
     $("#scan-capture").hidden = prete;
     $("#scan-lecture").hidden = !prete;
+
+    /* Le constat du moteur est écrit à deux endroits : en tête de page, et
+       juste au-dessus du bouton. Les montrer tous les deux en même temps,
+       c'est dire deux fois la même chose sur un écran de téléphone. Avant
+       la photo on garde celui d'en haut ; après, celui du bouton, là où se
+       prend la décision. */
+    const enTete = $("#scan-moteur");
+    const note = $("#scan-raison");
+    if (enTete && note) {
+      const doublon = prete && !note.hidden && note.textContent.trim() === enTete.textContent.trim();
+      enTete.hidden = doublon || enTete.textContent.trim() === "";
+    }
     const pages = fiche.pages.length > 1 ? `mes ${fiche.pages.length} pages` : "ma page";
     $("#scan-analyser").textContent = peutLirePhotos()
       ? `Lire ${pages} et créer ma fiche`
       : `Lire ${pages} sur mon appareil`;
-    $("#scan-manuel").hidden = peutLirePhotos() || !prete;
-    etapesScan(prete ? ["cadrage"] : []);
+    /* Les trois étapes ne disent rien tant que rien n'est lancé — « pages
+       cadrées », l'élève le voit. Elles s'allument quand la lecture part,
+       là où elles servent vraiment : montrer que ça avance. Et la place
+       qu'elles prenaient rend le bouton visible sans faire défiler. */
+    etapesScan([]);
   }
 
   function retirerPage(rang) {
@@ -2742,7 +2770,6 @@
 
     $("#scan-analyser").addEventListener("click", lancerLecture);
     $("#scan-stop").addEventListener("click", () => { if (controleurScan) controleurScan.abort(); });
-    $("#scan-manuel").addEventListener("click", ouvrirEtapeManuelle);
     $("#scan-recommencer").addEventListener("click", reinitialiserScan);
     $("#scan-refaire").addEventListener("click", reinitialiserScan);
 

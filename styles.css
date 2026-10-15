@@ -595,7 +595,9 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 }
 
 /* Une fois la photo prise, l'aperçu se réduit pour laisser la place aux actions. */
-.scanner--capture .scanner-cadre { aspect-ratio: 16 / 10; }
+/* Une fois la page prise, le cadre n'a plus à servir de viseur : il cède
+   la place au bouton, qui doit rester visible sans faire défiler. */
+.scanner--capture .scanner-cadre { aspect-ratio: 16 / 10; max-height: 26vh; }
 .scanner--capture .scanner-coin { width: 24px; height: 24px; }
 
 .scanner-apercu { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top; }
@@ -690,7 +692,7 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .scan-pages {
   display: flex;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 12px;
   padding-bottom: 4px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -710,6 +712,23 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   background: var(--blanc);
 }
 .scan-page img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* La page de plus s'ajoute au bout de la bande, à la place qu'elle
+   occupera : on voit où elle va avant de la prendre. */
+.scan-page--plus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  border-color: var(--marine);
+  color: var(--marine);
+  font-size: 24px;
+  font-weight: 300;
+  line-height: 1;
+  background: var(--gris-fond);
+}
+.scan-page--plus:active { background: var(--bleu-pastel); }
+
 .scan-page-numero {
   position: absolute;
   left: 4px;
@@ -732,12 +751,19 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   text-shadow: 0 1px 3px rgba(0, 0, 0, .6);
 }
 
+/* La tuile d'ajout ne se retire pas : pas de croix dessus. Posée après la
+   règle générale, qui porte la même spécificité. */
+.scan-pages .scan-page--plus::after { content: none; }
+
+/* Une action, et la sortie de secours en dessous : la colonne n'a plus
+   besoin d'être aérée comme quand elle portait quatre boutons. */
 .scan-lecture {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 14px;
+  gap: 8px;
+  margin-top: 16px;
 }
+.scan-lecture .bouton-texte { align-self: center; }
 .scan-lecture[hidden] { display: none; }
 
 .fiche--lue { margin-bottom: 16px; }

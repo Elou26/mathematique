@@ -466,7 +466,17 @@ Tesseract.js **servi depuis le site lui-même** (dossier `moteur/`, 8,4 Mo une f
 voir `moteur/LISEZMOI.md`) et lit les pages **dans la page, sans compte, sans serveur et sans
 rien à payer**. Le lecteur télécharge le cœur WebAssembly (~3,9 Mo) et le modèle français
 (600 Ko) à sa première lecture, puis son navigateur les garde en cache.
-`« Continuer sans lecture »` reste offert juste en dessous.
+Si cette lecture-là n'aboutit pas non plus, l'app ouvre d'elle-même l'étape
+manuelle : on nomme le chapitre et on travaille sur les banques locales.
+
+**L'écran de scan ne propose qu'une action.** « Continuer sans lecture » et
+« Ajouter une page » ont été retirés : le premier doublait un chemin que
+l'échec ouvre tout seul, le second a rejoint la bande de vignettes sous la
+forme d'une tuile « + », à la place qu'occupera la page ajoutée. La liste
+des trois étapes ne s'allume qu'une fois la lecture lancée — là où elle
+sert à montrer que ça avance — et le cadre se raccourcit une fois la photo
+prise. Ensemble, cela ramène le bouton au-dessus de la barre du bas, sans
+faire défiler.
 
 Tout est servi depuis la même origine — `workerBlobURL: false` compris — parce que la page
 publiée n'a pas le droit d'aller chercher des fichiers sur un domaine tiers : c'est ce qui

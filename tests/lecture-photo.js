@@ -92,8 +92,12 @@ function verifier(nom, condition, vu) {
 
     await page.setInputFiles('#scan-galerie', ['/tmp/page-cours.png', '/tmp/page-cours.png']);
     await page.waitForTimeout(400);
-    verifier('les deux pages sont en vignettes', (await page.$$('.scan-page')).length === 2,
-      (await page.$$('.scan-page')).length);
+    /* La tuile « + » porte la même classe : on ne compte que les pages. */
+    const vignettes = async () => (await page.$$('.scan-page:not(.scan-page--plus)')).length;
+    verifier('les deux pages sont en vignettes', (await vignettes()) === 2, await vignettes());
+    verifier('et la tuile d\'ajout ferme la bande',
+      (await page.$$('.scan-page--plus')).length === 1,
+      (await page.$$('.scan-page--plus')).length);
     verifier('le bouton annonce la lecture', /Lire mes 2 pages/.test(await page.innerText('#scan-analyser')),
       await page.innerText('#scan-analyser'));
 
@@ -197,11 +201,14 @@ function verifier(nom, condition, vu) {
     verifier('le bouton propose la lecture sur l\'appareil',
       /Lire ma page sur mon appareil/.test(await page.innerText('#scan-analyser')),
       await page.innerText('#scan-analyser'));
-    verifier('le passage manuel reste offert', await page.isVisible('#scan-manuel'), 'bouton absent');
     verifier('la raison est rappelée au-dessus du bouton',
       /photos ne passent pas dans cette vue/.test(await page.innerText('#scan-raison')),
       await page.innerText('#scan-raison'));
-    await page.click('#scan-manuel'); await page.waitForTimeout(500);
+    /* Plus de bouton « continuer sans lecture » : la page ne propose qu'une
+       action. Quand la lecture ne peut pas aboutir, elle ouvre elle-même
+       l'étape manuelle. */
+    await page.click('#scan-analyser');
+    await page.waitForSelector('#scan-sujet', { state: 'visible', timeout: 15000 }).catch(() => {});
     verifier('le thème est demandé à la main', await page.isVisible('#scan-sujet'), 'champ absent');
     verifier('aucune fiche lue affichée', !(await page.isVisible('#scan-fiche-lue')), 'aperçu visible');
     await ctx.close();

@@ -238,16 +238,14 @@
       <p class="mention" id="scan-mention">La photo reste sur ton téléphone.</p>
     </div>
 
-    <!-- Lecture -->
+    <!-- Lecture — une seule action à faire, le reste est dans la bande de
+         vignettes : la page de plus s'ajoute par la tuile « + », une page
+         de trop se retire en touchant sa vignette. -->
     <div class="scan-lecture" id="scan-lecture" hidden>
       <p class="ia-message ia-message--erreur" id="scan-raison" hidden></p>
       <button class="bouton-principal" type="button" id="scan-analyser">Lire et créer ma fiche</button>
-      <button class="bouton-texte" type="button" id="scan-manuel" hidden>Continuer sans lecture</button>
-      <label class="bouton-secondaire bouton-fichier">
-        Ajouter une page
-        <input type="file" id="scan-page-plus" accept="image/*" multiple hidden>
-      </label>
       <button class="bouton-texte" type="button" id="scan-recommencer">Recommencer</button>
+      <input type="file" id="scan-page-plus" accept="image/*" multiple hidden>
     </div>
 
     <div class="chargement" id="chargement-scan" hidden>

@@ -89,7 +89,6 @@ async function ouvrirScan(ctx) {
     verifier('le bouton annonce la lecture locale',
       /Lire ma page sur mon appareil/.test(await page.innerText('#scan-analyser')),
       await page.innerText('#scan-analyser'));
-    verifier('le passage manuel reste offert', await page.isVisible('#scan-manuel'), 'bouton absent');
 
     await page.click('#scan-analyser'); await page.waitForTimeout(1500);
 
