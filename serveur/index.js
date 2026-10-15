@@ -688,9 +688,10 @@ async function router(requete, reponse) {
       mode: MODE_STRIPE,
       offres,
       offresAn: vendables.offresAn,
-      /* Un tarif écarté de la vente, et la raison : sans cette ligne, une
-         offre disparue de la page reste une énigme. */
-      ...(vendables.ecarts.length ? { ecarts: vendables.ecarts } : {}),
+      /* Les tarifs écartés de la vente, et pourquoi. Le champ est là même
+         vide : sinon, « pas d'écart » et « serveur pas encore redéployé »
+         se ressemblent trop pour qu'on puisse conclure. */
+      ecarts: vendables.ecarts,
       lecture: Boolean(claude),
       comptes: COMPTES.configure(),
       google: COMPTES.clientGoogle(),      // public : la page en a besoin pour le bouton

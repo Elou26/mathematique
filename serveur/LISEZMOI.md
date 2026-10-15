@@ -180,9 +180,11 @@ d'une autre application, un prix retouché chez Stripe, un `price_…` annuel
 collé dans la variable du mois : la page annoncerait 4,90 € pendant que la
 carte serait débitée de 4,99 €. Le serveur garde donc, dans `PRIX_ANNONCES`,
 ce que `abonnement.js` affiche, et retire de la vente tout tarif qui s'en
-écarte — d'un centime, d'une devise ou d'une périodicité. `/sante` ajoute
-alors un champ `ecarts` qui nomme l'offre et les deux montants, et
-`/paiement` répond `409 offre_indisponible` plutôt que d'ouvrir la caisse.
+écarte — d'un centime, d'une devise ou d'une périodicité. `/sante` porte un
+champ `ecarts` qui nomme l'offre et les deux montants, vide quand tout
+concorde — un champ absent signale un serveur qui n'a pas encore été
+redéployé, pas une boutique en règle. `/paiement`, lui, répond
+`409 offre_indisponible` plutôt que d'ouvrir la caisse.
 Les deux tables sont tenues d'accord par `tests/serveur-paiement.js` : changer
 un prix dans `abonnement.js` sans toucher au serveur fait échouer les tests.
 

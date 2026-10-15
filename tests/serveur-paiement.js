@@ -143,6 +143,11 @@ serveur.listen(0, async () => {
   verifier('un tarif que Stripe ne connaît pas n\'est pas proposé',
     Array.isArray(sante.corps.offres) && sante.corps.offres.join() === 'essentiel,intensif',
     JSON.stringify(sante.corps.offres));
+  /* Le champ est là même vide : un champ absent ne doit pas pouvoir
+     passer pour une boutique en règle alors que le serveur est resté sur
+     l'ancienne version. */
+  verifier('la santé porte toujours la liste des écarts, même vide',
+    Array.isArray(sante.corps.ecarts), JSON.stringify(sante.corps.ecarts));
   verifier('la clé secrète ne fuit pas dans la santé',
     !/sk_|price_/.test(JSON.stringify(sante.corps)), JSON.stringify(sante.corps));
 
