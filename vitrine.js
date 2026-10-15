@@ -198,8 +198,20 @@
     rendreLeFocus = document.activeElement;
     entree.hidden = false;
     document.body.classList.add("corps-bloque");
-    const champ = $("#entree-courriel");
-    if (champ) setTimeout(() => champ.focus(), 50);
+
+    /* La sortie mène là où l'élève voulait aller, pas à l'accueil. */
+    montrer("#entree-essayer", (el) => {
+      el.href = destination;
+      el.textContent = "Essayer sans compte";
+    });
+
+    /* Sur un téléphone, poser le curseur dans le champ ouvre le clavier,
+       qui cache la moitié de la fenêtre — dont la sortie sans compte. On
+       donne le focus à la fenêtre elle-même : les lecteurs d'écran y
+       entrent, le clavier reste rangé. */
+    const tactile = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+    const cible = tactile ? entree.querySelector(".entree-carte") : $("#entree-courriel");
+    if (cible) setTimeout(() => cible.focus(), 50);
   }
 
   function fermerPorte() {
@@ -270,6 +282,7 @@
         /* « Entre ton adresse » au-dessus de « regarde ta boîte », ce sont
            deux consignes contradictoires sur le même écran. */
         montrer("#entree-sous", (el) => { el.hidden = true; });
+        montrer("#entree-essayer", (el) => { el.textContent = "Commencer en attendant le lien"; });
       });
     }
 
@@ -279,6 +292,7 @@
         montrer("#entree-boite", (el) => { el.hidden = true; });
         montrer("#entree-formulaire", (el) => { el.hidden = false; });
         montrer("#entree-sous", (el) => { el.hidden = false; });
+        montrer("#entree-essayer", (el) => { el.textContent = "Essayer sans compte"; });
         const champ = $("#entree-courriel");
         if (champ) { champ.value = ""; champ.focus(); }
       });
@@ -296,7 +310,7 @@
 
     COMPTE.disponible().then((pret) => {
       if (!pret) return;                 // rien à garder : les liens passent
-      document.querySelectorAll('a[href^="app.html"]').forEach((lien) => {
+      document.querySelectorAll('a[href^="app.html"]:not([data-sans-porte])').forEach((lien) => {
         lien.addEventListener("click", (evenement) => {
           if (COMPTE.connecte()) return;             // déjà entré
           evenement.preventDefault();

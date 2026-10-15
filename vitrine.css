@@ -135,7 +135,6 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 }
 .telephone img { border-radius: 27px; width: 100%; height: auto; }
 .telephone--grand { width: min(272px, 80%); }
-.telephone--petit { width: min(186px, 62%); margin-top: 0; }
 
 .atouts {
   display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 26px;
@@ -193,16 +192,6 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .etape h3 { font-size: 20px; }
 .etape p { color: var(--gris-texte); margin-top: 8px; max-width: 42ch; margin-inline: auto; }
 .etapes + .centre { margin-top: 38px; }
-
-/* ————— Les trois portes —————————————————————————————————————— */
-.portes { display: grid; gap: 18px; margin-top: 28px; }
-.porte {
-  background: var(--blanc); border: 1px solid var(--bordure); border-radius: 18px;
-  padding: 22px 18px; text-align: center; box-shadow: var(--ombre);
-}
-.porte .telephone { margin-inline: auto; }
-.porte h3 { font-size: 18px; margin-top: 18px; }
-.porte p { color: var(--gris-texte); font-size: 15px; margin-top: 8px; }
 
 /* ————— La frise de la révision espacée ———————————————————————— */
 .frise {
@@ -441,6 +430,11 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .entree-champ:focus { outline: none; border-color: var(--marine); background: var(--blanc); }
 .entree-valider { width: 100%; margin-top: 14px; }
 
+/* La sortie sans compte : un vrai bouton, pas un lien gris en bas de
+   fenêtre. Une issue qu'on cache n'en est pas une. */
+.entree-essayer { display: flex; justify-content: center; width: 100%; margin-top: 12px; }
+.entree-carte:focus { outline: none; }
+
 .entree-boite { text-align: center; margin-top: 22px; }
 .entree-boite-titre { font-size: 18px; font-weight: 800; color: var(--marine); }
 .entree-boite-texte { margin-top: 10px; color: var(--gris-texte); font-size: 14.5px; }
@@ -523,7 +517,6 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   .texte { font-size: 17.5px; }
 
   .duo { grid-template-columns: 1fr 1fr; gap: 20px; }
-  .portes { grid-template-columns: repeat(3, 1fr); gap: 22px; }
   .franchise { grid-template-columns: 1fr 1fr; gap: 18px; }
   .offres { grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
   .questions { grid-template-columns: 1fr 1fr; align-content: start; }

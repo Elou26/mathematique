@@ -72,7 +72,7 @@
     <a class="bouton bouton--principal" href="app.html?vue=scan">
       Créer ma première fiche
     </a>
-    <p class="mention">Gratuit, sans carte bancaire. Ton adresse suffit — pas de mot de passe.</p>
+    <p class="mention">Ta première fiche est offerte. Sans carte bancaire, sans compte obligatoire.</p>
   </div>
 
   <figure class="telephone telephone--grand">
@@ -181,46 +181,7 @@
   </div>
 </section>
 
-<!-- ————— 4. Les trois portes ———————————————————————————————————— -->
-<section class="section">
-  <p class="sur-titre">Une fiche, trois usages</p>
-  <h2>La même leçon, trois façons de l'apprendre</h2>
-  <p class="texte">
-    On n'apprend pas un cours d'histoire comme un chapitre de maths, ni la
-    veille comme trois semaines avant. Chaque fiche ouvre trois portes.
-  </p>
-
-  <div class="portes">
-    <article class="porte">
-      <figure class="telephone telephone--petit">
-        <img src="images/app-fiche.jpg" width="780" height="1688" loading="lazy"
-             alt="La page d'une fiche : le titre du chapitre, 64 % maîtrisé, le parcours des trois notions avec leur pourcentage.">
-      </figure>
-      <h3>Le résumé</h3>
-      <p>Ton cours remis au propre, avec le sommaire et la notion la plus fragile mise en avant.</p>
-    </article>
-
-    <article class="porte">
-      <figure class="telephone telephone--petit">
-        <img src="images/app-cartes.jpg" width="780" height="1280" loading="lazy"
-             alt="Une flashcard : la question tirée de la fiche, et l'invitation à répondre dans sa tête avant de retourner la carte.">
-      </figure>
-      <h3>Les cartes</h3>
-      <p>Trente secondes dans le bus. Tu réponds dans ta tête, tu retournes, tu dis si c'était su.</p>
-    </article>
-
-    <article class="porte">
-      <figure class="telephone telephone--petit">
-        <img src="images/app-quiz.jpg" width="780" height="1400" loading="lazy"
-             alt="Un quiz à choix multiples tiré de la fiche, avec le compteur de questions et le score.">
-      </figure>
-      <h3>Le quiz</h3>
-      <p>Un QCM corrigé qui note chaque notion : tu vois noir sur blanc ce qui n'est pas acquis.</p>
-    </article>
-  </div>
-</section>
-
-<!-- ————— 5. La révision espacée ————————————————————————————————— -->
+<!-- ————— 4. La révision espacée ————————————————————————————————— -->
 <section class="section section--marine">
   <p class="sur-titre">La méthode</p>
   <h2>Elle te dit quoi réviser, et quand</h2>
@@ -243,7 +204,7 @@
   </p>
 </section>
 
-<!-- ————— 6. Ce qu'on ne fera pas ———————————————————————————————— -->
+<!-- ————— 5. Ce qu'on ne fera pas ———————————————————————————————— -->
 <section class="section section--claire">
   <p class="sur-titre">Jouons franc jeu</p>
   <h2>Ce qu'on ne te racontera pas</h2>
@@ -281,7 +242,7 @@
   </ul>
 </section>
 
-<!-- ————— 7. Les formules ———————————————————————————————————————— -->
+<!-- ————— 6. Les formules ———————————————————————————————————————— -->
 <section class="section" id="tarifs">
   <p class="sur-titre">Les formules</p>
   <h2>Des crédits, pas un abonnement flou</h2>
@@ -315,7 +276,7 @@
   </p>
 </section>
 
-<!-- ————— 8. Les questions ——————————————————————————————————————— -->
+<!-- ————— 7. Les questions ——————————————————————————————————————— -->
 <section class="section section--claire">
   <p class="sur-titre">Avant de te lancer</p>
   <h2>Les questions qu'on nous pose</h2>
@@ -382,7 +343,7 @@
   </div>
 </section>
 
-<!-- ————— 9. La dernière porte ——————————————————————————————————— -->
+<!-- ————— 8. La dernière porte ——————————————————————————————————— -->
 <section class="section section--final">
   <h2>Ton prochain contrôle est dans combien de jours ?</h2>
   <p class="texte">
@@ -419,7 +380,7 @@
 <div class="entree" id="entree" hidden>
   <div class="entree-fond" data-entree-fermer></div>
 
-  <div class="entree-carte" role="dialog" aria-modal="true" aria-labelledby="entree-titre">
+  <div class="entree-carte" role="dialog" aria-modal="true" aria-labelledby="entree-titre" tabindex="-1">
     <button class="entree-croix" type="button" data-entree-fermer aria-label="Fermer">
       <svg viewBox="0 0 24 24" aria-hidden="true" width="22" height="22">
         <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor"
@@ -427,9 +388,9 @@
       </svg>
     </button>
 
-    <h2 class="entree-titre" id="entree-titre">Crée ton compte</h2>
-    <p class="entree-sous" id="entree-sous">Entre ton adresse pour commencer. Tes fiches te suivront
-      d'un appareil à l'autre.</p>
+    <h2 class="entree-titre" id="entree-titre">Tes fiches, sur tous tes appareils</h2>
+    <p class="entree-sous" id="entree-sous">Entre ton adresse pour les retrouver partout — ou
+      essaie tout de suite : le compte peut attendre.</p>
 
     <div class="entree-formulaire" id="entree-formulaire">
       <!-- Posé par compte.js, et seulement si Google est branché. -->
@@ -454,6 +415,15 @@
     </div>
 
     <p class="entree-message" id="entree-message" role="status" aria-live="polite" hidden></p>
+
+    <!-- ————— La sortie sans compte ———————————————————————————————
+         L'essai se compte sur l'appareil : le compte ne protège rien à ce
+         stade, il ne sert qu'à retrouver ses fiches ailleurs. Exiger un
+         aller-retour dans sa boîte mail avant d'avoir vu une seule fiche,
+         c'était perdre l'élève au moment exact où il était décidé.
+         « data-sans-porte » : ce lien-là ne doit pas rouvrir la porte. -->
+    <a class="bouton bouton--creux entree-essayer" id="entree-essayer"
+       href="app.html?vue=scan" data-sans-porte>Essayer sans compte</a>
 
     <p class="entree-legal">
       Pas de mot de passe à retenir : tu reçois un lien, tu cliques, c'est ouvert.

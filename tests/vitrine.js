@@ -139,7 +139,11 @@ function jetons(fichier) {
       l: i.getAttribute('width'), h: i.getAttribute('height'),
       charge: i.naturalWidth > 0,
     })));
-    verifier('la page montre le produit en images', images.length >= 6, `${images.length} images`);
+    /* Cinq et non plus six : la section « trois usages » remontrait la
+       fiche et le quiz déjà vus dans « trois gestes », trois écrans de
+       défilement pour rien sur un téléphone. Le produit reste montré à
+       chaque étape — accroche, photo, fiche, quiz. */
+    verifier('la page montre le produit en images', images.length >= 5, `${images.length} images`);
     const muettes = images.filter((i) => i.alt.trim().length < 20);
     verifier('chaque image se décrit pour qui ne la voit pas',
       muettes.length === 0, muettes.map((i) => i.src).join(', '));
@@ -297,9 +301,47 @@ function jetons(fichier) {
       !(await page.isVisible('#entree-message')),
       await page.innerText('#entree-message').catch(() => '—'));
 
+    /* En attendant le lien, l'élève peut déjà commencer. */
+    verifier('en attendant le lien, on peut déjà commencer',
+      /en attendant le lien/i.test(await page.innerText('#entree-essayer')),
+      await page.innerText('#entree-essayer'));
+
     await page.keyboard.press('Escape');
     await page.waitForTimeout(300);
     verifier('échap referme la porte', !(await page.isVisible('#entree')), 'toujours ouverte');
+    await ctx.close();
+  }
+  {
+    /* b bis) La sortie sans compte. L'essai se compte sur l'appareil : le
+       compte ne protège rien à ce stade. Exiger un aller-retour dans la
+       boîte mail avant la première fiche, c'était perdre l'élève au moment
+       exact où il s'était décidé. */
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+    await ctx.addInitScript("window.MATHEMATIQUE_COMPTE = { api: '/api' };");
+    const page = await ctx.newPage();
+    await page.route('**/api/**', (route) => route.fulfill({
+      status: 200, contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ pret: false, lecture: true, comptes: true, google: '' }) }));
+    await page.goto('http://localhost:8321/index.html', { waitUntil: 'load' });
+    await page.waitForTimeout(600);
+    await page.click('.hero-actions .bouton');
+    await page.waitForTimeout(400);
+
+    verifier('la porte propose d\'essayer sans compte',
+      await page.isVisible('#entree-essayer'), await page.innerText('#entree').catch(() => '—'));
+    /* Sur un téléphone, le clavier ne doit pas surgir et cacher la sortie. */
+    verifier('sur téléphone, le clavier ne s\'ouvre pas d\'office',
+      await page.evaluate(() => document.activeElement && document.activeElement.id !== 'entree-courriel'),
+      await page.evaluate(() => document.activeElement && document.activeElement.id));
+    /* Elle mène là où l'élève voulait aller. */
+    const cible = await page.getAttribute('#entree-essayer', 'href');
+    verifier('elle mène là où l\'élève voulait aller',
+      cible === await page.getAttribute('.hero-actions .bouton', 'href'), String(cible));
+
+    await page.click('#entree-essayer');
+    await page.waitForTimeout(700);
+    verifier('et elle entre dans l\'app sans rouvrir la porte',
+      /app\.html/.test(page.url()), page.url());
     await ctx.close();
   }
   {

@@ -1484,6 +1484,49 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   line-height: 1.5;
   color: rgba(255, 255, 255, 0.86);
 }
+/* L'essai offert, dit au moment où l'on hésite à appuyer. */
+.scan-offerte {
+  margin: 10px 0 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #E8F5EC;
+  color: #1E6B3A;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* ————— L'en-tête du mur de paiement ——————————————————————————
+   Sur fond clair, en texte foncé : la page de tarif n'a plus de bandeau
+   bleu, et ce qui y était écrit en blanc ne se lisait plus. */
+.mur-entete { margin: 6px 0 18px; }
+.mur-titre {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--noir);
+}
+.mur-raison {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--gris-texte);
+}
+.mur-rappel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--blanc);
+  border: 1px solid rgba(27, 42, 107, 0.12);
+}
+.mur-rappel-icone { font-size: 22px; line-height: 1; }
+.mur-rappel-texte { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--gris-texte); }
+.mur-rappel-texte strong { display: block; color: var(--noir); font-size: 14.5px; }
+
 .tarif-prix {
   margin: 18px 0 0;
   font-size: 40px;

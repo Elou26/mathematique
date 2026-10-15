@@ -44,8 +44,10 @@ une bibliothèque vide, c'est le perdre. Celui qui revient, lui, est reconnu (`v
 `mathematique.fiches`) et se voit proposer de **reprendre**, pas d'acheter.
 
 La page descend dans cet ordre : l'accroche et sa capture, le problème (avant / après), les
-trois gestes, les trois portes d'une fiche, la répétition espacée, ce qu'on refuse de faire,
-les formules, les questions fréquentes, un dernier bouton. Un rappel flottant suit l'élève
+trois gestes, la répétition espacée, ce qu'on refuse de faire, les formules, les questions
+fréquentes, un dernier bouton. Une section « trois usages » remontrait la fiche et le quiz
+déjà vus dans les trois gestes : retirée, elle a rendu près de trois écrans de défilement sur
+un téléphone (13,3 → 10,9). Un rappel flottant suit l'élève
 dès que l'accroche est passée — et disparaît quand elle revient à l'écran.
 
 **Les prix ne sont pas écrits dans la page.** `vitrine.js` les lit dans `abonnement.js`, comme
@@ -66,6 +68,37 @@ s'efface dans deux cas, et c'est voulu : l'élève déjà entré passe sans qu'o
 lui redemande son nom, et si le serveur n'a pas de quoi ouvrir un compte,
 personne n'est arrêté devant une porte qu'on ne peut pas lui ouvrir — sans
 quoi le site entier serait inutilisable tant que la base n'est pas branchée.
+
+**Elle a une sortie : « Essayer sans compte ».** L'essai se compte sur
+l'appareil, pas sur le compte — la porte ne protégeait donc rien, elle
+imposait seulement un aller-retour dans la boîte mail avant d'avoir vu la
+moindre fiche, au moment exact où l'élève s'était décidé. La sortie mène là
+où il voulait aller, devient « Commencer en attendant le lien » une fois
+l'adresse envoyée, et porte `data-sans-porte` pour ne pas rouvrir la porte
+qu'elle quitte. Sur téléphone, le curseur ne se pose plus dans le champ :
+le clavier aurait recouvert la moitié de la fenêtre, sortie comprise.
+
+### Le mur de paiement
+
+Il commence par ce que l'élève a obtenu, pas par ce qui lui manque : au bout
+de l'essai, le titre dit « Ta première fiche est prête », et un encart rappelle
+laquelle — avec ses cartes, et le fait qu'elle reste à lui, abonnement ou pas.
+
+Sa phrase d'explication a longtemps été **invisible** : dessinée pour un
+bandeau bleu foncé que la page avait perdu, elle était restée blanche sur fond
+clair. Les tests la trouvaient, aucun élève ne pouvait la lire. `tests/abonnement.js`
+mesure désormais le **contraste réel** du titre et de la raison (seuil WCAG 4,5:1),
+couleur du texte contre couleur effectivement peinte derrière.
+
+Le comparatif ne garde que ce qui change d'une colonne à l'autre — fiches et
+crédits. Quatre lignes de ✓ identiques et un « coût d'une fiche » partout égal à
+100 ne comparaient rien. Et trois réponses devenues fausses avec les comptes et
+le portail Stripe (« une clé à coller », « arrête depuis le mail de
+confirmation ») disent maintenant ce que disent les CGV.
+
+Sur l'écran de scan, tant que l'essai court et qu'aucune fiche n'est faite, une
+ligne répond à la question qu'on se pose avant d'appuyer : « Ta première fiche
+est offerte — sans carte bancaire. »
 
 ### Les images
 

@@ -369,12 +369,50 @@
        qu'il paie déjà serait absurde. */
     const raison = quota.abonne
       ? `Tes ${quota.creditsMax.toLocaleString("fr-FR")} crédits du mois sont dépensés. Ils reviennent le 1er, ou passe à l'offre au-dessus.`
-      : `Tes ${quota.creditsMax.toLocaleString("fr-FR")} crédits d'essai sont dépensés. Choisis une offre pour continuer.`;
+      : `Tes ${quota.creditsMax.toLocaleString("fr-FR")} crédits d'essai sont utilisés. Pour transformer tes prochains cours en fiches, choisis une formule.`;
     if (!silencieux) ouvrirPageIllimite(raison, vueCourante());
     return false;
   }
 
   let retourAbonnement = "accueil";       // d'où l'on vient, pour le bouton de retour
+
+  /* ————— L'en-tête du mur ————————————————————————————————————————
+     On n'arrive pas ici pour la même raison selon qui l'on est, et le
+     titre doit le dire. Un élève au bout de son essai vient d'obtenir
+     quelque chose : on commence par là — sa fiche est prête, et elle reste
+     à lui — plutôt que par ce qui lui manque. */
+  function rendreEnteteDuMur(pret) {
+    const quota = quotaFiches();
+    const titre = $("#illimite-titre");
+    const rappel = $("#illimite-rappel");
+    if (!titre || !rappel) return;
+
+    const derniere = fiches.slice().sort((a, b) => String(b.creee).localeCompare(String(a.creee)))[0];
+    const finEssai = pret && quota.essai && quota.atteint;
+
+    if (finEssai) titre.textContent = derniere ? "Ta première fiche est prête" : "Ton essai est terminé";
+    else if (pret && quota.abonne && quota.atteint) titre.textContent = "Ton mois est bien rempli";
+    else titre.textContent = "Choisis ton rythme";
+
+    rappel.hidden = !(finEssai && derniere);
+    if (rappel.hidden) { rappel.textContent = ""; return; }
+    const cartes = cartesDeLaFiche(derniere).length;
+    const detail = cartes ? `${cartes} carte${cartes > 1 ? "s" : ""} et un quiz` : "son résumé et son quiz";
+    rappel.innerHTML = `
+      <span class="mur-rappel-icone" aria-hidden="true">${emojiMatiere(derniere)}</span>
+      <p class="mur-rappel-texte"><strong>${echapper(derniere.titre || "Ta fiche")}</strong>
+        ${detail}. Elle reste à toi, abonnement ou pas.</p>`;
+  }
+
+  /** Dit au nouveau venu que sa première fiche ne lui coûtera rien. */
+  function direEssaiOffert() {
+    const ligne = $("#scan-offerte");
+    if (!ligne) return;
+    const quota = quotaFiches();
+    /* Seulement quand c'est vrai : paiement branché, essai en cours, et
+       aucune fiche encore faite. Après, la phrase deviendrait un mensonge. */
+    ligne.hidden = !(OFFRE && OFFRE.estConfigure() && quota.essai && !quota.atteint && !quota.faites);
+  }
 
   /** Ouvre la page de tarif. `raison` dit pourquoi on y arrive. */
   function ouvrirPageIllimite(raison, depuis) {
@@ -386,8 +424,9 @@
     // Sans serveur de paiement, on ne fait pas semblant : on le dit.
     const pret = OFFRE.estConfigure();
     $("#illimite-raison").textContent = raison
-      || (pret ? "Choisis ce qui correspond à ton rythme."
+      || (pret ? "Toutes les formules donnent accès à tout : seul le nombre de fiches par mois change."
                : "Offre en préparation — aujourd'hui, tout est gratuit et sans limite.");
+    rendreEnteteDuMur(pret);
     rendreOffres(pret);
     rendreComparatif();
     /* La liste des tarifs réellement créés arrive du serveur : on redessine
@@ -533,20 +572,20 @@
       .concat(offres.map((o) => `<td class="comparatif-oui">${o.illimite
         ? "sans compter"
         : `${credits(o.fiches)}<br><small>/ mois</small>`}</td>`)).join("");
-    const partout = (libelle) => `<tr><th scope="row">${libelle}</th>`
-      + [`<td class="comparatif-oui">✓</td>`]
-        .concat(offres.map(() => `<td class="comparatif-oui">✓</td>`)).join("") + `</tr>`;
+    /* Un comparatif ne montre que ce qui change d'une colonne à l'autre.
+       Quatre lignes de ✓ identiques et un « coût d'une fiche » partout égal
+       à 100 allongeaient la page sans rien apprendre à personne : que toutes
+       les offres donnent accès à tout, la liste juste au-dessus le dit. */
+    const nombres = [`<td>${gratuit}<br><small>en tout</small></td>`]
+      .concat(offres.map((o) => `<td class="comparatif-oui">${o.illimite
+        ? "sans compter"
+        : `${o.fiches}<br><small>/ mois</small>`}</td>`)).join("");
 
     table.innerHTML = `
       <thead><tr><th scope="col">&nbsp;</th>${colonnes}</tr></thead>
       <tbody>
+        <tr><th scope="row">Fiches</th>${nombres}</tr>
         <tr><th scope="row">Crédits</th>${volumes}</tr>
-        <tr><th scope="row">Coût d'une fiche</th>${
-          [`<td>${OFFRE.creditsParFiche()}</td>`]
-            .concat(offres.map(() => `<td>${OFFRE.creditsParFiche()}</td>`)).join("")}</tr>
-        ${partout("Lecture de tes photos")}
-        ${partout("Résumé, cartes, quiz")}
-        ${partout("Révision espacée")}
       </tbody>`;
   }
 
@@ -1497,6 +1536,7 @@
     });
 
     if (nom === "scan" && !fiche.pages.length) reinitialiserScan();
+    if (nom === "scan") direEssaiOffert();
 
     if (nom === "revision") {
       const pastille = $("#cloche-compteur");

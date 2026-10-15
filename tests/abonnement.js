@@ -183,6 +183,12 @@ function semence(fiches, paiement) {
 
     verifier('sous le quota, la création s\'ouvre normalement',
       await page.isVisible('#vue-scan'), 'la photo ne s\'est pas ouverte');
+    /* « Est-ce que ça va me coûter quelque chose ? » : la question qu'on
+       se pose avant d'appuyer. Tant que c'est vrai, on y répond. */
+    verifier('le nouveau venu sait que sa première fiche est offerte',
+      await page.isVisible('#scan-offerte')
+      && /première fiche est offerte/.test(await page.innerText('#scan-offerte')),
+      await page.innerText('#scan-offerte').catch(() => 'absent'));
     await page.click('#vue-scan .retour'); await page.waitForTimeout(200);
 
     await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(250);
@@ -256,8 +262,45 @@ function semence(fiches, paiement) {
       tableau.titres.join('|') === 'Gratuit|Essentiel|Régulier|Intensif', tableau.titres.join(' | '));
 
     verifier('le mur dit pourquoi',
-      /100 crédits d'essai sont dépensés/.test(await page.innerText('#illimite-raison')),
+      /100 crédits d'essai sont utilisés/.test(await page.innerText('#illimite-raison')),
       await page.innerText('#illimite-raison'));
+
+    /* ————— Lisible, pas seulement présent ———————————————————————
+       Cette phrase a passé des semaines en blanc sur fond clair : elle
+       était là, le test la trouvait, et aucun élève ne pouvait la lire.
+       On mesure donc le contraste réel, couleur du texte contre couleur
+       du fond effectivement peinte derrière, au seuil WCAG de 4,5:1. */
+    const contrastes = await page.evaluate(() => {
+      const rvb = (c) => (c.match(/[\d.]+/g) || []).map(Number);
+      const lum = ([r, v, b]) => {
+        const canal = (x) => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
+        return 0.2126 * canal(r) + 0.7152 * canal(v) + 0.0722 * canal(b);
+      };
+      const fondDe = (el) => {
+        for (let n = el; n; n = n.parentElement) {
+          const c = rvb(getComputedStyle(n).backgroundColor);
+          if (c.length >= 3 && (c[3] === undefined || c[3] > 0.5)) return c;
+        }
+        return [255, 255, 255];
+      };
+      const rapport = (sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return 0;
+        const a = lum(rvb(getComputedStyle(el).color));
+        const b = lum(fondDe(el));
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      };
+      return { titre: rapport('#illimite-titre'), raison: rapport('#illimite-raison') };
+    });
+    /* Au bout de l'essai, on commence par ce que l'élève a obtenu, pas
+       par ce qui lui manque. */
+    verifier('au bout de l\'essai, le titre parle de ce qui est fait',
+      /Ta première fiche est prête|Ton essai est terminé/.test(await page.innerText('#illimite-titre')),
+      await page.innerText('#illimite-titre'));
+    verifier('le titre du mur se lit (contraste ≥ 4,5:1)',
+      contrastes.titre >= 4.5, contrastes.titre.toFixed(2));
+    verifier('la raison du mur se lit (contraste ≥ 4,5:1)',
+      contrastes.raison >= 4.5, contrastes.raison.toFixed(2));
     verifier('aucun abonnement n\'est inventé',
       (await page.evaluate(() => localStorage.getItem('mathematique.abonnement'))) === null,
       await page.evaluate(() => localStorage.getItem('mathematique.abonnement')));
@@ -406,7 +449,7 @@ function semence(fiches, paiement) {
     verifier('supprimer ses fiches ne rend pas les crédits dépensés',
       await page2.isVisible('#vue-abonnement'), 'la création s\'est ouverte');
     verifier('et le mur le dit avec le bon chiffre',
-      /100 crédits d'essai sont dépensés/.test(await page2.innerText('#illimite-raison')),
+      /100 crédits d'essai sont utilisés/.test(await page2.innerText('#illimite-raison')),
       await page2.innerText('#illimite-raison'));
     await ctx2.close();
 

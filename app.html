@@ -211,6 +211,12 @@
 
     <h2 class="titre-categorie titre-categorie--grand" id="scan-titre-page">Photographier ma page</h2>
     <p class="sous-texte" id="scan-sous-texte">Photographie ta page : fiche, cartes et quiz en sortent.</p>
+    <!-- Un « 100 » en haut de l'écran ne dit rien à quelqu'un qui arrive :
+         « est-ce que ça va me coûter quelque chose ? » est la question qu'il
+         se pose avant d'appuyer. On y répond ici, tant que l'essai court. -->
+    <p class="scan-offerte" id="scan-offerte" hidden>
+      <span aria-hidden="true">🎁</span> Ta première fiche est offerte — sans carte bancaire.
+    </p>
     <p class="ia-moteur" id="scan-moteur" hidden></p>
 
     <!-- Cadrage -->
@@ -394,7 +400,16 @@
       Retour
     </button>
 
-    <p class="tarif-raison" id="illimite-raison">Choisis ce qui correspond à ton rythme.</p>
+    <!-- L'en-tête dit où l'on est et pourquoi. Sa phrase avait été dessinée
+         pour un bandeau bleu foncé que la page a perdu : restée blanche sur
+         fond clair, elle était devenue invisible — et l'élève arrivait sur
+         des prix sans savoir pourquoi. -->
+    <header class="mur-entete">
+      <h2 class="mur-titre" id="illimite-titre">Choisis ton rythme</h2>
+      <p class="mur-raison" id="illimite-raison">Choisis ce qui correspond à ton rythme.</p>
+      <!-- Ce que l'élève a déjà obtenu : sa fiche d'essai, qui reste à lui. -->
+      <div class="mur-rappel" id="illimite-rappel" hidden></div>
+    </header>
 
     <!-- Mois ou année : la bascule n'apparaît que si des tarifs annuels
          existent vraiment côté Stripe. -->
@@ -422,7 +437,7 @@
       <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Résumé, cartes et quiz</strong> sur chacune de tes fiches</span></li>
       <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Révision espacée</strong> sur tout ton programme, notion par notion</span></li>
       <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Entraînement libre</strong> sur l'ensemble de tes cartes</span></li>
-      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Sur tous tes appareils</strong> — une clé à coller, et c'est repris</span></li>
+      <li><svg aria-hidden="true"><use href="#i-coche"></use></svg><span><strong>Sur tous tes appareils</strong> — entre avec ton adresse, tes fiches et ton abonnement suivent</span></li>
     </ul>
     <p class="mention">Toutes les offres donnent accès à tout. Elles ne diffèrent que par le
       nombre de fiches que tu peux créer chaque mois.</p>
@@ -433,18 +448,19 @@
     <h3 class="titre-categorie">Questions courantes</h3>
     <details class="reglages">
       <summary>Je change de téléphone, je perds mon abonnement ?</summary>
-      <p class="tarif-reponse">Non. Ton profil affiche une clé : colle-la sur l'autre appareil, dans
-        « J'ai déjà un abonnement », et tout revient.</p>
+      <p class="tarif-reponse">Non. Entre avec la même adresse e-mail sur le nouvel appareil :
+        ton abonnement et tes fiches te suivent.</p>
     </details>
     <details class="reglages">
       <summary>Comment j'arrête ?</summary>
-      <p class="tarif-reponse">Depuis le mail de confirmation Stripe, en un clic. L'illimité reste
-        actif jusqu'à la fin du mois déjà payé.</p>
+      <p class="tarif-reponse">Depuis ton profil, « Gérer ou résilier mon abonnement » : deux clics
+        chez Stripe, sans écrire à personne. Tu gardes tes crédits jusqu'à la fin de la période
+        déjà payée.</p>
     </details>
     <details class="reglages">
       <summary>Mes fiches m'appartiennent toujours ?</summary>
-      <p class="tarif-reponse">Oui. Elles restent sur ton téléphone, abonnement ou non. Sans
-        abonnement, tu ne peux simplement plus en créer de nouvelles au-delà de la limite gratuite.</p>
+      <p class="tarif-reponse">Oui, abonnement ou non : tu peux toujours les relire, refaire leurs
+        cartes et leurs quiz. Sans abonnement, tu ne peux simplement plus en créer de nouvelles.</p>
     </details>
 
     <button class="bouton-texte" type="button" id="illimite-restaurer">J'ai déjà un abonnement</button>
