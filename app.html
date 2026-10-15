@@ -396,6 +396,10 @@
 
     <p class="tarif-raison" id="illimite-raison">Choisis ce qui correspond à ton rythme.</p>
 
+    <!-- Mois ou année : la bascule n'apparaît que si des tarifs annuels
+         existent vraiment côté Stripe. -->
+    <div class="rythme" id="illimite-rythme" role="group" aria-label="Payer au mois ou à l'année" hidden></div>
+
     <!-- Les trois offres sont écrites par rendreOffres() depuis abonnement.js :
          les prix et les quotas vivent à un seul endroit, pas aussi ici. -->
     <div class="offres" id="illimite-offres"></div>

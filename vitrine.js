@@ -23,6 +23,38 @@
 
   /* ————— Les formules ———————————————————————————————————————— */
 
+  /* Mois ou année, pour la visite en cours. */
+  let rythmeVitrine = "mois";
+
+  /**
+   * La bascule mois / année, au-dessus des cartes. Elle n'apparaît que si
+   * des tarifs annuels existent vraiment : proposer une année invendable,
+   * c'est promettre une porte qui s'ouvre sur une erreur.
+   */
+  function rendreBasculeVitrine(annee, rythme) {
+    const bascule = document.querySelector("#tarifs-rythme");
+    if (!bascule) return;
+    bascule.hidden = !annee;
+    if (!annee) return;
+
+    const offerts = ABONNEMENT.offresAuRythme("an")
+      .reduce((max, offre) => Math.max(max, ABONNEMENT.moisOfferts(offre)), 0);
+    bascule.innerHTML = `
+      <button class="rythme-choix${rythme === "mois" ? " rythme-choix--actif" : ""}"
+              type="button" data-rythme="mois" aria-pressed="${rythme === "mois"}">Au mois</button>
+      <button class="rythme-choix${rythme === "an" ? " rythme-choix--actif" : ""}"
+              type="button" data-rythme="an" aria-pressed="${rythme === "an"}">À l'année${
+        offerts ? ` <span class="rythme-gain">${offerts} mois offerts</span>` : ""}</button>`;
+
+    bascule.querySelectorAll("[data-rythme]").forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        if (rythmeVitrine === bouton.dataset.rythme) return;
+        rythmeVitrine = bouton.dataset.rythme;
+        ecrireOffres();
+      });
+    });
+  }
+
   function ecrireOffres() {
     const hote = $("#offres");
     if (!hote || typeof ABONNEMENT === "undefined") return;
@@ -30,7 +62,10 @@
     /* Seules les offres que le serveur sait vendre : pendant la mise en
        place des tarifs, il n'y en a qu'une, et annoncer les deux autres
        serait promettre un bouton qui rend « offre inconnue ». */
-    const offres = ABONNEMENT.offresEnVente();
+    const annee = ABONNEMENT.anneeEnVente();
+    if (!annee) rythmeVitrine = "mois";
+    const rythme = rythmeVitrine;
+    const offres = ABONNEMENT.offresAuRythme(rythme);
     const parFiche = ABONNEMENT.creditsParFiche();
     /* Le paiement est branché, ou il ne l'est pas. Dans le second cas la
        page le dit et n'envoie personne sur un mur : le bouton ramène à
@@ -43,23 +78,31 @@
     const encart = $("#encart-gratuit");
     if (encart) encart.hidden = ouvert;
 
+    rendreBasculeVitrine(annee, rythme);
+
     hote.textContent = "";
     offres.forEach((offre) => {
+      const offerts = rythme === "an" ? ABONNEMENT.moisOfferts(offre) : 0;
       const credits = (offre.fiches * parFiche).toLocaleString("fr-FR");
       const carte = document.createElement("article");
       carte.className = "offre" + (offre.conseille ? " offre--conseille" : "");
       carte.innerHTML = `
         ${offre.conseille ? '<span class="offre-ruban">Conseillé</span>' : ""}
         <p class="offre-nom">${offre.nom}</p>
-        <p class="offre-prix">${offre.prix}<span> ${offre.periode}</span></p>
-        ${ABONNEMENT.prixApres(offre)
+        <p class="offre-prix">${ABONNEMENT.prixDe(offre, rythme)}<span> ${
+          ABONNEMENT.libellePeriode(rythme)}</span></p>
+        ${offerts
+          ? `<p class="offre-offerts">${offerts} mois offert${offerts > 1 ? "s" : ""}
+               — ${offre.prix} par mois sinon</p>`
+          : ""}
+        ${rythme === "mois" && ABONNEMENT.prixApres(offre)
           ? `<p class="offre-lancement">Lancement — ensuite ${ABONNEMENT.prixApres(offre)}</p>`
           : ""}
         <p class="offre-volume">${offre.fiches} fiches par mois</p>
         <p class="offre-credits">soit ${credits} crédits</p>
-        <p class="offre-unitaire">${ABONNEMENT.prixParFiche(offre)}${
-          ABONNEMENT.economieParFiche(offre)
-            ? ` <span class="offre-gain">− ${ABONNEMENT.economieParFiche(offre)} %</span>`
+        <p class="offre-unitaire">${ABONNEMENT.prixParFiche(offre, rythme)}${
+          ABONNEMENT.economieParFiche(offre, rythme)
+            ? ` <span class="offre-gain">− ${ABONNEMENT.economieParFiche(offre, rythme)} %</span>`
             : ""}</p>
         <p class="offre-argument">${offre.argument}</p>
         <a class="bouton ${offre.conseille ? "bouton--principal" : "bouton--creux"}"
@@ -68,6 +111,15 @@
         </a>`;
       hote.appendChild(carte);
     });
+
+    /* « Sans engagement » ne vaut que pour le mois : une année payée
+       d'avance engage douze mois, et le dire autrement serait mentir. */
+    const engagement = document.querySelector("#tarifs-engagement");
+    if (engagement) {
+      engagement.textContent = rythme === "an"
+        ? "Un an payé d'avance, puis renouvelable. Tu peux arrêter à tout moment pour la prochaine échéance. Tes fiches restent sur ton téléphone même si tu arrêtes."
+        : "Sans engagement, mensuel, résiliable quand tu veux. Tes fiches restent sur ton téléphone même si tu arrêtes.";
+    }
 
     /* Une seule fois sous les cartes : la promesse, pas le matraquage. */
     const note = document.querySelector("#tarifs-lancement");

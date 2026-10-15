@@ -20,9 +20,14 @@ function verifier(nom, condition, vu) {
 /* ————— Faux serveur de paiement ————————————————————————————————
    Il répond comme serveur/index.js, sans Stripe : on éprouve ici ce que
    fait la page, pas ce que fait Stripe (voir tests/serveur-paiement.js). */
-const recu = { paiements: [], licences: [] , offresEnVente: ['essentiel', 'regulier', 'intensif']};
+const recu = {
+  paiements: [], licences: [],
+  offresEnVente: ['essentiel', 'regulier', 'intensif'],
+  offresAnnuelles: ['essentiel', 'regulier', 'intensif'],
+};
 let offreRendue = 'essentiel';     // l'offre que le faux serveur dit avoir vendue
 let expireRendu = null;            // l'échéance de la période, quand un cas l'impose
+let rythmeRendu = 'mois';          // « mois » ou « an », comme Stripe le dirait
 const faux = http.createServer((requete, reponse) => {
   const adresse = new URL(requete.url, 'http://localhost');
   const entetes = {
@@ -34,7 +39,10 @@ const faux = http.createServer((requete, reponse) => {
 
   if (adresse.pathname === '/sante') {
     reponse.writeHead(200, entetes);
-    reponse.end(JSON.stringify({ pret: true, lecture: true, comptes: false, offres: recu.offresEnVente }));
+    reponse.end(JSON.stringify({
+      pret: true, lecture: true, comptes: false,
+      offres: recu.offresEnVente, offresAn: recu.offresAnnuelles,
+    }));
     return;
   }
 
@@ -67,7 +75,7 @@ const faux = http.createServer((requete, reponse) => {
     const actif = session === 'cs_payee' || cle === 'cus_bon';
     reponse.writeHead(200, entetes);
     reponse.end(JSON.stringify(actif
-      ? { actif: true, cle: 'cus_bon', offre: offreRendue,
+      ? { actif: true, cle: 'cus_bon', offre: offreRendue, rythme: rythmeRendu,
           expire: expireRendu || Date.now() + 30 * 86400000 }
       : { actif: false }));
     return;
@@ -583,6 +591,66 @@ function semence(fiches, paiement) {
       await page.innerText('#illimite-offres').then((t) => t.slice(0, 120)));
     verifier('ni sous les cartes',
       !(await page.isVisible('#illimite-note-lancement')), 'la promesse périmée est restée');
+    await ctx.close();
+  }
+
+  /* — L'année : trois mois offerts, et le quota qui repart chaque mois ———
+     Un abonnement annuel est payé d'un coup mais donne le même quota tous
+     les mois. Sans découpage, l'élève serait bloqué dès février. */
+  {
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(semence([], { api }));
+    const page = await ctx.newPage();
+    await page.goto('http://localhost:8321/app.html?vue=abonnement'); await page.waitForTimeout(900);
+
+    verifier('la page de tarif propose de payer à l\'année',
+      await page.isVisible('#illimite-rythme'), 'aucune bascule');
+    await page.click('[data-rythme="an"]'); await page.waitForTimeout(300);
+    const cartes = await page.innerText('#illimite-offres');
+    verifier('les prix annuels s\'affichent',
+      /44 €/.test(cartes) && /89 €/.test(cartes) && /134 €/.test(cartes),
+      cartes.replace(/\n+/g, ' · ').slice(0, 160));
+    verifier('et disent ce qu\'ils font gagner',
+      /3 mois offerts/.test(cartes), cartes.replace(/\n+/g, ' · ').slice(0, 200));
+    verifier('le prix à la fiche suit le rythme',
+      /0,37 € la fiche/.test(cartes), cartes.replace(/\n+/g, ' · ').slice(0, 200));
+
+    recu.paiements.length = 0;
+    await page.click('#illimite-offres [data-payer="regulier"]'); await page.waitForTimeout(700);
+    verifier('le paiement part au rythme choisi',
+      (recu.paiements[0] || {}).rythme === 'an', JSON.stringify(recu.paiements[0]));
+    await ctx.close();
+  }
+
+  /* — Un abonné annuel retrouve son quota chaque mois ————————————— */
+  {
+    rythmeRendu = 'an';
+    expireRendu = Date.now() + 300 * 86400000;        // l'échéance est loin
+    const ctx = await nav.newContext({ viewport: { width: 390, height: 844 } });
+    await ctx.addInitScript(semence([], { api }));
+    const page = await ctx.newPage();
+    await page.goto('http://localhost:8321/app.html?paiement=ok&session=cs_payee');
+    await page.waitForTimeout(900);
+
+    /* Le mois en cours est consommé : on simule le passage au suivant en
+       remontant l'étiquette du compteur d'un mois. */
+    await page.evaluate(() => {
+      const abo = JSON.parse(localStorage.getItem('mathematique.abonnement'));
+      const d = new Date();
+      const moisPasse = `${d.getFullYear()}-${String(d.getMonth() || 12).padStart(2, '0')}`;
+      localStorage.setItem('mathematique.consommation', JSON.stringify({
+        mois: `p${Math.floor(abo.expire / 86400000)}+${moisPasse}`, fiches: 10, total: 10,
+      }));
+    });
+    await page.reload(); await page.waitForTimeout(900);
+    await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(300);
+    const profil = await page.innerText('#profil-abonnement');
+    verifier('au mois suivant, l\'abonné annuel retrouve son quota entier',
+      /1\s000 crédits sur 1\s000/.test(profil), profil.replace(/\n+/g, ' · '));
+    verifier('et son profil dit qu\'il paie à l\'année',
+      /À L'ANNÉE|à l'année/i.test(profil), profil.replace(/\n+/g, ' · '));
+    rythmeRendu = 'mois';
+    expireRendu = null;
     await ctx.close();
   }
 

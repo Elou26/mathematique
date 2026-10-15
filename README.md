@@ -941,6 +941,36 @@ et `economieParFiche()` le calculent depuis `cents` et `fiches`, à un seul
 endroit. Deux suites vérifient qu'aucun prix barré ne s'est glissé dans
 l'app ou la vitrine.
 
+### Au mois ou à l'année
+
+Les mêmes offres, payées d'un coup : **44 € / 89 € / 134 €**, soit trois
+mois offerts sur les trois paliers. Le quota ne change pas — ce sont les
+mêmes fiches **par mois**, douze mois d'affilée.
+
+Un piège s'y cachait : le compteur repart « à chaque période payée », et la
+période d'un abonnement annuel dure un an. Un abonné annuel aurait reçu dix
+fiches pour l'année entière et aurait été bloqué dès février.
+`fenetreCourante()` découpe donc la période annuelle en mois
+(`p<échéance>+<mois civil>`), et l'app sait qu'elle est annuelle parce que
+Stripe le dit : `price.recurring.interval`, lu côté serveur, jamais déduit
+d'une table de correspondance.
+
+| Où | Quoi |
+| --- | --- |
+| `CONFIG.offres[].annuel` | le prix annuel de chaque palier |
+| `STRIPE_PRIX_*_AN` | le tarif Stripe correspondant |
+| `/sante` → `offresAn` | ce qui est **réellement** vendable à l'année |
+
+La bascule mois / année n'apparaît que si `offresAn` n'est pas vide :
+proposer une année dont le tarif n'existe pas chez Stripe, c'est promettre
+une porte qui s'ouvre sur une erreur. Et la mention « sans engagement »
+cède la place à « un an payé d'avance » quand on regarde l'année — elle
+serait fausse autrement.
+
+**Avant d'ouvrir l'année**, deux obligations : prévenir l'abonné entre trois
+mois et un mois avant la reconduction tacite (loi Chatel), et le dire dans
+les CGV.
+
 ### Le tarif de lancement
 
 Annoncer « ce prix va augmenter » est licite, contrairement à un prix barré

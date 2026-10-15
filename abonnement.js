@@ -72,17 +72,27 @@ const ABONNEMENT = (function () {
        offre annonce alors son `apres`. */
     lancement: null,
 
+    /* ————— Au mois ou à l'année ————————————————————————————————
+       `annuel` donne le prix de la même offre payée d'un coup. Le quota
+       ne change pas : ce sont les mêmes fiches par mois, douze mois
+       d'affilée. Trois mois offerts sur les trois paliers — une remise
+       qui se dit en trois mots et qui garde l'échelle droite.
+
+       Un palier sans `annuel` ne se vend qu'au mois. */
     offres: [
       {
         cle: "essentiel", nom: "Essentiel", prix: "4,90 €", cents: 490, apres: "6,90 €", periode: "par mois",
+        annuel: { prix: "44 €", cents: 4400 },
         fiches: 10, argument: "Pour une matière, ou un trimestre tranquille.",
       },
       {
         cle: "regulier", nom: "Régulier", prix: "9,90 €", cents: 990, apres: "12,90 €", periode: "par mois",
+        annuel: { prix: "89 €", cents: 8900 },
         fiches: 30, argument: "Toutes tes matières, toute l'année.", conseille: true,
       },
       {
         cle: "intensif", nom: "Intensif", prix: "14,90 €", cents: 1490, apres: "19,90 €", periode: "par mois",
+        annuel: { prix: "134 €", cents: 13400 },
         fiches: 60, argument: "Pour les semaines de révisions à plein régime.",
       },
     ],
@@ -189,7 +199,11 @@ const ABONNEMENT = (function () {
        d'écart qu'un renvoi de Stripe pourrait porter — on ne veut pas
        qu'un compteur reparte parce qu'une date a frémi. */
     if (courant.actif && courant.expire) {
-      return `p${Math.floor(Number(courant.expire) / 86400000)}`;
+      const periode = `p${Math.floor(Number(courant.expire) / 86400000)}`;
+      /* Un abonnement annuel est payé d'un coup, mais il donne le même
+         quota CHAQUE MOIS : sans ce découpage, l'élève recevrait dix
+         fiches pour l'année entière et serait bloqué dès février. */
+      return courant.rythme === "an" ? `${periode}+${moisCourant()}` : periode;
     }
     return moisCourant();
   }
@@ -276,14 +290,57 @@ const ABONNEMENT = (function () {
   }
 
   /** Le prix d'une fiche, en centimes, pour une offre donnée. */
-  function centsParFiche(offre) {
-    if (!offre || !offre.cents || !offre.fiches) return 0;
+  function centsParFiche(offre, rythme) {
+    if (!offre || !offre.fiches) return 0;
+    if (rythme === "an") {
+      if (!offre.annuel) return 0;
+      return offre.annuel.cents / (offre.fiches * 12);
+    }
+    if (!offre.cents) return 0;
     return offre.cents / offre.fiches;
   }
 
+  /* ————— Les deux rythmes ————————————————————————————————————
+     Le quota ne change pas d'un rythme à l'autre : ce sont les mêmes
+     fiches par mois. Seule la façon de payer change — et le prix à la
+     fiche, qui baisse d'un quart quand on paie l'année.
+     ———————————————————————————————————————————————————————————— */
+
+  /** Le prix affiché d'une offre, au rythme demandé. */
+  function prixDe(offre, rythme) {
+    if (rythme === "an" && offre && offre.annuel) return offre.annuel.prix;
+    return offre ? offre.prix : "";
+  }
+
+  /** « par mois » / « par an », pour écrire à côté du prix. */
+  function libellePeriode(rythme) { return rythme === "an" ? "par an" : "par mois"; }
+
+  /** Les offres vendables à ce rythme : une offre sans prix annuel n'y est pas. */
+  function offresAuRythme(rythme) {
+    const liste = offresEnVente();
+    if (rythme !== "an") return liste;
+    const connues = liste.filter((offre) => offre.annuel);
+    /* Tant que le serveur ne s'est pas prononcé, on les montre toutes :
+       une page de tarif vide ferait croire à une panne. */
+    if (!enVenteAn) return connues;
+    return connues.filter((offre) => enVenteAn.indexOf(offre.cle) !== -1);
+  }
+
+  /** L'année est-elle vendable, ne serait-ce que pour une offre ? */
+  function anneeEnVente() { return offresAuRythme("an").length > 0; }
+
+  /** Combien de mois l'année offre, par rapport à douze mois payés au mois. */
+  function moisOfferts(offre) {
+    if (!offre || !offre.annuel || !offre.cents) return 0;
+    const douze = offre.cents * 12;
+    const economie = douze - offre.annuel.cents;
+    if (economie <= 0) return 0;
+    return Math.round(economie / offre.cents);
+  }
+
   /** « 0,25 € la fiche », tel qu'on l'écrit. */
-  function prixParFiche(offre) {
-    const cents = centsParFiche(offre);
+  function prixParFiche(offre, rythme) {
+    const cents = centsParFiche(offre, rythme);
     if (!cents) return "";
     return `${(cents / 100).toFixed(2).replace(".", ",")} € la fiche`;
   }
@@ -292,10 +349,13 @@ const ABONNEMENT = (function () {
    * De combien cette offre descend le prix à la fiche, par rapport à
    * l'offre la plus chère à l'unité. 0 quand il n'y a rien à dire.
    */
-  function economieParFiche(offre) {
-    const sien = centsParFiche(offre);
+  function economieParFiche(offre, rythme) {
+    const sien = centsParFiche(offre, rythme);
     if (!sien) return 0;
-    const plusCher = CONFIG.offres.reduce((max, autre) => Math.max(max, centsParFiche(autre)), 0);
+    /* Toujours comparé au palier le plus cher à l'unité, au même rythme :
+       comparer un prix annuel à un prix mensuel gonflerait l'écart. */
+    const plusCher = CONFIG.offres.reduce(
+      (max, autre) => Math.max(max, centsParFiche(autre, rythme)), 0);
     if (!plusCher || sien >= plusCher) return 0;
     return Math.round((1 - sien / plusCher) * 100);
   }
@@ -308,6 +368,7 @@ const ABONNEMENT = (function () {
      ———————————————————————————————————————————————————————————— */
   let promesseSante = null;
   let enVente = null;                       // null : on ne sait pas encore
+  let enVenteAn = null;                     // les offres vendables à l'année
 
   function sante() {
     if (!CONFIG.api) return Promise.resolve(null);
@@ -315,6 +376,9 @@ const ABONNEMENT = (function () {
       promesseSante = demander("/sante", { method: "GET" })
         .then((vue) => {
           enVente = vue && Array.isArray(vue.offres) && vue.offres.length ? vue.offres : null;
+          /* Les tarifs annuels se créent chez Stripe à part : tant qu'ils
+             n'y sont pas, on ne propose pas l'année. */
+          enVenteAn = vue && Array.isArray(vue.offresAn) ? vue.offresAn : null;
           return vue;
         })
         .catch(() => null);
@@ -433,13 +497,17 @@ const ABONNEMENT = (function () {
    * Ouvre le paiement : le serveur crée la session Stripe et renvoie son
    * adresse. La page ne voit jamais la clé secrète.
    */
-  async function ouvrirPaiement({ retour, offre } = {}) {
+  async function ouvrirPaiement({ retour, offre, rythme } = {}) {
     const choisie = offreParCle(offre) || CONFIG.offres.filter((o) => o.conseille)[0] || CONFIG.offres[0];
+    /* Un rythme annuel demandé sur une offre qui n'en a pas retomberait
+       sur le mois côté serveur ; autant ne pas le demander. */
+    const voulu = rythme === "an" && choisie.annuel ? "an" : "mois";
     const donnees = await demander("/paiement", {
       method: "POST",
       body: JSON.stringify({
         appareil: appareil(),
         offre: choisie.cle,
+        rythme: voulu,
         retour: retour || window.location.href.split("?")[0],
       }),
     });
@@ -508,6 +576,8 @@ const ABONNEMENT = (function () {
       actif: true,
       cle,
       offre: String(donnees.offre || "").slice(0, 40),
+      /* « mois » ou « an » : Stripe le dit, et le compteur en dépend. */
+      rythme: donnees.rythme === "an" ? "an" : "mois",
       expire: Number(donnees.expire) || 0,
       depuis: memeLicence ? (Number(avant.depuis) || Date.now()) : Date.now(),
       verifieLe: Date.now(),
@@ -588,6 +658,7 @@ const ABONNEMENT = (function () {
     creditsDe: (fiches) => fiches * CONFIG.creditsParFiche,
     consommation, consommationTotale, noterFiche, moisCourant,
     prixParFiche, economieParFiche,
+    prixDe, libellePeriode, offresAuRythme, anneeEnVente, moisOfferts,
     lancementActif, finDuLancement, prixApres,
     estIllimite, estConfigure, quotaFiches,
     ouvrirPaiement, ouvrirPortail, confirmerSession, verifierLicence, rafraichir, oublier,

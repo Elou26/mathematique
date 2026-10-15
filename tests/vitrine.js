@@ -84,6 +84,23 @@ function jetons(fichier) {
       !/<s[ >]|<del|line-through/.test(await page.innerHTML('#tarifs')),
       'un prix barré traîne dans la vitrine');
 
+    /* La bascule mois / année : sans serveur, la vitrine montre les
+       formules « qui arrivent », l'année comprise. Ce qu'elle ne doit
+       jamais faire, c'est promettre « sans engagement » sur une année
+       payée d'avance. */
+    await page.click('#tarifs-rythme [data-rythme="an"]'); await page.waitForTimeout(300);
+    const annuel = await page.innerText('#tarifs');
+    verifier('à l\'année, les prix et les mois offerts s\'affichent',
+      /44 €/.test(annuel) && /89 €/.test(annuel) && /134 €/.test(annuel)
+      && /3 mois offerts/.test(annuel), annuel.replace(/\n+/g, ' · ').slice(0, 200));
+    verifier('et « sans engagement » laisse place à la vérité',
+      /payé d'avance/.test(await page.innerText('#tarifs-engagement')),
+      await page.innerText('#tarifs-engagement'));
+    await page.click('#tarifs-rythme [data-rythme="mois"]'); await page.waitForTimeout(300);
+    verifier('au mois, la mention d\'origine revient',
+      /Sans engagement/.test(await page.innerText('#tarifs-engagement')),
+      await page.innerText('#tarifs-engagement'));
+
     const parFiche = await page.evaluate(() => ABONNEMENT.creditsParFiche());
     verifier('le coût d\'une fiche est celui du module',
       (await page.innerText('#credits-par-fiche')) === String(parFiche), parFiche);

@@ -2299,6 +2299,54 @@ form[hidden], .jeu[hidden], .bilan[hidden] { display: none; }
   font-size: 0.82rem;
   color: var(--gris-texte);
 }
+/* ————— La bascule mois / année ——————————————————————————————
+   Deux boutons collés, l'actif en plein : on voit d'un coup lequel on
+   regarde, et le prix des cartes change sous les yeux.
+   ———————————————————————————————————————————————————————————— */
+.rythme {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--gris-fond);
+  border: 1px solid var(--bordure);
+}
+.rythme[hidden] { display: none; }
+.rythme-choix {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--gris-texte);
+  background: transparent;
+  transition: background .15s ease, color .15s ease;
+}
+.rythme-choix--actif { background: var(--blanc); color: var(--marine); box-shadow: var(--ombre); }
+.rythme-gain {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #E8F3EC;
+  color: #1E6B3A;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+/* Les mois offerts, sous le prix annuel : le repère qui manque sinon. */
+.offre-offerts {
+  margin: -0.1rem 0 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 10px;
+  background: #E8F3EC;
+  color: #1E6B3A;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 /* Le prix à la fiche : l'ancrage honnête. Pas de prix barré inventé —
    en droit français un prix barré est un prix réellement pratiqué. */
 .offre-unitaire {

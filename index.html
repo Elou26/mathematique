@@ -297,11 +297,15 @@
     rien ne t'est débité. Les formules ci-dessous sont celles qui arrivent.
   </p>
 
+  <div class="rythme" id="tarifs-rythme" role="group" aria-label="Payer au mois ou à l'année" hidden></div>
+
   <div class="offres" id="offres"><!-- écrit par vitrine.js depuis abonnement.js --></div>
 
   <p class="mention centre mention--lancement" id="tarifs-lancement" hidden></p>
 
-  <p class="mention centre">
+  <!-- Le texte dépend du rythme : « sans engagement » serait faux pour un
+       abonnement payé d'avance pour douze mois. Écrit par vitrine.js. -->
+  <p class="mention centre" id="tarifs-engagement">
     Sans engagement, mensuel, résiliable quand tu veux. Tes fiches restent
     sur ton téléphone même si tu arrêtes.
   </p>

@@ -415,33 +415,46 @@
      qui vit à deux endroits finit toujours par différer de lui-même, et
      c'est l'élève qui le découvre au moment de payer.
      ———————————————————————————————————————————————————————————— */
+  /* Mois ou année : le choix du visiteur, gardé le temps de la visite. */
+  let rythmeChoisi = "mois";
+
   function rendreOffres(pret) {
     const bloc = $("#illimite-offres");
     if (!bloc || !OFFRE) return;
     const active = OFFRE.offreActive();
     const abonne = OFFRE.estIllimite();
+    const annee = OFFRE.anneeEnVente();
+    if (!annee) rythmeChoisi = "mois";
+    const rythme = rythmeChoisi;
 
-    bloc.innerHTML = OFFRE.offresEnVente().map((offre) => {
+    rendreBascule(annee, rythme);
+
+    bloc.innerHTML = OFFRE.offresAuRythme(rythme).map((offre) => {
       const sienne = active && active.cle === offre.cle;
       const credits = OFFRE.creditsDe(offre.fiches).toLocaleString("fr-FR");
       const volume = offre.illimite
         ? "Crédits sans compter"
         : `${credits} crédits par mois`;
+      const offerts = rythme === "an" ? OFFRE.moisOfferts(offre) : 0;
       return `
         <article class="offre-carte${offre.conseille ? " offre-carte--conseillee" : ""}${sienne ? " offre-carte--actuelle" : ""}">
           ${offre.conseille ? `<span class="offre-ruban">Conseillé</span>` : ""}
           ${sienne ? `<span class="offre-ruban offre-ruban--actuelle">Ton offre</span>` : ""}
           <h3 class="offre-nom">${echapper(offre.nom)}</h3>
-          <p class="offre-prix"><strong>${echapper(offre.prix)}</strong>
-            <span class="tarif-periode">${echapper(offre.periode)}</span></p>
-          ${OFFRE.prixApres(offre)
+          <p class="offre-prix"><strong>${echapper(OFFRE.prixDe(offre, rythme))}</strong>
+            <span class="tarif-periode">${echapper(OFFRE.libellePeriode(rythme))}</span></p>
+          ${offerts
+            ? `<p class="offre-offerts">${offerts} mois offert${offerts > 1 ? "s" : ""}
+                 — ${echapper(offre.prix)} par mois sinon</p>`
+            : ""}
+          ${rythme === "mois" && OFFRE.prixApres(offre)
             ? `<p class="offre-lancement">Lancement — ensuite ${echapper(OFFRE.prixApres(offre))}</p>`
             : ""}
           <p class="offre-volume">${echapper(volume)}</p>
           ${offre.illimite ? "" : `<p class="offre-equivalent">soit ${offre.fiches} fiches</p>`}
-          ${offre.illimite ? "" : `<p class="offre-unitaire">${echapper(OFFRE.prixParFiche(offre))}${
-            OFFRE.economieParFiche(offre)
-              ? ` <span class="offre-gain">− ${OFFRE.economieParFiche(offre)} %</span>`
+          ${offre.illimite ? "" : `<p class="offre-unitaire">${echapper(OFFRE.prixParFiche(offre, rythme))}${
+            OFFRE.economieParFiche(offre, rythme)
+              ? ` <span class="offre-gain">− ${OFFRE.economieParFiche(offre, rythme)} %</span>`
               : ""}</p>`}
           <p class="offre-argument">${echapper(offre.argument)}</p>
           ${offre.illimite
@@ -475,6 +488,36 @@
         ? "Changer d'offre passe par Stripe, qui ajuste le prélèvement au prorata des jours restants."
         : "";
     }
+  }
+
+  /**
+   * La bascule mois / année. Elle n'apparaît que si des tarifs annuels
+   * existent vraiment chez Stripe : proposer une année invendable, c'est
+   * promettre une porte qui s'ouvre sur une erreur.
+   */
+  function rendreBascule(annee, rythme) {
+    const bascule = $("#illimite-rythme");
+    if (!bascule) return;
+    bascule.hidden = !annee;
+    if (!annee) return;
+
+    const offerts = OFFRE.offresAuRythme("an")
+      .reduce((max, offre) => Math.max(max, OFFRE.moisOfferts(offre)), 0);
+    bascule.innerHTML = `
+      <button class="rythme-choix${rythme === "mois" ? " rythme-choix--actif" : ""}"
+              type="button" data-rythme="mois" aria-pressed="${rythme === "mois"}">Au mois</button>
+      <button class="rythme-choix${rythme === "an" ? " rythme-choix--actif" : ""}"
+              type="button" data-rythme="an" aria-pressed="${rythme === "an"}">À l'année${
+        offerts ? ` <span class="rythme-gain">${offerts} mois offerts</span>` : ""}</button>`;
+
+    $$("[data-rythme]", bascule).forEach((bouton) => {
+      bouton.addEventListener("click", () => {
+        if (rythmeChoisi === bouton.dataset.rythme) return;
+        rythmeChoisi = bouton.dataset.rythme;
+        rendreOffres(OFFRE.estConfigure());
+        rendreComparatif();
+      });
+    });
   }
 
   function rendreComparatif() {
@@ -546,7 +589,7 @@
     boutons.forEach((b) => { b.disabled = true; });
     messageIllimite("Ouverture du paiement sécurisé…");
     try {
-      const url = await OFFRE.ouvrirPaiement({ offre: cle });
+      const url = await OFFRE.ouvrirPaiement({ offre: cle, rythme: rythmeChoisi });
 
       /* Dans le même onglet. L'ouverture dans un second onglet venait du
          temps où l'app vivait dans une page publiée qui n'avait pas le droit
@@ -663,11 +706,16 @@
       const fin = courant.expire
         ? `Prochain renouvellement le ${formatDate.format(new Date(courant.expire))}.`
         : "";
+      /* Un abonnement annuel donne le même quota chaque mois : le compteur
+         repart le 1er, et non au prélèvement, qui est dans un an. */
+      const annuel = courant.rythme === "an";
       const compte = quota.illimite
         ? `${quota.faites} fiche${quota.faites > 1 ? "s" : ""} ce mois-ci.`
         : `${quota.credits.toLocaleString("fr-FR")} crédits sur ${quota.creditsMax.toLocaleString("fr-FR")} ce mois-ci,`
           + ` soit ${quota.reste} fiche${quota.reste > 1 ? "s" : ""}.`
-          + (quota.reste ? "" : " Le compteur repart au prochain prélèvement.");
+          + (quota.reste ? "" : annuel
+            ? " Le compteur repart le 1er du mois."
+            : " Le compteur repart au prochain prélèvement.");
       /* ————— La clé, selon qu'on a un compte ou non ————————————
          Connecté, l'abonnement suit le compte : la clé ne sert plus qu'en
          secours (comptes injoignables, accès sans se connecter), et elle
@@ -690,7 +738,8 @@
         <input class="champ-texte" id="profil-licence" type="text" readonly value="${echapper(courant.cle)}">`;
 
       bloc.innerHTML = `
-        <p class="offre-etiquette offre-etiquette--actif">${echapper(quota.offre.nom)}</p>
+        <p class="offre-etiquette offre-etiquette--actif">${echapper(quota.offre.nom)}${
+          annuel ? " · à l'année" : ""}</p>
         <p class="offre-detail">${compte} ${fin}</p>
         ${avecCompte
           ? `<p class="offre-detail offre-detail--discret">Ton abonnement suit ton compte :

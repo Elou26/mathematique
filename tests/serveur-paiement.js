@@ -39,6 +39,10 @@ function fauxStripe() {
     },
     subscriptions: {
       list: async ({ customer }) => {
+        if (customer === 'cus_annuel') return { data: [{
+          status: 'active', current_period_end: MOIS_PROCHAIN,
+          items: { data: [{ price: { id: 'price_essentiel_an', recurring: { interval: 'year' } } }] },
+        }] };
         if (customer === 'cus_resilie') return { data: [{ status: 'canceled', current_period_end: MOIS_PROCHAIN }] };
         if (customer === 'cus_inconnu') return { data: [] };
         return { data: [{
@@ -83,6 +87,8 @@ process.env.STRIPE_CLE_SECRETE = 'sk_test_faux';
 process.env.STRIPE_PRIX_ESSENTIEL = 'price_essentiel';
 process.env.STRIPE_PRIX_REGULIER = 'price_regulier';
 process.env.STRIPE_PRIX_INTENSIF = 'price_intensif';
+process.env.STRIPE_PRIX_ESSENTIEL_AN = 'price_essentiel_an';
+process.env.STRIPE_PRIX_REGULIER_AN = 'price_regulier_an';
 process.env.ORIGINES_AUTORISEES = 'http://localhost:8321';
 
 const routeur = require(path.join(__dirname, '..', 'serveur', 'index.js'));
@@ -240,6 +246,34 @@ serveur.listen(0, async () => {
   const malforme = await appeler('/licence?cle=oups');
   verifier('une clé malformée est refusée',
     malforme.code === 400, JSON.stringify(malforme.corps));
+
+  /* — 4 ter. L'année : même offre, même quota, une seule facture ————— */
+  const santeAn = await appeler('/sante');
+  verifier('la santé dit quelles offres se vendent à l\'année',
+    Array.isArray(santeAn.corps.offresAn)
+      && santeAn.corps.offresAn.join() === 'essentiel,regulier',
+    JSON.stringify(santeAn.corps.offresAn));
+
+  const paiementAn = await appeler('/paiement', { method: 'POST',
+    corps: { offre: 'essentiel', rythme: 'an', retour: 'http://localhost:8321/app.html' } });
+  verifier('un paiement annuel part sur le tarif annuel',
+    paiementAn.code === 200
+      && journal.sessions.slice(-1)[0].line_items[0].price === 'price_essentiel_an',
+    JSON.stringify(journal.sessions.slice(-1)[0].line_items));
+
+  const sansAnnuel = await appeler('/paiement', { method: 'POST',
+    corps: { offre: 'intensif', rythme: 'an', retour: 'http://localhost:8321/app.html' } });
+  verifier('une offre sans tarif annuel est refusée, pas servie au mois',
+    sansAnnuel.code === 400 && sansAnnuel.corps.erreur === 'offre_inconnue',
+    JSON.stringify(sansAnnuel.corps));
+
+  const licenceAn = await appeler('/licence?cle=cus_annuel');
+  verifier('la licence dit que l\'abonnement est annuel',
+    licenceAn.corps.rythme === 'an' && licenceAn.corps.offre === 'essentiel',
+    JSON.stringify(licenceAn.corps));
+  const licenceMois = await appeler('/licence?cle=cus_abc');
+  verifier('et mensuel quand il l\'est',
+    licenceMois.corps.rythme === 'mois', JSON.stringify(licenceMois.corps));
 
   /* — 5 bis. Résilier : le portail client de Stripe ————————————————
      Un abonnement pris en ligne doit pouvoir être quitté en ligne. On n'

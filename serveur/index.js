@@ -35,9 +35,23 @@ const TARIFS = {
   regulier: process.env.STRIPE_PRIX_REGULIER || process.env.STRIPE_PRIX || process.env.STRIPE_PRICE_ID || "",
   intensif: process.env.STRIPE_PRIX_INTENSIF || "",
 };
-/* L'inverse, pour retrouver l'offre d'un abonnement existant. */
+
+/* ————— Les mêmes offres, payées à l'année ————————————————————
+   Un tarif annuel est un tarif Stripe comme un autre : même offre, même
+   quota mensuel, une seule facture. Tant qu'il n'est pas renseigné,
+   l'année n'est pas proposée — et personne ne tombe sur une erreur.
+   ———————————————————————————————————————————————————————————— */
+const TARIFS_AN = {
+  essentiel: process.env.STRIPE_PRIX_ESSENTIEL_AN || "",
+  regulier: process.env.STRIPE_PRIX_REGULIER_AN || "",
+  intensif: process.env.STRIPE_PRIX_INTENSIF_AN || "",
+};
+
+/* L'inverse, pour retrouver l'offre d'un abonnement existant — quel que
+   soit son rythme : c'est la même offre qu'on a vendue. */
 const OFFRE_DU_TARIF = Object.keys(TARIFS).reduce((table, cle) => {
   if (TARIFS[cle]) table[TARIFS[cle]] = cle;
+  if (TARIFS_AN[cle]) table[TARIFS_AN[cle]] = cle;
   return table;
 }, {});
 const AU_MOINS_UN_TARIF = Object.keys(TARIFS).some((cle) => TARIFS[cle]);
@@ -62,26 +76,32 @@ const MODE_STRIPE = !CLE_SECRETE ? "" : (/^(sk|rk)_live_/.test(CLE_SECRETE) ? "r
    qui est posé — c'est le paiement qui dira non, pas une page vide.
    ———————————————————————————————————————————————————————————— */
 const DUREE_CACHE_TARIFS = 10 * 60 * 1000;
-let tarifsConnus = null;                    // { le, offres }
+let tarifsConnus = null;                    // { le, offres, offresAn }
 
-async function offresVendables() {
-  const posees = Object.keys(TARIFS).filter((cle) => TARIFS[cle]);
+async function offresVendables(table) {
+  const posees = Object.keys(table).filter((cle) => table[cle]);
   if (!stripe || !posees.length) return posees;
   if (!stripe.prices || typeof stripe.prices.retrieve !== "function") return posees;
-  if (tarifsConnus && Date.now() - tarifsConnus.le < DUREE_CACHE_TARIFS) return tarifsConnus.offres;
 
   const vivants = [];
   for (const cle of posees) {
     try {
-      const tarif = await stripe.prices.retrieve(TARIFS[cle]);
+      const tarif = await stripe.prices.retrieve(table[cle]);
       if (tarif && tarif.active !== false) vivants.push(cle);
     } catch (erreur) {
       // Tarif inconnu ici : pas vendable. Panne de réseau : on ne conclut rien.
       if (!erreur || erreur.type !== "StripeInvalidRequestError") return posees;
     }
   }
-  tarifsConnus = { le: Date.now(), offres: vivants };
   return vivants;
+}
+
+/** Les deux listes, gardées dix minutes : /sante est appelée à chaque ouverture. */
+async function cequonVend() {
+  if (tarifsConnus && Date.now() - tarifsConnus.le < DUREE_CACHE_TARIFS) return tarifsConnus;
+  const [mois, an] = await Promise.all([offresVendables(TARIFS), offresVendables(TARIFS_AN)]);
+  tarifsConnus = { le: Date.now(), offres: mois, offresAn: an };
+  return tarifsConnus;
 }
 
 /* ————— Lecture des photos : Claude ————————————————————————————
@@ -144,10 +164,16 @@ function licenceDe(abonnement, client) {
      n'a toujours rien à stocker : Stripe reste la seule source de vérité. */
   const article = ((abonnement.items && abonnement.items.data) || [])[0];
   const tarif = article && article.price && article.price.id;
+  /* Le rythme vient de Stripe lui-même : un abonnement annuel donne le
+     même quota chaque mois, et l'app a besoin de le savoir pour remettre
+     son compteur à zéro douze fois, et non une. */
+  const recurrence = article && article.price && article.price.recurring;
+  const rythme = recurrence && recurrence.interval === "year" ? "an" : "mois";
   return {
     actif: true,
     cle: typeof client === "string" ? client : (client && client.id) || "",
     offre: (tarif && OFFRE_DU_TARIF[tarif]) || "",
+    rythme,
     expire: fin,
     statut: abonnement.status,
   };
@@ -191,8 +217,18 @@ async function creerPaiement(corps, origine) {
      clé connue ET dont le tarif est renseigné passe. Sans quoi un visiteur
      pourrait demander une offre qu'on ne vend pas. */
   const demandee = String((corps && corps.offre) || "").slice(0, 40);
-  const prix = TARIFS[demandee];
-  if (!prix) return { code: 400, corps: { erreur: "offre_inconnue", offres: Object.keys(TARIFS).filter((c) => TARIFS[c]) } };
+  const rythme = (corps && corps.rythme) === "an" ? "an" : "mois";
+  const table = rythme === "an" ? TARIFS_AN : TARIFS;
+  const prix = table[demandee];
+  if (!prix) {
+    return {
+      code: 400,
+      corps: {
+        erreur: "offre_inconnue",
+        offres: Object.keys(table).filter((c) => table[c]),
+      },
+    };
+  }
 
   const appareil = String((corps && corps.appareil) || "").slice(0, 64) || undefined;
   const retour = String((corps && corps.retour) || "").slice(0, 500);
@@ -582,11 +618,13 @@ async function router(requete, reponse) {
   if (requete.method === "OPTIONS") { reponse.writeHead(204, enTetes(origine)); reponse.end(); return; }
 
   if (chemin === "/sante") {
-    const offres = await offresVendables();
+    const vendables = await cequonVend();
+    const offres = vendables.offres;
     repondre(reponse, 200, {
       pret: Boolean(stripe && offres.length),
       mode: MODE_STRIPE,
       offres,
+      offresAn: vendables.offresAn,
       lecture: Boolean(claude),
       comptes: COMPTES.configure(),
       google: COMPTES.clientGoogle(),      // public : la page en a besoin pour le bouton
@@ -779,6 +817,9 @@ if (require.main === module) {
       ? "Stripe en mode RÉEL : les cartes sont débitées pour de bon."
       : "Stripe en mode test : seules les cartes de démonstration passent.");
     if (!AU_MOINS_UN_TARIF) console.log("⚠ Aucun STRIPE_PRIX_* : impossible de créer une session.");
+    if (!Object.keys(TARIFS_AN).some((cle) => TARIFS_AN[cle])) {
+      console.log("ℹ Aucun STRIPE_PRIX_*_AN : l'année n'est pas proposée.");
+    }
     else {
       const absentes = Object.keys(TARIFS).filter((cle) => !TARIFS[cle]);
       if (absentes.length) console.log(`⚠ Offres sans tarif, donc invendables : ${absentes.join(", ")}`);

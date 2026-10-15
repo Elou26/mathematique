@@ -257,6 +257,49 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .offre-volume { margin-top: 12px; font-weight: 700; color: var(--marine); }
 .offre-credits { color: var(--gris-texte); font-size: 14px; }
 
+/* La bascule mois / année, au-dessus des cartes. */
+.rythme {
+  display: flex;
+  gap: 4px;
+  max-width: 340px;
+  margin: 0 auto 18px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--gris-fond);
+  border: 1px solid var(--bordure);
+}
+.rythme[hidden] { display: none; }
+.rythme-choix {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gris-texte);
+  background: transparent;
+  cursor: pointer;
+}
+.rythme-choix--actif { background: var(--blanc); color: var(--marine); box-shadow: var(--ombre); }
+.rythme-gain {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #E8F3EC;
+  color: #1E6B3A;
+  font-size: 12px;
+  font-weight: 800;
+}
+.offre-offerts {
+  margin: 6px 0 0;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: #E8F3EC;
+  color: #1E6B3A;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
 /* Le prix à la fiche : ce que le palier fait vraiment gagner. Pas de prix
    barré inventé — un prix barré est un prix qu'on a réellement pratiqué. */
 .offre-unitaire { margin: 6px 0 0; font-size: 14px; font-weight: 700; color: var(--marine); }

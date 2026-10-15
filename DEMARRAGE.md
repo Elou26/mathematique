@@ -206,6 +206,13 @@ résumé qu'on trouve soi-même pas clair.
    Une fiche coûte 100 crédits. Le site affiche des crédits ; tu règles des
    fiches dans `abonnement.js`.
 
+   **Pour vendre aussi à l'année**, ajoute trois produits de plus — ou
+   trois tarifs annuels sur les mêmes produits : 44 €, 89 € et 134 €,
+   **récurrents, annuels**. Leurs identifiants vont dans
+   `STRIPE_PRIX_ESSENTIEL_AN`, `STRIPE_PRIX_REGULIER_AN` et
+   `STRIPE_PRIX_INTENSIF_AN`. Sans eux, l'app ne propose que le mois —
+   elle ne promet jamais un tarif qui n'existe pas.
+
    Note les trois identifiants `price_…`. Pour changer un prix affiché ou un
    quota, c'est `abonnement.js` (`CONFIG.offres`) — Stripe ne connaît que
    les montants.
