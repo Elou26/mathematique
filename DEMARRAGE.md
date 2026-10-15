@@ -307,12 +307,16 @@ côté. Tout se refait une fois, dans cet ordre.
    l'écrit dans ses journaux au démarrage. Les en-têtes de sécurité du site
    (CSP, HSTS, Referrer-Policy…) sont dans `vercel.json` et n'ont rien à
    régler : `node tests/securite.js` les éprouve dans un vrai navigateur.
-10. **Avant d'encaisser le premier euro**, ajoute deux pages à la vitrine :
-   des **mentions légales** (qui édite le site, comment te joindre, l'hébergeur)
-   et des **CGV** (ce qui est vendu, le prix, la durée, le droit de
-   rétractation). En France, un site qui vend un abonnement doit les afficher.
-   Tant que tout est gratuit, elles ne sont pas exigées — le jour où Stripe
-   s'allume, si.
+10. **Les mentions légales et les CGV sont écrites** (`mentions-legales.html`
+   et `cgv.html`), liées depuis la vitrine, le profil et l'écran de tarif.
+   Deux choses restent à ta main avant d'ouvrir à d'autres élèves :
+   - **le statut.** Vendre un abonnement de façon habituelle est une activité
+     commerciale : « particulier » tient le temps que tu es seul utilisateur,
+     pas au-delà. Une micro-entreprise se crée en ligne, gratuitement, et te
+     donne un SIREN à ajouter dans les deux pages.
+   - **l'adresse postale.** Un éditeur non professionnel peut s'en dispenser
+     (article 6-III-2 de la LCEN) ; un vendeur, non. La ligne est prête,
+     commentée, dans `mentions-legales.html`.
 
 ---
 

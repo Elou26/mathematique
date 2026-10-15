@@ -100,7 +100,7 @@ serveur.listen(0, async () => {
 
   /* ————— Aucun script écrit dans le HTML ————————————————————————
      Un seul suffirait à obliger la CSP à autoriser « unsafe-inline ». */
-  for (const page of ['index.html', 'app.html', 'confidentialite.html']) {
+  for (const page of ['index.html', 'app.html', 'confidentialite.html', 'mentions-legales.html', 'cgv.html']) {
     const html = fs.readFileSync(path.join(RACINE, page), 'utf8');
     const enLigne = (html.match(/<script(?![^>]*\ssrc=)[^>]*>/gi) || []);
     verifier(`${page} n'écrit aucun script dans la page`, enLigne.length === 0, enLigne.join(' '));
@@ -155,7 +155,7 @@ serveur.listen(0, async () => {
      Le seul juge qui compte : une politique qui casse la page est pire
      qu'une politique absente, parce qu'elle casse en silence. */
   const navigateur = await chromium.launch();
-  for (const page of ['index.html', 'app.html', 'confidentialite.html']) {
+  for (const page of ['index.html', 'app.html', 'confidentialite.html', 'mentions-legales.html', 'cgv.html']) {
     const contexte = await navigateur.newContext();
     const onglet = await contexte.newPage();
     const violations = [];

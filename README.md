@@ -1108,6 +1108,34 @@ donnée sensible dans les réponses.
 bon moment, paiement demandé au serveur, retour vérifié, session non payée sans effet, licence
 retrouvée sur un autre appareil.
 
+## Les pages obligatoires — mentions légales et CGV
+
+Un site qui encaisse un abonnement doit dire qui le tient et ce qu'il vend. Trois pages,
+même mise en page que la vitrine, atteignables depuis le pied de la vitrine, depuis le
+profil de l'app, **et depuis l'écran de tarif** — la loi demande que l'acheteur puisse
+lire les conditions avant de valider, pas après.
+
+| Page | Ce qu'elle dit |
+| --- | --- |
+| `mentions-legales.html` | l'éditeur, le directeur de publication, le contact, l'hébergeur, les prestataires, ce qui appartient à qui |
+| `cgv.html` | les six formules et leurs prix, la durée, la reconduction tacite, la résiliation par le portail Stripe, les 14 jours de rétractation, l'avis Chatel pour l'annuel, le cas des mineurs |
+| `confidentialite.html` | ce qui est collecté, pourquoi, combien de temps, comment tout effacer |
+
+`node tests/mentions.js` les éprouve. Deux vérifications comptent plus que les autres.
+
+**Les prix des CGV sont lus dans `abonnement.js`, pas recopiés.** Le test charge la
+configuration de l'app et échoue si un seul des six prix, un seul des trois quotas ou
+l'essai gratuit ne correspond plus. Un contrat qui annonce 4,90 € quand Stripe débite
+autre chose est indéfendable, et c'est exactement le genre d'écart qui naît d'un
+changement de prix fait d'un seul côté.
+
+**Aucun lien ne doit mener nulle part.** Une page légale que personne ne peut atteindre
+ne compte pas comme affichée : le test suit tous les liens internes des cinq pages.
+
+Le reste de la suite vérifie que les CGV disent bien ce qu'un contrat d'abonnement doit
+dire — reconduction tacite, article L. 215-1, rétractation, médiation, droit applicable,
+mineurs — et que les mentions légales nomment l'éditeur et l'hébergeur.
+
 ## La sécurité du site
 
 Six mesures, toutes vérifiées par `node tests/securite.js` — qui sert les pages avec les

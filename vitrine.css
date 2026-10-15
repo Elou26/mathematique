@@ -489,6 +489,26 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
   background: #FFF6E6; border: 1px solid #F0DDB8; color: #6B5320;
   border-radius: 14px; padding: 14px 16px; font-size: 15px;
 }
+/* Le tableau des formules dans les CGV. Sur un téléphone, quatre colonnes
+   de prix ne tiennent pas : on laisse glisser plutôt que d'écraser les
+   chiffres, qui sont justement ce qu'on vient vérifier. */
+.doc-tableau { margin-top: 16px; overflow-x: auto; }
+.doc-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+.doc-table th, .doc-table td {
+  padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--bordure, #E4E8F2);
+}
+/* Les quatre colonnes doivent tenir sur un téléphone : un prix annuel
+   poussé hors de l'écran est un prix que personne ne lit, et c'est
+   justement celui qu'on vient vérifier. */
+@media (max-width: 460px) {
+  .doc-table { font-size: 13.5px; }
+  .doc-table th, .doc-table td { padding: 9px 5px; }
+  .doc-table th:first-child, .doc-table td:first-child { padding-left: 0; }
+}
+.doc-table th { font-weight: 700; color: var(--marine); white-space: nowrap; }
+.doc-table td { color: #2A3146; }
+.doc-table tbody tr:last-child td { border-bottom: none; }
+
 .doc-date { color: var(--gris-texte); font-size: 13.5px; margin-top: 30px; }
 .doc-retour { margin-top: 8px; }
 .doc a { color: var(--marine); }
