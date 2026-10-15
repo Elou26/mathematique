@@ -171,10 +171,33 @@ mineures.** C'est ce qui rend l'étape 7 ci-dessous non négociable.
    vérifier la signature du jeton que Google rend au navigateur. Sans cette
    variable, le bouton n'existe pas et personne n'est présenté à Google.
 
-8. **Complète `confidentialite.html`** : le nom de l'éditeur du site et une
-   adresse de contact. La page dit déjà ce qui est gardé, où, combien de
-   temps, et comment tout effacer — il n'y manque que toi. Ces deux lignes
-   sont une obligation légale dès que tu collectes une adresse e-mail.
+   Trois pièges, dans l'ordre où on tombe dedans :
+
+   - **L'écran de consentement réclame deux liens** — politique de
+     confidentialité et conditions d'utilisation. Ce sont
+     `https://brainoko.com/confidentialite.html` et
+     `https://brainoko.com/cgv.html`.
+   - **Publie l'application.** Laissée en *Test*, elle n'accepte que les
+     comptes listés à la main. Comme tu ne demandes que le nom et l'adresse
+     — des informations non sensibles — la publication est immédiate et ne
+     passe par aucune vérification de Google.
+   - **Les origines doivent être exactes** : `https`, pas de barre oblique
+     finale, pas de chemin. C'est la cause de presque tous les boutons qui
+     refusent d'entrer, et Google met parfois quelques minutes à les
+     prendre en compte.
+
+   Enfin, **Google Cloud demande d'avoir 18 ans** dans la plupart des pays.
+   Depuis un compte d'adolescent, la création de projet est refusée : il
+   faut passer par le compte d'un parent, qui devient alors propriétaire de
+   l'identifiant.
+
+   Témoin : `/api/sante` passe de `"google":""` à ton identifiant, et le
+   bouton apparaît tout seul sur la vitrine et dans le profil.
+
+8. **C'est fait** : `confidentialite.html` nomme l'éditeur et son adresse de
+   contact, et les deux autres pages obligatoires existent
+   (`mentions-legales.html`, `cgv.html`). Ce qui reste à ta main — le statut
+   et l'adresse postale — est au point 10 de l'étape 5.
 
 9. **Essaie pour de vrai** : profil → ton adresse → tu reçois le lien
    (regarde les indésirables) → tu cliques → le profil affiche ton adresse.
