@@ -566,6 +566,10 @@
     delai: "Le service de paiement met trop de temps à répondre. Réessaie dans un instant.",
     serveur: "Le service de paiement a répondu de travers. Réessaie dans un instant.",
     introuvable: "Cette clé d'abonnement est inconnue.",
+    /* Le serveur refuse de vendre un tarif qui ne dit plus le prix
+       affiché : mieux vaut l'annoncer que débiter le mauvais montant. */
+    offre_indisponible: "Cette formule n'est pas disponible pour l'instant. Réessaie plus tard, ou écris-nous.",
+    offre_inconnue: "Cette formule n'est plus proposée. Recharge la page pour voir les offres à jour.",
     portail_non_configure: "La gestion de l'abonnement n'est pas encore ouverte côté Stripe. Écris-nous, on résilie à la main.",
     portail_indisponible: "La gestion de l'abonnement n'est pas disponible sur cette version.",
     licence_inconnue: "Aucun abonnement trouvé pour ce compte.",

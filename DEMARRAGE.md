@@ -281,6 +281,14 @@ côté. Tout se refait une fois, dans cet ordre.
 6. Redéploie, puis **vérifie `/api/sante`** : `"mode":"reel"` et
    `"offres":["essentiel"]`. Si `mode` dit encore `test`, la variable n'a
    pas été reprise — un redéploiement est nécessaire après l'avoir changée.
+
+   `/api/sante` vérifie aussi **le montant**, pas seulement l'existence du
+   tarif. Un produit recopié d'une autre application suffit à faire
+   débiter 4,99 € là où la page annonce 4,90 € : le serveur retire alors
+   l'offre de la vente et ajoute un champ `ecarts` qui nomme les deux
+   montants. Une offre absente de `offres` sans être dans `ecarts` est un
+   `price_…` que ce Stripe-ci ne connaît pas ; une offre présente dans
+   `ecarts` est un prix à corriger — chez Stripe, ou dans `abonnement.js`.
 7. **Active le portail client** (c'est lui qui permet de résilier) :
    *Paramètres → Facturation → Portail client* → enregistre une
    configuration, en autorisant au minimum l'annulation de l'abonnement et

@@ -26,7 +26,7 @@ l'abonnement, on ne fait que le lui demander.
 | `GET /compte-export` | tout ce qui est gardé, en un fichier (RGPD) |
 | `DELETE /compte-effacer` | efface le compte et ses liens en attente (RGPD) |
 | `POST /portail` | ouvre le portail client de Stripe (résilier, changer de carte, factures) |
-| `GET /sante` | dit si les clés sont bien en place (`pret` pour le paiement, `lecture` pour la lecture, `comptes` pour les comptes), dans quel `mode` Stripe tourne (`test` ou `reel`) et quelles `offres` sont réellement vendables |
+| `GET /sante` | dit si les clés sont bien en place (`pret` pour le paiement, `lecture` pour la lecture, `comptes` pour les comptes), dans quel `mode` Stripe tourne (`test` ou `reel`) et quelles `offres` sont réellement vendables (plus `ecarts`, si un tarif Stripe ne dit plus le prix affiché) |
 
 La licence dit aussi **quelle offre** a été payée : le tarif de l'abonnement Stripe le révèle, donc
 il n'y a toujours rien à stocker ici. Une licence d'avant les paliers, ou dont le tarif n'est plus
@@ -174,6 +174,17 @@ moment de payer. Le serveur demande donc à Stripe, au plus une fois toutes
 les dix minutes, lesquels de ces tarifs il connaît, et `/sante` ne propose
 que ceux-là. Si Stripe est injoignable, il ne conclut rien et garde la liste
 posée : mieux vaut un paiement qui échoue qu'une page de tarif vide.
+
+**Et le montant est vérifié, pas seulement l'existence.** Un produit recopié
+d'une autre application, un prix retouché chez Stripe, un `price_…` annuel
+collé dans la variable du mois : la page annoncerait 4,90 € pendant que la
+carte serait débitée de 4,99 €. Le serveur garde donc, dans `PRIX_ANNONCES`,
+ce que `abonnement.js` affiche, et retire de la vente tout tarif qui s'en
+écarte — d'un centime, d'une devise ou d'une périodicité. `/sante` ajoute
+alors un champ `ecarts` qui nomme l'offre et les deux montants, et
+`/paiement` répond `409 offre_indisponible` plutôt que d'ouvrir la caisse.
+Les deux tables sont tenues d'accord par `tests/serveur-paiement.js` : changer
+un prix dans `abonnement.js` sans toucher au serveur fait échouer les tests.
 
 Puis, dans `abonnement.js`, mets `api: "http://localhost:8787"` et sers l'app
 (`python3 -m http.server 8321`). Les cartes d'essai de Stripe : `4242 4242 4242 4242`, n'importe

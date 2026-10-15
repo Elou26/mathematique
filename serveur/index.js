@@ -47,6 +47,26 @@ const TARIFS_AN = {
   intensif: process.env.STRIPE_PRIX_INTENSIF_AN || "",
 };
 
+/* ————— Ce que la page promet, en centimes ——————————————————————
+   Un tarif qui existe n'est pas forcément le bon. Un produit recopié
+   d'une autre application, un montant retouché chez Stripe, un price_…
+   annuel collé dans la variable du mois : la page annonce 4,90 € et la
+   carte est débitée de 4,99 €. Annoncer un prix et en prélever un autre
+   ne se rattrape pas après coup, et neuf centimes suffisent à rendre la
+   facture indéfendable.
+
+   On garde donc ici ce que la page affiche. `abonnement.js` en reste la
+   source — un test vérifie que les deux tables disent la même chose —
+   et le serveur refuse de vendre un tarif qui s'en écarte, d'un centime,
+   d'une devise ou d'une périodicité. /sante dit lequel et pourquoi.
+   ———————————————————————————————————————————————————————————— */
+const MONNAIE = "eur";
+const PRIX_ANNONCES = {
+  essentiel: { mois: 490, an: 4400 },
+  regulier: { mois: 990, an: 8900 },
+  intensif: { mois: 1490, an: 13400 },
+};
+
 /* L'inverse, pour retrouver l'offre d'un abonnement existant — quel que
    soit son rythme : c'est la même offre qu'on a vendue. */
 const OFFRE_DU_TARIF = Object.keys(TARIFS).reduce((table, cle) => {
@@ -78,29 +98,63 @@ const MODE_STRIPE = !CLE_SECRETE ? "" : (/^(sk|rk)_live_/.test(CLE_SECRETE) ? "r
 const DUREE_CACHE_TARIFS = 10 * 60 * 1000;
 let tarifsConnus = null;                    // { le, offres, offresAn }
 
-async function offresVendables(table) {
+function enEuros(centimes) {
+  return `${(centimes / 100).toFixed(2).replace(".", ",")} €`;
+}
+
+/** Ce qui sépare ce tarif de ce qu'on annonce — vide si tout concorde. */
+function ecartDuTarif(cle, rythme, tarif) {
+  if (!tarif) return "introuvable";
+  if (tarif.active === false) return "archivé chez Stripe";
+
+  const attendu = (PRIX_ANNONCES[cle] || {})[rythme];
+  if (attendu && typeof tarif.unit_amount === "number" && tarif.unit_amount !== attendu) {
+    return `${enEuros(tarif.unit_amount)} chez Stripe, ${enEuros(attendu)} sur la page`;
+  }
+  if (tarif.currency && tarif.currency !== MONNAIE) {
+    return `facturé en ${String(tarif.currency).toUpperCase()}`;
+  }
+  const voulu = rythme === "an" ? "year" : "month";
+  const vu = tarif.recurring && tarif.recurring.interval;
+  if (vu && vu !== voulu) {
+    return `facturé par ${vu === "year" ? "an" : "mois"}, là où la page vend ${rythme === "an" ? "l'année" : "le mois"}`;
+  }
+  return "";
+}
+
+async function offresVendables(table, rythme) {
   const posees = Object.keys(table).filter((cle) => table[cle]);
-  if (!stripe || !posees.length) return posees;
-  if (!stripe.prices || typeof stripe.prices.retrieve !== "function") return posees;
+  const tout = { offres: posees, ecarts: [] };
+  if (!stripe || !posees.length) return tout;
+  if (!stripe.prices || typeof stripe.prices.retrieve !== "function") return tout;
 
   const vivants = [];
+  const ecarts = [];
+  const suffixe = rythme === "an" ? " à l'année" : "";
   for (const cle of posees) {
     try {
       const tarif = await stripe.prices.retrieve(table[cle]);
-      if (tarif && tarif.active !== false) vivants.push(cle);
+      const ecart = ecartDuTarif(cle, rythme, tarif);
+      if (ecart) ecarts.push(`${cle}${suffixe} : ${ecart}`);
+      else vivants.push(cle);
     } catch (erreur) {
       // Tarif inconnu ici : pas vendable. Panne de réseau : on ne conclut rien.
-      if (!erreur || erreur.type !== "StripeInvalidRequestError") return posees;
+      if (!erreur || erreur.type !== "StripeInvalidRequestError") return tout;
+      ecarts.push(`${cle}${suffixe} : inconnu de ce Stripe`);
     }
   }
-  return vivants;
+  return { offres: vivants, ecarts };
 }
 
 /** Les deux listes, gardées dix minutes : /sante est appelée à chaque ouverture. */
 async function cequonVend() {
   if (tarifsConnus && Date.now() - tarifsConnus.le < DUREE_CACHE_TARIFS) return tarifsConnus;
-  const [mois, an] = await Promise.all([offresVendables(TARIFS), offresVendables(TARIFS_AN)]);
-  tarifsConnus = { le: Date.now(), offres: mois, offresAn: an };
+  const [mois, an] = await Promise.all([
+    offresVendables(TARIFS, "mois"), offresVendables(TARIFS_AN, "an"),
+  ]);
+  const ecarts = mois.ecarts.concat(an.ecarts);
+  if (ecarts.length) console.log(`⚠ Tarifs retirés de la vente — ${ecarts.join(" ; ")}`);
+  tarifsConnus = { le: Date.now(), offres: mois.offres, offresAn: an.offres, ecarts };
   return tarifsConnus;
 }
 
@@ -228,6 +282,15 @@ async function creerPaiement(corps, origine) {
         offres: Object.keys(table).filter((c) => table[c]),
       },
     };
+  }
+
+  /* Le tarif est renseigné, mais est-il vendable ? Un montant qui ne
+     correspond plus à la page, un tarif resté en mode test : mieux vaut
+     un refus net ici qu'un débit que l'élève n'a pas vu annoncé. */
+  const vendables = await cequonVend();
+  const liste = rythme === "an" ? vendables.offresAn : vendables.offres;
+  if (!liste.includes(demandee)) {
+    return { code: 409, corps: { erreur: "offre_indisponible", offres: liste } };
   }
 
   const appareil = String((corps && corps.appareil) || "").slice(0, 64) || undefined;
@@ -625,6 +688,9 @@ async function router(requete, reponse) {
       mode: MODE_STRIPE,
       offres,
       offresAn: vendables.offresAn,
+      /* Un tarif écarté de la vente, et la raison : sans cette ligne, une
+         offre disparue de la page reste une énigme. */
+      ...(vendables.ecarts.length ? { ecarts: vendables.ecarts } : {}),
       lecture: Boolean(claude),
       comptes: COMPTES.configure(),
       google: COMPTES.clientGoogle(),      // public : la page en a besoin pour le bouton

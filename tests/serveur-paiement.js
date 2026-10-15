@@ -62,6 +62,9 @@ function fauxStripe() {
         },
       },
     },
+    /* Les montants comptent autant que l'existence : la page annonce un
+       prix, Stripe en débite un autre, et la facture est indéfendable.
+       « price_regulier_an » tient ce rôle — 99 € là où la page dit 89. */
     prices: {
       retrieve: async (id) => {
         /* « price_regulier » joue ici le tarif resté en mode test après le
@@ -69,7 +72,16 @@ function fauxStripe() {
         if (id === 'price_regulier') {
           const e = new Error('No such price'); e.type = 'StripeInvalidRequestError'; throw e;
         }
-        return { id, active: true };
+        const tarifs = {
+          price_essentiel: { montant: 490, periode: 'month' },
+          price_intensif: { montant: 1490, periode: 'month' },
+          price_essentiel_an: { montant: 4400, periode: 'year' },
+          price_regulier_an: { montant: 9900, periode: 'year' },
+        };
+        const tarif = tarifs[id];
+        if (!tarif) { const e = new Error('No such price'); e.type = 'StripeInvalidRequestError'; throw e; }
+        return { id, active: true, currency: 'eur', unit_amount: tarif.montant,
+          recurring: { interval: tarif.periode } };
       },
     },
     webhooks: { constructEvent: () => ({ type: 'checkout.session.completed' }) },
@@ -148,13 +160,22 @@ serveur.listen(0, async () => {
 
   /* Chaque offre a son tarif : une erreur de correspondance ferait payer
      le mauvais prix sans que rien ne le signale. */
-  for (const [offre, prix] of [['essentiel', 'price_essentiel'], ['regulier', 'price_regulier']]) {
+  for (const [offre, prix] of [['essentiel', 'price_essentiel'], ['intensif', 'price_intensif']]) {
     await appeler('/paiement', {
       method: 'POST', corps: { appareil: 'a1234', offre, retour: 'http://localhost:8321/app.html' },
     });
     const vu = journal.sessions[journal.sessions.length - 1].line_items[0].price;
     verifier(`l'offre « ${offre} » part sur son propre tarif`, vu === prix, vu);
   }
+
+  /* Un tarif que Stripe ne connaît pas est refusé ici, pas chez Stripe :
+     l'élève voit un refus franc au lieu d'une page de paiement en erreur. */
+  const horsVente = await appeler('/paiement', {
+    method: 'POST', corps: { appareil: 'a1234', offre: 'regulier', retour: 'http://localhost:8321/app.html' },
+  });
+  verifier('une offre que Stripe ne vend pas est refusée avant la caisse',
+    horsVente.code === 409 && horsVente.corps.erreur === 'offre_indisponible',
+    JSON.stringify(horsVente.corps));
 
   /* L'offre vient de la page : une clé inconnue ne doit pas tomber sur un
      tarif par défaut, sinon on vend ce qu'on n'a pas annoncé. */
@@ -206,7 +227,7 @@ serveur.listen(0, async () => {
 
   /* — 3. Le retour n'accepte pas n'importe quelle adresse — */
   const detourne = await appeler('/paiement', {
-    method: 'POST', corps: { appareil: 'a1234', offre: 'regulier', retour: 'https://site-pirate.example/vol' },
+    method: 'POST', corps: { appareil: 'a1234', offre: 'essentiel', retour: 'https://site-pirate.example/vol' },
   });
   const sessionDetournee = journal.sessions[journal.sessions.length - 1];
   verifier('un retour non déclaré est ramené à une origine autorisée',
@@ -251,8 +272,24 @@ serveur.listen(0, async () => {
   const santeAn = await appeler('/sante');
   verifier('la santé dit quelles offres se vendent à l\'année',
     Array.isArray(santeAn.corps.offresAn)
-      && santeAn.corps.offresAn.join() === 'essentiel,regulier',
+      && santeAn.corps.offresAn.join() === 'essentiel',
     JSON.stringify(santeAn.corps.offresAn));
+
+  /* ————— Le prix annoncé et le prix débité ————————————————————
+     Neuf centimes d'écart suffisent à rendre la facture indéfendable.
+     Un tarif qui ne dit plus le même prix que la page sort de la vente,
+     et la santé dit lequel : sans ça, l'offre disparue est une énigme. */
+  verifier('un tarif qui ne dit plus le prix affiché n\'est pas vendu',
+    !santeAn.corps.offresAn.includes('regulier'), JSON.stringify(santeAn.corps.offresAn));
+  verifier('et la santé dit lequel, avec les deux montants',
+    Array.isArray(santeAn.corps.ecarts)
+      && santeAn.corps.ecarts.some((e) => /regulier/.test(e) && /99,00/.test(e) && /89,00/.test(e)),
+    JSON.stringify(santeAn.corps.ecarts));
+  const malTarife = await appeler('/paiement', { method: 'POST',
+    corps: { offre: 'regulier', rythme: 'an', retour: 'http://localhost:8321/app.html' } });
+  verifier('et personne ne peut le payer malgré tout',
+    malTarife.code === 409 && malTarife.corps.erreur === 'offre_indisponible',
+    JSON.stringify(malTarife.corps));
 
   const paiementAn = await appeler('/paiement', { method: 'POST',
     corps: { offre: 'essentiel', rythme: 'an', retour: 'http://localhost:8321/app.html' } });
@@ -324,6 +361,36 @@ serveur.listen(0, async () => {
   verifier('une origine inconnue ne reçoit pas le feu vert',
     ailleurs.entetes['access-control-allow-origin'] === 'http://localhost:8321',
     ailleurs.entetes['access-control-allow-origin']);
+
+  /* — 8. La page et le serveur disent le même prix ————————————————
+     Le serveur refuse un tarif Stripe qui s'écarte du prix affiché ;
+     encore faut-il qu'il sache ce que la page affiche. Les deux tables
+     sont écrites à deux endroits, donc elles peuvent diverger — et le
+     jour où elles divergent, la boutique s'éteint sans un mot. Ce test
+     est le garde-fou du garde-fou : il échoue si l'on change un prix
+     dans `abonnement.js` en oubliant `serveur/index.js`. */
+  const fs = require('fs');
+  const vm = require('vm');
+
+  const source = fs.readFileSync(path.join(__dirname, '..', 'serveur', 'index.js'), 'utf8');
+  const litteral = source.match(/const PRIX_ANNONCES = (\{[\s\S]*?\n\});/);
+  const annonces = litteral ? new Function(`return ${litteral[1]}`)() : null;
+
+  const bac = { console, document: {}, localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} } };
+  bac.window = { location: { href: 'http://localhost/', search: '', pathname: '/' }, localStorage: bac.localStorage };
+  const page = vm.runInNewContext(
+    `${fs.readFileSync(path.join(__dirname, '..', 'abonnement.js'), 'utf8')};ABONNEMENT`, bac);
+
+  const divergences = [];
+  for (const offre of page.offres()) {
+    const vu = annonces && annonces[offre.cle];
+    if (!vu) { divergences.push(`${offre.cle} : absente du serveur`); continue; }
+    if (vu.mois !== offre.cents) divergences.push(`${offre.cle} au mois : page ${offre.cents}, serveur ${vu.mois}`);
+    const an = offre.annuel ? offre.annuel.cents : undefined;
+    if (vu.an !== an) divergences.push(`${offre.cle} à l'année : page ${an}, serveur ${vu.an}`);
+  }
+  verifier('le serveur connaît exactement les prix que la page affiche',
+    Boolean(annonces) && !divergences.length, divergences.join(' ; ') || 'table PRIX_ANNONCES introuvable');
 
   serveur.close();
   console.log(echecs ? `\n${echecs} vérification(s) en échec` : '\nTout est vert.');
