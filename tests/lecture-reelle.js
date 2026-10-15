@@ -66,7 +66,7 @@ function verifier(nom, condition, vu) {
 
   await page.goto('http://localhost:8321/app.html');
   await page.click('text=Lycéen'); await page.waitForTimeout(300);
-  await page.click('#ouvrir-creation'); await page.click('[data-creation="scan"]'); await page.waitForTimeout(300);
+  await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
   await page.setInputFiles('#scan-galerie', '/tmp/cours-test.png'); await page.waitForTimeout(300);
 
   const debut = Date.now();

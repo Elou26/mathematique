@@ -443,6 +443,48 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 .themes-vide .bouton-principal { margin-top: 12px; }
 
 /* ————— Carte d'accueil : scanner une fiche ————————————————————— */
+/* ————— Le second chemin de création ————————————————————————————
+   Écrire son texte est le cas minoritaire : la carte le dit, en clair et
+   d'un ton plus bas que la photo, mais sans l'enterrer sous une feuille à
+   ouvrir. Même gabarit que la carte bleue, pour que les deux se lisent
+   comme deux portes de la même pièce.
+   ———————————————————————————————————————————————————————————— */
+.carte-creation-autre {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: var(--blanc);
+  border: 1px solid var(--bordure);
+  border-radius: 18px;
+  text-align: left;
+  transition: transform .15s ease, border-color .15s ease;
+}
+.carte-creation-autre:active { transform: scale(.99); border-color: var(--marine); }
+.carte-creation-icone {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--gris-fond);
+  color: var(--marine);
+}
+.carte-creation-icone svg { width: 20px; height: 20px; fill: currentColor; }
+.carte-creation-texte { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.carte-creation-titre { font-size: 15px; font-weight: 800; color: var(--marine); }
+.carte-creation-detail { font-size: 12.5px; color: var(--gris-texte); }
+.carte-creation-fleche {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  flex: none;
+  fill: var(--gris-texte);
+}
+
 .carte-scan {
   display: flex;
   align-items: center;

@@ -166,8 +166,7 @@ function verifier(nom, condition, vu) {
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
-    await page.click('#ouvrir-creation');
-    await page.click('[data-creation="scan"]'); await page.waitForTimeout(400);
+    await page.click('#ouvrir-creation'); await page.waitForTimeout(400);
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
     await page.click('#scan-analyser');
     await page.waitForFunction(
@@ -192,8 +191,7 @@ function verifier(nom, condition, vu) {
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
-    await page.click('#ouvrir-creation');
-    await page.click('[data-creation="scan"]'); await page.waitForTimeout(400);
+    await page.click('#ouvrir-creation'); await page.waitForTimeout(400);
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
     await page.click('#scan-analyser'); await page.waitForTimeout(2000);
     verifier('la fiche lue est présentée', await page.isVisible('#scan-fiche-lue'), 'aperçu absent');

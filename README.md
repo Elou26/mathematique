@@ -886,6 +886,27 @@ est connecté : la licence reviendrait à la synchronisation suivante, et un
 bouton qui ne fait rien est pire que pas de bouton. Sans compte, il reste —
 là, l'appareil est bien le seul endroit où vit la licence.
 
+### L'accueil : créer, et rien d'autre
+
+L'accueil portait trois rubriques : créer, s'entraîner, les chapitres du
+programme. « S'entraîner » y passait avant même la première fiche, pour
+proposer trois modes qui n'avaient aucune carte à tirer — et il poussait la
+création vers le bas.
+
+L'entraînement vit maintenant dans **Mes fiches**, avec les cartes qu'il
+tire, et la section s'efface tant qu'il n'y a pas de cartes. L'accueil garde
+les deux chemins de création, ouverts tous les deux :
+
+| Carte | Mène à |
+| --- | --- |
+| **Photographier mon cours** (pleine, marine) | la photo, directement |
+| **Écrire ou coller mon texte** | l'atelier résumé, sur texte collé |
+
+Avant, la carte ouvrait une feuille où il fallait choisir entre les deux :
+un geste de plus sur l'action la plus fréquente de l'app, pour une question
+dont la réponse est presque toujours « photo ». La feuille reste pour les
+entrées par matière, où la question se pose vraiment.
+
 ### Pas de prix barré, un prix à la fiche
 
 Un prix barré est, en droit français, un **prix de référence** : un prix

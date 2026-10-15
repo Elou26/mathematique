@@ -71,19 +71,27 @@ function verifier(nom, condition, vu) {
     verifier('sans fiche, l\'accueil invite à en créer une',
       /premier cours en photo/.test(salut), salut.replace(/\n+/g, ' / '));
 
-    /* Un seul appel à l'action sur le premier écran. Il y en avait deux,
-       identiques, l'un sous l'autre : la salutation et la carte disaient la
-       même chose, ce qui fait hésiter au lieu d'ouvrir un choix. */
+    /* Un seul appel vers la photo sur le premier écran. Il y en avait eu
+       deux, identiques, l'un sous l'autre : la salutation et la carte
+       disaient la même chose, ce qui fait hésiter au lieu d'ouvrir un
+       choix. Les deux cartes de création, elles, ne se répètent pas :
+       l'une photographie, l'autre écrit. */
     const appels = await page.evaluate(() => {
       const vue = document.getElementById('vue-accueil');
       return [...vue.querySelectorAll('button')]
-        .filter((b) => b.offsetParent !== null && /créer/i.test(b.textContent))
+        .filter((b) => b.offsetParent !== null && /photograph|créer/i.test(b.textContent))
         .map((b) => b.textContent.trim().slice(0, 40));
     });
     verifier('et une seule fois, pas deux', appels.length === 1, appels.join(' | '));
 
-    await page.click('#ouvrir-creation'); await page.waitForTimeout(250);
-    await page.click('[data-creation="scan"]'); await page.waitForTimeout(400);
+    const chemins = await page.evaluate(() => [
+      document.getElementById('ouvrir-creation'),
+      document.getElementById('creer-par-texte'),
+    ].filter((b) => b && b.offsetParent !== null).length);
+    verifier('les deux chemins de création sont ouverts, sans feuille à ouvrir',
+      chemins === 2, `${chemins} chemin(s)`);
+
+    await page.click('#ouvrir-creation'); await page.waitForTimeout(400);
     verifier('la carte mène bien à la photo', await page.isVisible('#vue-scan'), 'vue scan masquée');
     await ctx.close();
   }
@@ -97,6 +105,9 @@ function verifier(nom, condition, vu) {
     page.on('pageerror', (e) => erreurs.push(String(e)));
     await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
 
+    /* L'entraînement vit maintenant dans la bibliothèque, avec les cartes
+       qu'il tire : c'est là qu'on va le chercher. */
+    await page.click('.barre-bas [data-onglet="cours"]'); await page.waitForTimeout(400);
     const entrainements = await page.innerText('#liste-entrainements');
     verifier('trois séances sont proposées',
       /Express/.test(entrainements) && /Marathon/.test(entrainements) && /Survie/.test(entrainements),
@@ -114,7 +125,7 @@ function verifier(nom, condition, vu) {
 
     // Survie : la séance s'arrête à la troisième erreur.
     await page.evaluate(() => {
-      document.querySelectorAll('.vue').forEach((el) => { el.hidden = el.id !== 'vue-accueil'; });
+      document.querySelectorAll('.vue').forEach((el) => { el.hidden = el.id !== 'vue-cours'; });
     });
     await page.locator('#liste-entrainements .ligne').nth(2).click(); await page.waitForTimeout(1100);
     for (let i = 0; i < 3; i++) {

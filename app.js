@@ -1090,27 +1090,13 @@
     conteneur.textContent = "";
     const stock = cartesDeToutesLesFiches().length;
 
-    /* Sans cartes, les trois modes disaient la même phrase morte, trois fois
-       de suite. Une seule invitation vaut mieux qu'un triple refus : on dit
-       ce qui manque et on ouvre la porte. */
-    if (!stock) {
-      const vide = document.createElement("li");
-      vide.className = "entrainement-vide";
-      vide.innerHTML = `
-        <p class="entrainement-vide-ligne">
-          <span class="entrainement-vide-emoji" aria-hidden="true">🗂️</span>
-          <span class="entrainement-vide-texte">
-            <strong>Pas encore de cartes.</strong>
-            Crée une fiche : les cartes en sortent toutes seules.
-          </span>
-        </p>
-        <button class="bouton-secondaire" type="button">Créer une fiche</button>`;
-      vide.querySelector("button").addEventListener("click", () => {
-        if (peutCreerUneFiche()) afficherVue("scan");
-      });
-      conteneur.appendChild(vide);
-      return;
-    }
+    /* Sans cartes, la section entière s'efface : elle vit maintenant dans
+       la bibliothèque, dont l'écran vide dit déjà « crée ta première
+       fiche ». Le redire sous un titre « S'entraîner » n'ajoutait qu'un
+       refus de plus à lire. */
+    const section = $("#bloc-entrainement");
+    if (section) section.hidden = !stock;
+    if (!stock) return;
 
     ENTRAINEMENTS.forEach((mode) => {
       conteneur.appendChild(ligne({
@@ -2014,10 +2000,21 @@
     const bouton = $("#ouvrir-creation");
     if (!bouton) return;
 
-    bouton.addEventListener("click", () => {
-      // Mieux vaut le dire avant la photo qu'après l'avoir prise.
-      if (peutCreerUneFiche()) ouvrirFeuilleCreation(null);
-    });
+    /* L'accueil ouvre directement la photo : c'est ce que l'élève vient
+       faire neuf fois sur dix. La feuille de choix reste là pour les
+       entrées par matière, où la question « photo ou texte ? » se pose. */
+    /* Depuis l'accueil, aucune matière n'est sous-entendue : on remet le
+       compteur à zéro, sinon la fiche hériterait de la dernière matière
+       d'où la feuille avait été ouverte. */
+    const creerDepuisAccueil = (option) => {
+      if (!peutCreerUneFiche()) return;      // le dire avant la photo, pas après
+      matiereCreation = null;
+      lancerCreation(option);
+    };
+
+    bouton.addEventListener("click", () => creerDepuisAccueil("scan"));
+    const parTexte = $("#creer-par-texte");
+    if (parTexte) parTexte.addEventListener("click", () => creerDepuisAccueil("texte"));
     $("#feuille-fond").addEventListener("click", fermerLesFeuilles);
     $("#fermer-creation").addEventListener("click", fermerFeuilleCreation);
     $("#fermer-reprise").addEventListener("click", fermerFeuilleReprise);

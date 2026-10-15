@@ -167,12 +167,15 @@
     <!-- Masquée tant que l'élève n'a aucune fiche : la salutation propose
          déjà « Créer ma première fiche », et deux fois le même bouton l'un
          sous l'autre ne fait pas deux choix, ça fait une hésitation. -->
+    <!-- Les deux chemins sont là, ouverts : photographier ou écrire. Passer
+         par une feuille pour choisir ajoutait un geste à l'action la plus
+         fréquente de l'app. -->
     <h2 class="titre-categorie" id="titre-creation">Créer une fiche</h2>
     <button class="carte-scan" type="button" id="ouvrir-creation">
       <span class="carte-scan-icone" aria-hidden="true"><svg><use href="#i-camera"></use></svg></span>
       <span class="carte-scan-texte">
-        <span class="carte-scan-titre">Nouvelle fiche</span>
-        <span class="carte-scan-detail">Photographie ton cours, ou écris ton texte toi-même.</span>
+        <span class="carte-scan-titre">Photographier mon cours</span>
+        <span class="carte-scan-detail">Une page, ou plusieurs : fiche, cartes et quiz en sortent.</span>
       </span>
       <span class="carte-scan-puces" aria-hidden="true">
         <svg><use href="#i-fichier"></use></svg>
@@ -181,11 +184,14 @@
       </span>
     </button>
 
-    <h2 class="titre-categorie">S'entraîner</h2>
-    <div class="bloc-social">
-      <p class="panneau-legende">Quelques minutes sur tes propres cartes</p>
-      <ul class="liste-defis" id="liste-entrainements"></ul>
-    </div>
+    <button class="carte-creation-autre" type="button" id="creer-par-texte">
+      <span class="carte-creation-icone" aria-hidden="true"><svg><use href="#i-crayon"></use></svg></span>
+      <span class="carte-creation-texte">
+        <span class="carte-creation-titre">Écrire ou coller mon texte</span>
+        <span class="carte-creation-detail">Quand tu as déjà le cours au clavier.</span>
+      </span>
+      <svg class="carte-creation-fleche" aria-hidden="true"><use href="#i-fleche"></use></svg>
+    </button>
 
     <h2 class="titre-categorie" id="titre-themes">Chapitres de ton programme</h2>
     <div class="themes" id="bloc-themes"><!-- carrousel + dépliant, injectés par app.js --></div>
@@ -666,6 +672,18 @@
     <h2 class="titre-categorie titre-categorie--grand">Mes fiches</h2>
     <p class="sous-texte" id="cours-etat">Une matière par dossier.</p>
     <div class="liste-cours" id="liste-tous-cours"></div>
+
+    <!-- L'entraînement vit ici, avec les cartes qu'il tire — et non sur
+         l'accueil, où il passait avant même d'avoir une seule fiche. Sans
+         cartes, la section ne s'affiche pas : la bibliothèque vide dit
+         déjà quoi faire, et le répéter n'ajoute rien. -->
+    <div id="bloc-entrainement" hidden>
+      <h2 class="titre-categorie">S'entraîner</h2>
+      <div class="bloc-social">
+        <p class="panneau-legende">Quelques minutes sur tes propres cartes</p>
+        <ul class="liste-defis" id="liste-entrainements"></ul>
+      </div>
+    </div>
   </section>
 
   <!-- Vue : Profil -->

@@ -91,8 +91,7 @@ window.Tesseract = {
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
-    await page.click('#ouvrir-creation');
-    await page.click('[data-creation="scan"]'); await page.waitForTimeout(400);
+    await page.click('#ouvrir-creation'); await page.waitForTimeout(400);
     return page;
   }
 
@@ -107,8 +106,7 @@ window.Tesseract = {
     page.on('pageerror', (e) => erreurs.push(String(e)));
     await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
-    await page.click('#ouvrir-creation');
-    await page.click('[data-creation="scan"]'); await page.waitForTimeout(400);
+    await page.click('#ouvrir-creation'); await page.waitForTimeout(400);
 
     verifier('le bandeau annonce le service',
       /service spécialisé/.test(await page.innerText('#scan-moteur')), await page.innerText('#scan-moteur'));

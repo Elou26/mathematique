@@ -99,11 +99,12 @@ function semence(fiches, paiement) {
     page.on('pageerror', (e) => erreurs.push(String(e)));
     await page.goto('http://localhost:8321/app.html'); await page.waitForTimeout(500);
 
+    /* L'accueil ouvre la photo directement : plus de feuille de choix. */
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
     verifier('sans serveur de paiement, la création reste libre',
-      (await page.isVisible('#feuille-creation')) && !(await page.isVisible('#vue-abonnement')),
+      (await page.isVisible('#vue-scan')) && !(await page.isVisible('#vue-abonnement')),
       'un mur est apparu alors qu\'on ne peut pas payer');
-    await page.click('#fermer-creation'); await page.waitForTimeout(200);
+    await page.click('#vue-scan .retour'); await page.waitForTimeout(200);
 
     /* Le compteur reste visible, mais ne promet pas de solde : inventer
        300 crédits qui ne descendent jamais serait un faux compteur, et le
@@ -171,8 +172,8 @@ function semence(fiches, paiement) {
       await page.getAttribute('#credits-solde', 'class'));
 
     verifier('sous le quota, la création s\'ouvre normalement',
-      await page.isVisible('#feuille-creation'), 'feuille de création masquée');
-    await page.click('#fermer-creation'); await page.waitForTimeout(200);
+      await page.isVisible('#vue-scan'), 'la photo ne s\'est pas ouverte');
+    await page.click('#vue-scan .retour'); await page.waitForTimeout(200);
 
     await page.click('.barre-bas [data-onglet="profil"]'); await page.waitForTimeout(250);
     verifier('le profil dit où en est le quota',
@@ -191,7 +192,7 @@ function semence(fiches, paiement) {
 
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
     verifier('la page de tarif s\'ouvre au lieu de la création',
-      (await page.isVisible('#vue-abonnement')) && !(await page.isVisible('#feuille-creation')),
+      (await page.isVisible('#vue-abonnement')) && !(await page.isVisible('#vue-scan')),
       'vue inattendue');
     verifier('elle annonce les trois tarifs et leurs volumes',
       /4,90 €/.test(await page.innerText('#illimite-offres'))
@@ -320,7 +321,7 @@ function semence(fiches, paiement) {
     await page.click('.barre-bas [data-onglet="accueil"]'); await page.waitForTimeout(200);
     await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
     verifier('la création n\'est plus bloquée',
-      await page.isVisible('#feuille-creation'), 'mur encore là');
+      await page.isVisible('#vue-scan'), 'mur encore là');
     await ctx.close();
   }
 

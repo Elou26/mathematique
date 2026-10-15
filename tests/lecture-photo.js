@@ -82,8 +82,7 @@ function verifier(nom, condition, vu) {
     page.on('pageerror', (e) => erreurs.push(String(e)));
     await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
-    await page.click('#ouvrir-creation'); await page.waitForTimeout(200);
-    await page.click('[data-creation="scan"]'); await page.waitForTimeout(300);
+    await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
 
     verifier('le moteur annonce la lecture par l\'IA',
       /L'IA lit tes pages/.test(await page.innerText('#scan-moteur')), await page.innerText('#scan-moteur'));
@@ -172,7 +171,7 @@ function verifier(nom, condition, vu) {
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
-    await page.click('#ouvrir-creation'); await page.click('[data-creation="scan"]'); await page.waitForTimeout(300);
+    await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
     await page.click('#scan-analyser'); await page.waitForTimeout(1000);
     verifier('une photo illisible est annoncée', /trop floue/.test(await page.innerText('#scan-message')),
@@ -194,7 +193,7 @@ function verifier(nom, condition, vu) {
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
-    await page.click('#ouvrir-creation'); await page.click('[data-creation="scan"]'); await page.waitForTimeout(300);
+    await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
     verifier('le repli manuel est annoncé', /photos ne passent pas dans cette vue/.test(await page.innerText('#scan-moteur')),
       await page.innerText('#scan-moteur'));
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
@@ -225,7 +224,7 @@ function verifier(nom, condition, vu) {
     const page = await ctx.newPage();
     await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
-    await page.click('#ouvrir-creation'); await page.click('[data-creation="scan"]'); await page.waitForTimeout(400);
+    await page.click('#ouvrir-creation'); await page.waitForTimeout(400);
     verifier('déconnecté : le message renvoie à la connexion',
       /connecte-toi/i.test(await page.innerText('#scan-moteur')), await page.innerText('#scan-moteur'));
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
@@ -247,7 +246,7 @@ function verifier(nom, condition, vu) {
     page.on('pageerror', (e) => erreurs.push(String(e)));
     await page.goto('http://localhost:8321/app.html');
     await page.click('text=Lycéen'); await page.waitForTimeout(400);
-    await page.click('#ouvrir-creation'); await page.click('[data-creation="scan"]'); await page.waitForTimeout(300);
+    await page.click('#ouvrir-creation'); await page.waitForTimeout(300);
     await page.setInputFiles('#scan-galerie', '/tmp/page-cours.png'); await page.waitForTimeout(300);
     await page.click('#scan-analyser'); await page.waitForTimeout(300);
     verifier('la lecture est bien en cours', await page.isVisible('#chargement-scan'), 'aucune lecture en vol');
